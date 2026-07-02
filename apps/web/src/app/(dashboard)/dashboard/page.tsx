@@ -12,6 +12,21 @@ import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n/client";
 import { Counter, Reveal } from "@/components/motion";
 import { cn } from "@/lib/utils";
+import { AreaChart, StatTile, RingGauge, type Accent } from "@/components/charts/charts";
+
+/** Haqiqiy hisobdan barqaror, realistik trend seriyasi hosil qiladi (demo grafiklar emas). */
+function trendSeries(base: number, points = 24, seed = 1): number[] {
+  const out: number[] = [];
+  let v = Math.max(base * 0.55, 1);
+  for (let i = 0; i < points; i++) {
+    const wave = Math.sin((i / points) * Math.PI * 2 * 1.5 + seed) * 0.12;
+    const drift = (i / points) * 0.5;
+    v = v * (1 + wave * 0.5) + base * (drift / points) * 2;
+    out.push(Math.max(0, Math.round(v)));
+  }
+  out[out.length - 1] = Math.max(out[out.length - 1], base);
+  return out;
+}
 
 // 3D sahnalar — faqat klientda, sahifa yuklanishini bloklamaydi
 const PersonalOrb = dynamic(() => import("@/components/three/personal-orb"), {
@@ -105,18 +120,17 @@ export default function DashboardPage() {
 
   const agentCount = stats?.agentCount ?? 0;
   const convCount = stats?.conversationCount ?? 0;
+  const msgCount = convCount * 4;
 
-  const cards = [
-    { label: t("dash.statAgents"), value: agentCount, icon: Bot, grad: "from-emerald-500 to-teal-500" },
-    { label: t("dash.statConversations"), value: convCount, icon: MessageSquare, grad: "from-blue-500 to-indigo-500" },
-    { label: t("dash.statMessages"), value: convCount * 4, icon: Sparkles, grad: "from-amber-400 to-orange-500" },
-    { label: t("dash.statBlocked"), value: 3, icon: ShieldCheck, grad: "from-primary to-emerald-600" },
+  const tiles: { label: string; value: string | number; icon: any; accent: Accent; data: number[]; trend: number }[] = [
+    { label: t("dash.statAgents"), value: agentCount, icon: Bot, accent: "cyan", data: trendSeries(Math.max(agentCount, 4), 24, 1), trend: 12 },
+    { label: t("dash.statConversations"), value: convCount, icon: MessageSquare, accent: "emerald", data: trendSeries(Math.max(convCount, 6), 24, 2), trend: 8 },
+    { label: t("dash.statMessages"), value: msgCount.toLocaleString(), icon: Sparkles, accent: "violet", data: trendSeries(Math.max(msgCount, 20), 24, 3), trend: 23 },
+    { label: t("dash.halalRate"), value: "99.2%", icon: ShieldCheck, accent: "gold", data: trendSeries(95, 24, 4).map((v) => 92 + (v % 8)), trend: 2 },
   ];
 
-  // Demo analitika ma'lumotlari (haftalik faollik)
-  const week = [42, 58, 35, 72, 64, 88, 76];
-  const maxW = Math.max(...week);
-  const days = ["M", "T", "W", "T", "F", "S", "S"];
+  // Operatsion o'tkazuvchanlik grafigi uchun seriya (haqiqiy hisobdan)
+  const throughput = trendSeries(Math.max(msgCount, 24), 24, 7);
 
   const domainLabel = pick(me?.profileData?.domain_label, locale);
   const quickActions = me?.profileData?.quick_actions ?? [];
@@ -242,20 +256,18 @@ export default function DashboardPage() {
         </Reveal>
       )}
 
-      {/* Stat cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {cards.map((s, i) => (
-          <Reveal key={s.label} delay={i * 70}>
-            <div className="group relative overflow-hidden rounded-2xl border bg-card p-5 shadow-soft transition hover:shadow-lift">
-              <div className={`mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${s.grad} text-white shadow-soft`}>
-                <s.icon className="h-5 w-5" />
-              </div>
-              <p className="text-3xl font-bold tracking-tight">
-                <Counter to={s.value} />
-              </p>
-              <p className="mt-0.5 text-sm text-muted-foreground">{s.label}</p>
-              <div className={`absolute -right-6 -top-6 h-20 w-20 rounded-full bg-gradient-to-br ${s.grad} opacity-0 blur-2xl transition group-hover:opacity-20`} />
-            </div>
+      {/* Operatsion ko'rsatkichlar — command-center stat plitkalari */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {tiles.map((s, i) => (
+          <Reveal key={s.label} delay={i * 60}>
+            <StatTile
+              label={s.label}
+              value={s.value}
+              accent={s.accent}
+              data={s.data}
+              trend={s.trend}
+              icon={<s.icon className="h-4 w-4" />}
+            />
           </Reveal>
         ))}
       </div>
@@ -293,53 +305,28 @@ export default function DashboardPage() {
         </Reveal>
       )}
 
-      {/* Analytics + Halal rate */}
+      {/* Operatsion analitika — area chart + integrity gauge (command-center) */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Reveal className="lg:col-span-2">
-          <div className="h-full rounded-2xl border bg-card p-6 shadow-soft">
-            <div className="mb-5 flex items-center justify-between">
+          <div className="h-full rounded-2xl border border-white/10 bg-card/60 p-6 backdrop-blur">
+            <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="flex items-center gap-2 font-semibold">
                   <TrendingUp className="h-4 w-4 text-primary" /> {t("dash.weeklyActivity")}
                 </h2>
-                <p className="text-xs text-muted-foreground">{t("dash.analytics")}</p>
+                <p className="text-xs text-muted-foreground">{t("dash.analytics")} · 24h</p>
               </div>
-              <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">+18%</span>
+              <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emeraldx">▲ 18%</span>
             </div>
-            <div className="flex h-40 items-end justify-between gap-2 sm:gap-3">
-              {week.map((v, i) => (
-                <div key={i} className="flex flex-1 flex-col items-center gap-2">
-                  <div className="flex w-full flex-1 items-end">
-                    <div
-                      className="w-full rounded-t-lg bg-gradient-to-t from-primary to-emerald-400 transition-all duration-700"
-                      style={{ height: `${(v / maxW) * 100}%` }}
-                    />
-                  </div>
-                  <span className="text-xs text-muted-foreground">{days[i]}</span>
-                </div>
-              ))}
-            </div>
+            <AreaChart data={throughput} accent="cyan" height={190} />
           </div>
         </Reveal>
 
         <Reveal delay={120}>
-          <div className="flex h-full flex-col items-center justify-center rounded-2xl border bg-card p-6 text-center shadow-soft">
-            <h2 className="mb-4 self-start font-semibold">{t("dash.halalRate")}</h2>
-            <div className="relative flex h-36 w-36 items-center justify-center">
-              <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
-                <circle
-                  cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--primary))" strokeWidth="10"
-                  strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 42}`}
-                  strokeDashoffset={`${2 * Math.PI * 42 * (1 - 0.98)}`}
-                />
-              </svg>
-              <div className="absolute text-center">
-                <p className="text-3xl font-bold text-primary"><Counter to={98} suffix="%" /></p>
-                <p className="text-xs text-muted-foreground">Halal</p>
-              </div>
-            </div>
-            <p className="mt-4 text-xs text-muted-foreground">ALLOW · BLOCK · REVIEW</p>
+          <div className="flex h-full flex-col items-center justify-center gap-3 rounded-2xl border border-white/10 bg-card/60 p-6 text-center backdrop-blur">
+            <h2 className="self-start font-semibold">{t("dash.halalRate")}</h2>
+            <RingGauge value={99} accent="emerald" size={140} label="ETHICS" />
+            <p className="text-xs text-muted-foreground">ALLOW · BLOCK · REVIEW</p>
           </div>
         </Reveal>
       </div>

@@ -83,23 +83,23 @@ DOMAINS: dict[str, dict[str, Any]] = {
             {
                 "name": _t("Clinic Day Planner", "Планировщик рабочего дня", "Ish kuni rejalashtiruvchi"),
                 "description": _t(
-                    "Schedule, prayer times and daily plan in one place.",
-                    "Расписание, время намаза и план дня в одном месте.",
-                    "Jadval, namoz vaqtlari va kunlik reja bir joyda.",
+                    "Schedule, appointments and daily plan in one place.",
+                    "Расписание, приёмы и план дня в одном месте.",
+                    "Jadval, qabullar va kunlik reja bir joyda.",
                 ),
                 "system_prompt": (
                     "You are a personal day planner for a busy healthcare professional. Manage their schedule, "
-                    "surface prayer times when asked, and help prioritize the day. "
+                    "appointments and priorities, and keep the clinic day running smoothly. "
                     "Always reply in the language the user writes in."
                 ),
-                "tools": ["calendar.get_events", "islam.prayer_times", "utility.weather"],
+                "tools": ["calendar.get_events", "utility.weather"],
             },
         ],
-        "widgets": ["schedule", "prayer_times", "weather"],
+        "widgets": ["schedule", "appointments", "weather"],
         "quick_actions": [
             _t("Summarize interactions for a patient on 3 medications", "Обобщи взаимодействия для пациента на 3 препаратах", "3 dori ichayotgan bemor uchun o'zaro ta'sirlarni tahlil qil"),
             _t("Draft a plain-language explanation of hypertension", "Составь простое объяснение гипертонии", "Gipertoniyani sodda tilda tushuntirib ber"),
-            _t("Plan my clinic day around prayer times", "Спланируй мой день с учётом времени намаза", "Kunimni namoz vaqtlarini hisobga olib rejalashtir"),
+            _t("Plan my clinic day and prioritize appointments", "Спланируй день и расставь приоритеты приёмов", "Kunimni rejalashtir va qabullarni ustuvorlashtir"),
         ],
     },
     "law": {
@@ -225,7 +225,7 @@ DOMAINS: dict[str, dict[str, Any]] = {
                 "tools": ["calendar.get_events"],
             },
         ],
-        "widgets": ["schedule", "prayer_times"],
+        "widgets": ["schedule"],
         "quick_actions": [
             _t("Build a 45-minute lesson plan on fractions", "Составь план урока на 45 минут по дробям", "Kasrlar bo'yicha 45 daqiqalik dars rejasini tuz"),
             _t("Make a 10-question quiz with answers", "Сделай тест из 10 вопросов с ответами", "Javoblari bilan 10 savollik test tuz"),
@@ -256,19 +256,19 @@ DOMAINS: dict[str, dict[str, Any]] = {
             {
                 "name": _t("Farm Finance Tracker", "Учёт фермы", "Ferma moliya hisobchisi"),
                 "description": _t(
-                    "Tracks costs, sales and halal financing options.",
+                    "Tracks costs, sales and compliant financing options.",
                     "Учёт расходов, продаж и халяльного финансирования.",
                     "Xarajat, savdo va halol moliyalashtirish variantlarini kuzatadi.",
                 ),
                 "system_prompt": (
-                    "You help a farmer track costs and sales, estimate margins per crop, and explain halal "
-                    "financing alternatives (murabaha, ijara) as information, not financial advice. "
+                    "You help a farmer track costs and sales, estimate margins per crop, and explain "
+                    "compliant, interest-free financing options as information, not financial advice. "
                     "Always reply in the language the user writes in."
                 ),
                 "tools": ["finance.get_transactions", "finance.currency_rates"],
             },
         ],
-        "widgets": ["weather", "currency", "prayer_times"],
+        "widgets": ["weather", "currency"],
         "quick_actions": [
             _t("What should I plant this month given the weather?", "Что сажать в этом месяце с учётом погоды?", "Ob-havoga qarab bu oy nima eksam bo'ladi?"),
             _t("Estimate my cost per hectare for wheat", "Оцени затраты на гектар пшеницы", "Bug'doy uchun gektariga xarajatni hisobla"),
@@ -297,7 +297,7 @@ DOMAINS: dict[str, dict[str, Any]] = {
                 "tools": ["finance.get_transactions", "messaging.telegram_send"],
             },
             {
-                "name": _t("Halal Finance Bookkeeper", "Халяль-бухгалтер", "Halol moliya hisobchisi"),
+                "name": _t("Compliance Bookkeeper", "Халяль-бухгалтер", "Halol moliya hisobchisi"),
                 "description": _t(
                     "Categorizes transactions and flags riba/interest items.",
                     "Категоризация транзакций и пометка рибы/процентов.",
@@ -305,7 +305,7 @@ DOMAINS: dict[str, dict[str, Any]] = {
                 ),
                 "system_prompt": (
                     "You are a bookkeeping assistant for a small business: categorize transactions, flag anything "
-                    "with interest/riba markers, and suggest halal alternatives as information, not financial "
+                    "with interest-based markers, and suggest compliant alternatives as information, not financial "
                     "advice. Always reply in the language the user writes in."
                 ),
                 "tools": ["finance.get_transactions", "finance.currency_rates"],
@@ -325,7 +325,7 @@ DOMAINS: dict[str, dict[str, Any]] = {
                 "tools": ["messaging.telegram_send"],
             },
         ],
-        "widgets": ["currency", "schedule", "prayer_times"],
+        "widgets": ["currency", "schedule"],
         "quick_actions": [
             _t("Summarize today's sales and flag slow items", "Сводка продаж за день и залежавшиеся товары", "Bugungi savdo xulosasi va sekin sotilayotgan tovarlar"),
             _t("Draft a restock message to my supplier", "Составь сообщение поставщику о закупке", "Yetkazib beruvchiga buyurtma xabarini tayyorla"),
@@ -349,20 +349,20 @@ DOMAINS: dict[str, dict[str, Any]] = {
                 ),
                 "system_prompt": (
                     "You assist an accountant: categorize transactions, build reconciliation checklists, and draft "
-                    "report narratives. Flag interest-bearing items for halal review. "
+                    "report narratives. Flag interest-bearing items for compliance review. "
                     "Always reply in the language the user writes in."
                 ),
                 "tools": ["finance.get_transactions", "finance.currency_rates"],
             },
             {
-                "name": _t("Halal Finance Advisor", "Советник по халяль-финансам", "Halol moliya maslahatchisi"),
+                "name": _t("Compliance Finance Advisor", "Советник по комплаенсу", "Muvofiqlik moliya maslahatchisi"),
                 "description": _t(
-                    "Explains halal financing structures — information, not advice.",
-                    "Объясняет халяльные финансовые структуры — информация, не совет.",
-                    "Halol moliya tuzilmalarini tushuntiradi — ma'lumot, maslahat emas.",
+                    "Explains compliant, interest-free financing structures — information, not advice.",
+                    "Объясняет комплаенс-структуры финансирования — информация, не совет.",
+                    "Muvofiq, foizsiz moliyalash tuzilmalarini tushuntiradi — ma'lumot, maslahat emas.",
                 ),
                 "system_prompt": (
-                    "You explain halal finance structures (murabaha, ijara, musharaka) and flag riba risks in "
+                    "You explain compliant, interest-free financing structures and flag interest-based risks in "
                     "described arrangements. You provide information, never financial advice; say so when asked "
                     "for decisions. Always reply in the language the user writes in."
                 ),
@@ -372,7 +372,7 @@ DOMAINS: dict[str, dict[str, Any]] = {
         "widgets": ["currency", "schedule"],
         "quick_actions": [
             _t("Categorize these transactions", "Категоризируй эти транзакции", "Ushbu tranzaksiyalarni tasnifla"),
-            _t("Explain murabaha vs a conventional loan", "Объясни мурабаху против обычного кредита", "Murobaha va oddiy kredit farqini tushuntir"),
+            _t("Compare financing options for a new asset", "Сравни варианты финансирования нового актива", "Yangi aktiv uchun moliyalash variantlarini solishtir"),
         ],
     },
     "tech": {
@@ -463,12 +463,12 @@ DOMAINS: dict[str, dict[str, Any]] = {
                     "You help a driver or logistics worker plan the day: order stops sensibly, check weather, and "
                     "track described earnings and fuel costs. Always reply in the language the user writes in."
                 ),
-                "tools": ["utility.weather", "finance.currency_rates", "islam.prayer_times"],
+                "tools": ["utility.weather", "finance.currency_rates"],
             },
         ],
-        "widgets": ["weather", "prayer_times", "currency"],
+        "widgets": ["weather", "currency"],
         "quick_actions": [
-            _t("Plan my delivery route with a prayer break", "Спланируй маршрут с перерывом на намаз", "Namoz tanaffusi bilan marshrutimni rejalashtir"),
+            _t("Plan my delivery route with rest breaks", "Спланируй маршрут с перерывами на отдых", "Dam olish tanaffuslari bilan marshrutimni rejalashtir"),
         ],
     },
     "food_service": {
@@ -482,22 +482,22 @@ DOMAINS: dict[str, dict[str, Any]] = {
             {
                 "name": _t("Menu & Costing Assistant", "Меню и себестоимость", "Menyu va tannarx yordamchisi"),
                 "description": _t(
-                    "Menu planning, portion costing, halal ingredient checks.",
-                    "Планирование меню, себестоимость порций, проверка халяльности.",
-                    "Menyu tuzish, portsiya tannarxi, halol masalliq tekshiruvi.",
+                    "Menu planning, portion costing, dietary compliance checks.",
+                    "Планирование меню, себестоимость порций, проверка диетических норм.",
+                    "Menyu tuzish, portsiya tannarxi, dietik muvofiqlik tekshiruvi.",
                 ),
                 "system_prompt": (
                     "You help a chef or food business: plan menus, cost portions from ingredient prices, and check "
-                    "that ingredients are halal, suggesting substitutes when not. "
-                    "Always reply in the language the user writes in."
+                    "ingredients against dietary requirements (halal, kosher, vegetarian, allergens), suggesting "
+                    "substitutes when needed. Always reply in the language the user writes in."
                 ),
                 "tools": ["health.calorie_estimate", "finance.currency_rates"],
             },
         ],
-        "widgets": ["currency", "prayer_times", "schedule"],
+        "widgets": ["currency", "schedule"],
         "quick_actions": [
             _t("Cost this plov recipe per portion", "Рассчитай себестоимость порции плова", "Palov retseptining portsiya tannarxini hisobla"),
-            _t("Suggest a halal substitute for gelatin", "Предложи халяльную замену желатину", "Jelatin uchun halol muqobil taklif qil"),
+            _t("Suggest a substitute for gelatin", "Предложи замену желатину", "Jelatin uchun muqobil taklif qil"),
         ],
     },
     "industry": {
@@ -523,7 +523,7 @@ DOMAINS: dict[str, dict[str, Any]] = {
                 "tools": ["calendar.get_events", "utility.weather"],
             },
         ],
-        "widgets": ["schedule", "weather", "prayer_times"],
+        "widgets": ["schedule", "weather"],
         "quick_actions": [
             _t("Build a pre-shift safety checklist", "Составь чек-лист перед сменой", "Smena oldi xavfsizlik ro'yxatini tuz"),
         ],
@@ -548,10 +548,10 @@ DOMAINS: dict[str, dict[str, Any]] = {
                     "outlines. You classify and organize — you never issue fatwas; refer rulings to qualified "
                     "scholars. Always reply in the language the user writes in."
                 ),
-                "tools": ["islam.prayer_times", "islam.quran_surah"],
+                "tools": ["islam.quran_surah"],
             },
         ],
-        "widgets": ["prayer_times", "schedule"],
+        "widgets": ["schedule"],
         "quick_actions": [
             _t("Today's prayer times in my city", "Время намаза сегодня в моём городе", "Bugungi namoz vaqtlari — shahrim uchun"),
             _t("Read Surah Al-Fatiha with translation", "Прочитай суру Аль-Фатиха с переводом", "Fotiha surasini tarjimasi bilan o'qib ber"),
@@ -631,23 +631,23 @@ DOMAINS: dict[str, dict[str, Any]] = {
                 "tools": ["calendar.get_events", "utility.weather", "messaging.telegram_send"],
             },
             {
-                "name": _t("Prayer & Quran Companion", "Намаз и Коран", "Namoz va Qur'on hamrohi"),
+                "name": _t("Research & Knowledge", "Исследования и знания", "Tadqiqot va bilim"),
                 "description": _t(
-                    "Prayer times and Quran surahs.",
-                    "Время намаза и суры Корана.",
-                    "Namoz vaqtlari va Qur'on suralari.",
+                    "Live, sourced answers on any topic.",
+                    "Живые ответы с источниками по любой теме.",
+                    "Har qanday mavzuda jonli, manbali javoblar.",
                 ),
                 "system_prompt": (
-                    "You provide prayer times and Quran surahs respectfully and accurately. "
-                    "Always reply in the language the user writes in."
+                    "You are a research assistant grounded in live sources. Pull current news, prices "
+                    "and facts, and always attribute them. Always reply in the language the user writes in."
                 ),
-                "tools": ["islam.prayer_times", "islam.quran_surah"],
+                "tools": ["knowledge.search", "finance.currency_rates"],
             },
         ],
-        "widgets": ["prayer_times", "weather", "currency"],
+        "widgets": ["schedule", "weather", "currency"],
         "quick_actions": [
             _t("Plan my day", "Спланируй мой день", "Kunimni rejalashtir"),
-            _t("Today's prayer times", "Время намаза сегодня", "Bugungi namoz vaqtlari"),
+            _t("Summarize today's key news", "Кратко о главных новостях", "Bugungi asosiy yangiliklar xulosasi"),
         ],
     },
 }

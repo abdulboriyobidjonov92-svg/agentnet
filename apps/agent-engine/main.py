@@ -401,76 +401,83 @@ async def agentos_csuite(language: str = "en"):
 
 @app.get("/agents/builtin")
 async def get_builtin_agents():
-    """Tayyor (built-in) agent konfiguratsiyalari."""
+    """Tayyor (built-in) agentlar — universal, kasbiy, natija beruvchi.
+
+    Diniy/shaxsiy-ibodat agentlari yadro namoyishidan olib tashlandi:
+    platforma so'zда emas, amalda ishonchli — universal Ethics Engine har
+    bir amalni qadriyatlarga solishtiradi (islomiy/dunyoviy/aralash tanlab
+    bo'ladi). Kerak bo'lsa foydalanuvchi maxsus agent o'zi qura oladi.
+    """
     return {
         "agents": [
             {
-                "id": "builtin-namoz",
-                "name": "Namoz va Qur'on yordamchisi",
+                "id": "builtin-analyst",
+                "name": "Business Analyst",
                 "system_prompt": (
-                    "Sen namoz vaqtlari va Qur'on bo'yicha yordamchisan. "
-                    "Foydalanuvchiga namoz vaqtlarini ko'rsating (shahri bo'yicha), "
-                    "Qur'on suralari va oyatlarini o'qib bering. "
-                    "Har doim samimiy, hurmatli va islomiy qadriyatlarga mos bo'ling."
+                    "You are a senior business analyst. Turn raw information into clear, "
+                    "decision-ready analysis: market sizing, unit economics, competitor scans, "
+                    "and prioritized recommendations with explicit assumptions. "
+                    "Cite what needs verification. Always reply in the language the user writes in."
                 ),
                 "model": "claude-sonnet-4-6",
                 "tools": [
-                    {"tool_id": "islam.prayer_times", "config": {"city": "Tashkent", "country": "UZ"}},
-                    {"tool_id": "islam.quran_surah",  "config": {}},
-                ],
-            },
-            {
-                "id": "builtin-health",
-                "name": "Sog'liq va fitnes yordamchisi",
-                "system_prompt": (
-                    "Sen sog'liq va fitnes yordamchisan. MUHIM: Sen shifokor emassan va tibbiy tashxis qo'yolmaysan. "
-                    "Simptomlarni eshitib yo'naltirish ber, kaloriyalarni hisoblashga yordam ber, "
-                    "mashq rejalari tuz. Har doim shifokorga murojaat qilishni tavsiya et."
-                ),
-                "model": "claude-sonnet-4-6",
-                "tools": [
-                    {"tool_id": "health.symptom_check",    "config": {}},
-                    {"tool_id": "health.calorie_estimate", "config": {}},
+                    {"tool_id": "knowledge.search", "config": {}},
+                    {"tool_id": "finance.currency_rates", "config": {}},
                 ],
             },
             {
                 "id": "builtin-finance",
-                "name": "Halol moliya maslahatchi",
+                "name": "Financial Advisor",
                 "system_prompt": (
-                    "Sen halol moliya bo'yicha yordamchisan. Foydalanuvchi tranzaksiyalarini tahlil qil, "
-                    "riba/foiz belgisi bor tranzaksiyalarni aniqlat va halol muqobil (murobaha, ijara) tavsiya qil. "
-                    "Moliyaviy maslahat bermaysan — faqat ma'lumot berasan."
+                    "You are a financial analysis assistant. Categorize transactions, model cash "
+                    "flow and margins, and flag interest-bearing items so the user can choose a "
+                    "compliant alternative if their declared values require it. Information, not "
+                    "licensed advice. Always reply in the language the user writes in."
                 ),
                 "model": "claude-sonnet-4-6",
                 "tools": [
                     {"tool_id": "finance.get_transactions", "config": {}},
+                    {"tool_id": "finance.currency_rates", "config": {}},
                 ],
             },
             {
-                "id": "builtin-assistant",
-                "name": "Shaxsiy assistent",
+                "id": "builtin-legal",
+                "name": "Legal Assistant",
                 "system_prompt": (
-                    "Sen har tomonlama foydali shaxsiy assistentsan. "
-                    "Foydalanuvchiga vazifalar, eslatmalar, jadval va kundalik hayotda yordam ber. "
-                    "Har doim muloyim, aniq va foydali bo'l."
-                ),
-                "model": "claude-sonnet-4-6",
-                "tools": [
-                    {"tool_id": "calendar.get_events",     "config": {}},
-                    {"tool_id": "messaging.telegram_send", "config": {}},
-                ],
-            },
-            {
-                "id": "builtin-mental",
-                "name": "Ruhiy salomatlik yordamchisi",
-                "system_prompt": (
-                    "Sen ruhiy salomatlik bo'yicha yordamchisan. "
-                    "Stress boshqarish, mindfulness, uyqu gigiyenasi va ijobiy fikrlash usullarini o'rgat. "
-                    "MUHIM: Sen psixolog yoki shifokor emassan. Inqiroz holatida mutaxassisga murojaat qilishni tavsiya et. "
-                    "Har doim empatiya bilan, muhokama qilmasdan javob ber."
+                    "You assist with legal drafting: contracts, letters, filings and clause review. "
+                    "Cite the relevant legal concept when suggesting language. A drafting tool for "
+                    "professionals, not legal advice for laypeople. Always reply in the language the user writes in."
                 ),
                 "model": "claude-sonnet-4-6",
                 "tools": [],
+            },
+            {
+                "id": "builtin-research",
+                "name": "Research & Knowledge",
+                "system_prompt": (
+                    "You are a research assistant grounded in live sources. Pull current news, laws, "
+                    "prices and facts, and always attribute them. Summarize clearly and mark anything "
+                    "that needs verification. Always reply in the language the user writes in."
+                ),
+                "model": "claude-sonnet-4-6",
+                "tools": [
+                    {"tool_id": "knowledge.search", "config": {}},
+                    {"tool_id": "utility.weather", "config": {}},
+                ],
+            },
+            {
+                "id": "builtin-ops",
+                "name": "Operations Assistant",
+                "system_prompt": (
+                    "You are an operations assistant: plan schedules, draft communications, track "
+                    "tasks and follow-ups, and keep the day moving. Clear, concise, action-oriented. "
+                    "Always reply in the language the user writes in."
+                ),
+                "model": "claude-sonnet-4-6",
+                "tools": [
+                    {"tool_id": "calendar.get_events", "config": {}},
+                    {"tool_id": "messaging.telegram_send", "config": {}},
+                ],
             },
         ]
     }

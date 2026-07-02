@@ -3,7 +3,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 import {
-  Moon, BookOpen, Stethoscope, Flame, Wallet, CalendarDays,
+  Stethoscope, Flame, Wallet, CalendarDays,
   Send, DollarSign, CloudSun, Check, ShieldCheck, Globe,
 } from "lucide-react";
 
@@ -13,17 +13,16 @@ const MODELS = [
   { value: "claude-opus-4-8", key: "form.modelPowerful", label: "Claude Opus 4.8" },
 ];
 
+// Universal, kasbiy vositalar (diniy vositalar yadro namoyishidan olib tashlandi)
 const TOOLS = [
-  { id: "islam.prayer_times", icon: Moon, key: "tool.prayer", dkey: "tool.prayerDesc" },
-  { id: "islam.quran_surah", icon: BookOpen, key: "tool.quran", dkey: "tool.quranDesc" },
-  { id: "health.symptom_check", icon: Stethoscope, key: "tool.symptom", dkey: "tool.symptomDesc" },
-  { id: "health.calorie_estimate", icon: Flame, key: "tool.calorie", dkey: "tool.calorieDesc" },
+  { id: "knowledge.search", icon: Globe, key: "tool.knowledge", dkey: "tool.knowledgeDesc" },
   { id: "finance.get_transactions", icon: Wallet, key: "tool.transactions", dkey: "tool.transactionsDesc" },
   { id: "finance.currency_rates", icon: DollarSign, key: "tool.currency", dkey: "tool.currencyDesc" },
-  { id: "utility.weather", icon: CloudSun, key: "tool.weather", dkey: "tool.weatherDesc" },
   { id: "calendar.get_events", icon: CalendarDays, key: "tool.calendar", dkey: "tool.calendarDesc" },
   { id: "messaging.telegram_send", icon: Send, key: "tool.telegram", dkey: "tool.telegramDesc" },
-  { id: "knowledge.search", icon: Globe, key: "tool.knowledge", dkey: "tool.knowledgeDesc" },
+  { id: "utility.weather", icon: CloudSun, key: "tool.weather", dkey: "tool.weatherDesc" },
+  { id: "health.symptom_check", icon: Stethoscope, key: "tool.symptom", dkey: "tool.symptomDesc" },
+  { id: "health.calorie_estimate", icon: Flame, key: "tool.calorie", dkey: "tool.calorieDesc" },
 ];
 
 interface AgentFormProps {

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
   Sparkles, Shield, Bot, Zap, ArrowRight, Check,
-  Moon, HeartPulse, Wallet, CalendarDays, Brain, Store,
+  Scale, Wallet, CalendarDays, Globe, Store,
   User, Building2, BarChart3, TrendingUp,
 } from "lucide-react";
 import { decodeSession, SESSION_COOKIE } from "@/lib/session";
@@ -93,26 +93,26 @@ export default async function HomePage() {
             <div className="animate-float">
               <Tilt max={8} className="rounded-3xl">
                 <div className="glass-panel rounded-3xl p-5 shadow-glow">
-                  <div className="mb-4 flex items-center gap-3 border-b pb-3">
+                  <div className="mb-4 flex items-center gap-3 border-b border-white/10 pb-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                      <Moon className="h-5 w-5" />
+                      <Building2 className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold">Namoz & Quran</p>
+                      <p className="text-sm font-semibold">AgentOS · Command</p>
                       <p className="flex items-center gap-1 text-xs text-primary">
-                        <Shield className="h-3 w-3" /> Halal
+                        <Shield className="h-3 w-3" /> Ethics-verified
                       </p>
                     </div>
                   </div>
                   <div className="space-y-3">
-                    <div className="ml-auto w-fit max-w-[80%] rounded-2xl rounded-tr-sm bg-primary px-3.5 py-2 text-sm text-primary-foreground">
-                      Toshkentda namoz vaqti?
+                    <div className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-tr-sm bg-primary px-3.5 py-2 text-sm text-primary-foreground">
+                      Launch our new product across the region
                     </div>
-                    <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-secondary px-3.5 py-2 text-sm">
-                      📿 Bomdod 04:12 · Peshin 12:38 · Asr 17:05 · Shom 19:44 · Xufton 21:10
+                    <div className="max-w-[90%] rounded-2xl rounded-tl-sm bg-secondary px-3.5 py-2 text-xs leading-relaxed">
+                      <span className="text-primary">▸ AI-CEO</span> strategy · <span className="text-gold">▸ AI-CFO</span> budget · <span className="text-violetx">▸ AI-CMO</span> go-to-market · <span className="text-emeraldx">▸ AI-CLO</span> compliance · <span className="text-blue-400">▸ AI-CTO</span> build
                     </div>
                     <div className="flex items-center gap-1 text-xs text-primary">
-                      <Check className="h-3 w-3" /> Halal check passed
+                      <Check className="h-3 w-3" /> 5 departments · ethics passed
                     </div>
                   </div>
                 </div>
@@ -214,12 +214,12 @@ export default async function HomePage() {
           </Reveal>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              { icon: Moon, name: t("landing.a1"), d: t("landing.a1d"), c: "text-primary bg-primary/10" },
-              { icon: HeartPulse, name: t("landing.a2"), d: t("landing.a2d"), c: "text-rose-600 bg-rose-500/10" },
-              { icon: Wallet, name: t("landing.a3"), d: t("landing.a3d"), c: "text-gold bg-gold/10" },
-              { icon: CalendarDays, name: t("landing.a4"), d: t("landing.a4d"), c: "text-blue-600 bg-blue-500/10" },
-              { icon: Brain, name: t("landing.a5"), d: t("landing.a5d"), c: "text-purple-600 bg-purple-500/10" },
-              { icon: Bot, name: t("landing.a6"), d: t("landing.a6d"), c: "text-teal-600 bg-teal-500/10" },
+              { icon: BarChart3, name: t("landing.a1"), d: t("landing.a1d"), c: "text-primary bg-primary/10" },
+              { icon: Wallet, name: t("landing.a2"), d: t("landing.a2d"), c: "text-gold bg-gold/10" },
+              { icon: Scale, name: t("landing.a3"), d: t("landing.a3d"), c: "text-violetx bg-violet-500/10" },
+              { icon: Globe, name: t("landing.a4"), d: t("landing.a4d"), c: "text-emeraldx bg-emerald-500/10" },
+              { icon: CalendarDays, name: t("landing.a5"), d: t("landing.a5d"), c: "text-blue-400 bg-blue-500/10" },
+              { icon: Building2, name: t("landing.a6"), d: t("landing.a6d"), c: "text-primary bg-primary/10" },
             ].map(({ icon: Icon, name, d, c }, i) => (
               <Reveal key={name} delay={i * 60}>
                 <div className="flex items-center gap-4 rounded-2xl border bg-card p-4 shadow-soft tilt-hover hover:shadow-lift">

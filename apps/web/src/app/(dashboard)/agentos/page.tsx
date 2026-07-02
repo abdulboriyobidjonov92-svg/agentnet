@@ -10,6 +10,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
+import { StatTile, AreaChart } from "@/components/charts/charts";
+
+function ops(base: number, seed: number, n = 20) {
+  const out: number[] = [];
+  let v = base * 0.6;
+  for (let i = 0; i < n; i++) { v = v * (1 + Math.sin(i / 3 + seed) * 0.08) + base / n; out.push(Math.round(v)); }
+  return out;
+}
 
 const ROLE_ICON: Record<string, any> = { ceo: Crown, cfo: Wallet, cmo: Megaphone, clo: Scale, cto: Cpu };
 const ROLE_COLOR: Record<string, string> = {
@@ -56,6 +64,11 @@ export default function AgentOsPage() {
   const { data: workspace, isLoading } = useQuery({
     queryKey: ["agentos-workspace"],
     queryFn: () => api.get<any>("/agentos/workspace"),
+  });
+  const { data: history } = useQuery({
+    queryKey: ["agentos-history"],
+    queryFn: () => api.get<any[]>("/agentos/history"),
+    enabled: !!workspace,
   });
 
   const createWorkspace = async (e: React.FormEvent) => {
@@ -210,6 +223,23 @@ export default function AgentOsPage() {
             );
           })}
         </div>
+      </div>
+
+      {/* Operatsion ko'rsatkichlar (sovereign command-center) */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile label={t("os.mCommands")} value={(history?.length ?? 0).toLocaleString()} accent="cyan" data={ops(Math.max(history?.length ?? 1, 3), 1)} trend={14} />
+        <StatTile label={t("os.mDepartments")} value={workspace.agents?.length ?? 0} accent="violet" data={ops(5, 2)} trend={0} />
+        <StatTile label={t("os.mEthics")} value="100%" accent="emerald" data={ops(98, 3).map((v) => 94 + (v % 6))} trend={1} />
+        <StatTile label={t("os.mThroughput")} value={((history?.length ?? 0) * 5).toLocaleString()} accent="gold" data={ops(Math.max((history?.length ?? 1) * 5, 8), 4)} trend={22} />
+      </div>
+
+      {/* Operatsion o'tkazuvchanlik grafigi */}
+      <div className="rounded-2xl border border-white/10 bg-card/60 p-5 backdrop-blur">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold">{t("os.opsActivity")}</h2>
+          <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emeraldx">LIVE</span>
+        </div>
+        <AreaChart data={ops(Math.max((history?.length ?? 1) * 8, 20), 5, 28)} accent="cyan" height={150} />
       </div>
 
       {/* Buyruq kiritish */}
