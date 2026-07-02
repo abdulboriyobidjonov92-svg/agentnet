@@ -1,0 +1,54 @@
+import {
+  Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, HttpCode,
+} from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ClerkGuard } from '../auth/clerk.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { AgentsService } from './agents.service';
+import { CreateAgentDto } from './dto/create-agent.dto';
+import { UpdateAgentDto } from './dto/update-agent.dto';
+import type { User } from '@prisma/client';
+
+class RunAgentDto {
+  message: string;
+  conversationId?: string;
+}
+
+@ApiTags('agents')
+@ApiBearerAuth()
+@UseGuards(ClerkGuard)
+@Controller('agents')
+export class AgentsController {
+  constructor(private readonly agents: AgentsService) {}
+
+  @Post()
+  create(@CurrentUser() user: User, @Body() dto: CreateAgentDto) {
+    return this.agents.create(user, dto);
+  }
+
+  @Get()
+  findAll(@CurrentUser() user: User) {
+    return this.agents.findAll(user);
+  }
+
+  @Get(':id')
+  findOne(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.agents.findOne(id, user);
+  }
+
+  @Patch(':id')
+  update(@CurrentUser() user: User, @Param('id') id: string, @Body() dto: UpdateAgentDto) {
+    return this.agents.update(id, user, dto);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  remove(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.agents.remove(id, user);
+  }
+
+  @Post(':id/run')
+  run(@CurrentUser() user: User, @Param('id') id: string, @Body() body: RunAgentDto) {
+    return this.agents.run(id, user, body.message, body.conversationId);
+  }
+}

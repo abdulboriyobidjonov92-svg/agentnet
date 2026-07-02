@@ -1,0 +1,212 @@
+// AgentNet — Prisma Schema
+// Models: User, Org, Agent, Conversation, AuditLog
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// SQLite native enum'ni qo'llab-quvvatlamaydi — String sifatida saqlanadi.
+// Qiymatlar: OWNER | ADMIN | MEMBER | VIEWER
+
+model User {
+  id                     String    @id @default(cuid())
+  clerkId                String    @unique
+  email                  String    @unique
+  role                   String    @default("MEMBER")
+  orgId                  String?
+  org                    Org?      @relation(fields: [orgId], references: [id])
+  isBusinessAccount      Boolean   @default(false)
+  twoFactorEnabled       Boolean   @default(false)
+  twoFactorSecret        String?
+  twoFactorSecretPending String?
+  telegramChatId         String?  @unique
+
+  // --- Adaptiv profil (onboarding'da aniqlanadi) ---
+  // Foydalanuvchi o'z so'zlari bilan kim ekanini aytadi; tizim kasb/soha'ni aniqlaydi.
+  professionTitle     String?   // erkin matn: "kardiolog", "do'kon egasi", "fermer"...
+  domain              String?   // taksonomiya sluglari: healthcare | law | retail | ... | general
+  domainConfidence    Float?    // 0.0–1.0, aniqlash ishonchi
+  onboardingText      String?   // foydalanuvchining asl tavsifi (audit/qayta-aniqlash uchun)
+  goals               Json?     // string[] — foydalanuvchi maqsadlari
+  profileData         Json?     // { widgets: string[], quick_actions: [...], reasoning: string }
+  onboardingCompleted Boolean   @default(false)
+  preferredLanguage   String    @default("en") // en | ru | uz
+  city                String?
+
+  // --- Qadriyatlar profili (Ethical Decision Engine uchun) ---
+  // { tradition: "islamic"|"secular"|"mixed", statements: string[] }
+  valuesProfile       Json?
+
+  twinFacts           TwinFact[]
+  userGoals           Goal[]
+  agents                 Agent[]
+  conversations          Conversation[]
+  auditLogs              AuditLog[]
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  deletedAt              DateTime?
+
+  @@index([clerkId])
+  @@index([email])
+  @@index([orgId])
+}
+
+// Org = AgentOS ish maydoni. Bitta AgentNet hisobi ham shaxs (Life Twin),
+// ham tashkilot (C-suite agentlari bilan) bo'lishi mumkin — bir modelning
+// kengaytmasi, alohida tizim emas.
+model Org {
+  id         String   @id @default(cuid())
+  name       String
+  slug       String   @unique
+  clerkOrgId String?  @unique
+  // Turi: umumiy tashkilot | davlat organi | startap | yirik korxona
+  kind       String   @default("company") // company | government | startup | enterprise
+  // Reja bosqichi (billing mantiqisiz — faqat data modeli)
+  tier       String   @default("mid")      // startup | mid | gov | enterprise
+  industry   String?
+  ownerId    String?                        // Org'ni yaratgan foydalanuvchi
+  members    User[]
+  agents     Agent[]
+  commands   OrgCommand[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// Flagman oqim: rahbar bitta buyruq beradi → Orchestrator uni bo'ladi →
+// C-suite agentlari bajaradi → bitta hisobotga yig'iladi.
+model OrgCommand {
+  id        String   @id @default(cuid())
+  orgId     String
+  org       Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  issuedBy  String   // foydalanuvchi id
+  command   String
+  status    String   @default("running") // running | completed | failed
+  // { departments: [{ role, title, output, ethics }], report, method }
+  result    Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId])
+  @@index([status])
+}
+
+model Agent {
+  id                 String         @id @default(cuid())
+  name               String
+  systemPrompt       String
+  model              String         @default("claude-sonnet-4-6")
+  halalFilterEnabled Boolean        @default(true)
+  memoryEnabled      Boolean        @default(true)
+  // JSON array of ToolSpec: [{ tool_id, config }]
+  toolsConfig        Json?
+  // AgentOS C-suite roli: null=oddiy shaxsiy agent, aks holda
+  // ceo|cfo|cmo|clo|cto — enterprise ish maydoni agentlari
+  csuiteRole         String?
+  userId             String
+  user               User           @relation(fields: [userId], references: [id])
+  orgId              String?
+  org                Org?           @relation(fields: [orgId], references: [id])
+  conversations      Conversation[]
+  isPublished        Boolean        @default(false)
+  marketplacePrice   Int?           // UZS tiyin, null = bepul
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@index([userId])
+  @@index([orgId])
+  @@index([isPublished])
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id])
+  // JSON array of { role, content, halalFlag?, timestamp }
+  messages  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([agentId])
+}
+
+// --- Life Twin: foydalanuvchining raqamli egizagi (ma'lumot umurtqasi) ---
+// Har bir fakt — foydalanuvchi hayotining bitta bo'lagi. Boshqa barcha
+// aqlli funksiyalar (what-if, goals, supermode) shu faktlarni o'qiydi.
+model TwinFact {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   String   // health | finance | family | work | habits | education | other
+  label      String   // masalan: "Oylik daromad"
+  value      String   // masalan: "8 mln so'm"
+  source     String   @default("manual") // onboarding | conversation | manual | agent
+  confidence Float    @default(1.0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, category])
+}
+
+// --- Autonomous Goal Achievement ---
+model Goal {
+  id          String     @id @default(cuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  status      String     @default("active") // active | paused | completed
+  progress    Int        @default(0) // 0-100, tugallangan tasklar ulushi
+  plan        Json?      // { milestones, reasoning, method }
+  tasks       GoalTask[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model GoalTask {
+  id          String    @id @default(cuid())
+  goalId      String
+  goal        Goal      @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  order       Int
+  title       String
+  description String?
+  agentRole   String?   // qaysi turdagi agent bajaradi (masalan: "accountant")
+  cadence     String?   // once | daily | weekly
+  status      String    @default("pending") // pending | done | skipped
+  result      String?   // bajarilgandan keyingi natija matni
+  lastRunAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([goalId])
+  @@index([status])
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorId      String
+  actor        User     @relation(fields: [actorId], references: [id])
+  action       String   // masalan: "auth.login", "agent.create", "halal_filter.block"
+  resourceType String   // masalan: "user", "agent", "conversation"
+  resourceId   String?
+  metadata     Json?
+  // Hash-chain: har bir yozuv oldingi yozuv hash'iga bog'langan
+  prevHash     String
+  entryHash    String   @unique
+  createdAt    DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+}

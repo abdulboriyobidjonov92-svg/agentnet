@@ -1,0 +1,64 @@
+# AgentNet — Render blueprint (bitta faylda 3 servis + Postgres)
+#
+# Foydalanish:
+#   1. Bu repo'ni GitHub'ga push qiling
+#   2. Render → New → Blueprint → repo'ni ulang → Apply
+#   3. (ixtiyoriy) agentnet-engine va agentnet-api ga ANTHROPIC_API_KEY qo'shing
+#      — bo'lmasa platforma to'liq heuristik/demo rejimda ishlaydi.
+#
+# Cross-servis URL'lari Render'ning barqaror naqshidan foydalanadi:
+#   https://<service-name>.onrender.com
+# Agar servis nomlarini o'zgartirsangiz, quyidagi URL'larni ham yangilang.
+databases:
+  - name: agentnet-db
+    plan: free
+    databaseName: agentnet
+    user: agentnet
+
+services:
+  # 1) FastAPI agent-engine — orkestrator + 5 wow imkoniyat + AgentOS
+  - type: web
+    name: agentnet-engine
+    runtime: docker
+    plan: free
+    dockerfilePath: ./apps/agent-engine/Dockerfile
+    dockerContext: ./apps/agent-engine
+    healthCheckPath: /health
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false        # ixtiyoriy — bo'lmasa demo/heuristik rejim
+
+  # 2) NestJS API — Core SaaS (auth, agents, twin, goals, intelligence, agentos)
+  - type: web
+    name: agentnet-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/docs
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: agentnet-db
+          property: connectionString
+      - key: AGENT_ENGINE_URL
+        value: https://agentnet-engine.onrender.com
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+
+  # 3) Next.js web — deep-space UI + 3D + AgentOS command center
+  - type: web
+    name: agentnet-web
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build --prefix apps/web
+    startCommand: npm run start --prefix apps/web
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://agentnet-api.onrender.com
+      - key: AGENT_ENGINE_URL
+        value: https://agentnet-engine.onrender.com
+      - key: NODE_ENV
+        value: production

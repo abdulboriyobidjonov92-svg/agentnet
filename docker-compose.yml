@@ -1,0 +1,68 @@
+version: "3.9"
+
+# Lokal ishlab chiqish uchun Docker Compose
+# Faqat infra xizmatlari: Postgres + Redis
+# Next.js va NestJS lokal npm run dev orqali ishga tushiriladi.
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: agentnet_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: agentnet
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: agentnet_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentnet -d agentnet_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: agentnet_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # opsional: lokal agent-engine'ni ham konteynerda ishlatish uchun
+  agent-engine:
+    build:
+      context: ./apps/agent-engine
+      dockerfile: Dockerfile
+    container_name: agentnet_agent_engine
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://agentnet:password@postgres:5432/agentnet_dev
+      - REDIS_URL=redis://redis:6379
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    profiles:
+      - full  # faqat: docker compose --profile full up
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: agentnet_network

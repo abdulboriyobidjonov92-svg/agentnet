@@ -1,0 +1,270 @@
+/**
+ * AgentNet — Auth Service (NestJS + Clerk)
+ * Clerk webhook orqali foydalanuvchini sinxronlashtiradi,
+ * biznes hisoblar uchun 2FA (TOTP) ni MAJBURIY qiladi,
+ * RBAC guard va hash-chained audit-log ta'minlaydi.
+ */
+
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  UnauthorizedException,
+  Logger,
+} from '@nestjs/common';
+import { authenticator } from 'otplib';
+import * as QRCode from 'qrcode';
+import * as crypto from 'crypto';
+import { PrismaService } from '../prisma/prisma.service';
+
+// SQLite enum'ni qo'llab-quvvatlamaydi — role String sifatida saqlanadi.
+export type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
+
+// ----------------------------------------------------------------
+// Turlar
+// ----------------------------------------------------------------
+
+export interface AuthenticatedUser {
+  id: string;
+  clerkId: string;
+  email: string;
+  orgId: string | null;
+  role: Role;
+  twoFactorEnabled: boolean;
+  isBusinessAccount: boolean;
+}
+
+interface ClerkWebhookEvent {
+  type: 'user.created' | 'user.updated' | 'user.deleted';
+  data: {
+    id: string;
+    email_addresses: { email_address: string }[];
+    public_metadata?: Record<string, unknown>;
+  };
+}
+
+// ----------------------------------------------------------------
+// Audit Log — hash-chained, o'zgartirib bo'lmas jurnal
+// ----------------------------------------------------------------
+
+@Injectable()
+export class AuditLogService {
+  private readonly logger = new Logger(AuditLogService.name);
+
+  constructor(private readonly prisma: PrismaService) {}
+
+  async record(params: {
+    actorId: string;
+    action: string;
+    resourceType: string;
+    resourceId?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<void> {
+    // Audit-log hech qachon asosiy oqimni bloklamasligi kerak.
+    try {
+      const last = await this.prisma.auditLog.findFirst({
+        orderBy: { createdAt: 'desc' },
+      });
+      const prevHash = last?.entryHash ?? 'GENESIS';
+      const entryHash = this.computeHash(prevHash, params);
+
+      await this.prisma.auditLog.create({
+        data: {
+          actorId: params.actorId,
+          action: params.action,
+          resourceType: params.resourceType,
+          resourceId: params.resourceId ?? null,
+          metadata: (params.metadata ?? {}) as object,
+          prevHash,
+          entryHash,
+        },
+      });
+      this.logger.log(`AUDIT: ${params.actorId} -> ${params.action}`);
+    } catch (e) {
+      this.logger.warn(`Audit-log yozib bo'lmadi: ${(e as Error).message}`);
+    }
+  }
+
+  private computeHash(prevHash: string, payload: unknown): string {
+    return crypto
+      .createHash('sha256')
+      .update(prevHash + JSON.stringify(payload))
+      .digest('hex');
+  }
+}
+
+// ----------------------------------------------------------------
+// 2FA (TOTP) xizmati
+// ----------------------------------------------------------------
+
+@Injectable()
+export class TwoFactorService {
+  constructor(
+    private readonly auditLog: AuditLogService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  async generateSecret(userId: string, email: string) {
+    const secret = authenticator.generateSecret();
+    const otpUrl = authenticator.keyuri(email, 'AgentNet (Baraka AI)', secret);
+    const qrCodeDataUrl = await QRCode.toDataURL(otpUrl);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { twoFactorSecretPending: secret },
+    });
+
+    return { secret, qrCodeDataUrl };
+  }
+
+  async verifyAndEnable(userId: string, token: string): Promise<boolean> {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (!user.twoFactorSecretPending) {
+      throw new ForbiddenException('2FA sozlash boshlanmagan');
+    }
+
+    const isValid = authenticator.verify({
+      token,
+      secret: user.twoFactorSecretPending,
+    });
+
+    if (!isValid) return false;
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        twoFactorSecret: user.twoFactorSecretPending,
+        twoFactorSecretPending: null,
+        twoFactorEnabled: true,
+      },
+    });
+
+    await this.auditLog.record({
+      actorId: userId,
+      action: '2fa.enable',
+      resourceType: 'user',
+      resourceId: userId,
+    });
+
+    return true;
+  }
+
+  async verifyLogin(userId: string, token: string): Promise<boolean> {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (!user.twoFactorEnabled || !user.twoFactorSecret) return true;
+    return authenticator.verify({ token, secret: user.twoFactorSecret });
+  }
+}
+
+// ----------------------------------------------------------------
+// Clerk Webhook handler
+// ----------------------------------------------------------------
+
+@Injectable()
+export class ClerkSyncService {
+  constructor(
+    private readonly auditLog: AuditLogService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  async handleWebhook(event: ClerkWebhookEvent): Promise<void> {
+    switch (event.type) {
+      case 'user.created': {
+        const email = event.data.email_addresses[0]?.email_address ?? '';
+        const user = await this.prisma.user.create({
+          data: {
+            clerkId: event.data.id,
+            email,
+            role: 'MEMBER',
+            twoFactorEnabled: false,
+            isBusinessAccount: false,
+          },
+        });
+        await this.auditLog.record({
+          actorId: user.id,
+          action: 'auth.user_created',
+          resourceType: 'user',
+          resourceId: user.id,
+        });
+        break;
+      }
+      case 'user.deleted': {
+        await this.prisma.user.updateMany({
+          where: { clerkId: event.data.id },
+          data: { deletedAt: new Date() },
+        });
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  /**
+   * Lokal dev auth — Clerk'siz. Email bo'yicha foydalanuvchini topadi/yaratadi.
+   * Prototip uchun (tashqi auth xizmatiga bog'liqlikni yo'q qiladi).
+   */
+  async devLogin(email: string, name?: string) {
+    const clean = (email || '').trim().toLowerCase();
+    if (!clean || !clean.includes('@')) {
+      throw new Error('Yaroqli email kiriting');
+    }
+    const existing = await this.prisma.user.findUnique({ where: { email: clean } });
+    if (existing) {
+      return { userId: existing.id, email: existing.email, role: existing.role };
+    }
+    const user = await this.prisma.user.create({
+      data: {
+        clerkId: `dev_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`,
+        email: clean,
+        role: 'MEMBER',
+      },
+    });
+    await this.auditLog.record({
+      actorId: user.id,
+      action: 'auth.dev_login',
+      resourceType: 'user',
+      resourceId: user.id,
+      metadata: { name: name ?? '' },
+    });
+    return { userId: user.id, email: user.email, role: user.role };
+  }
+}
+
+// ----------------------------------------------------------------
+// RBAC Guards
+// ----------------------------------------------------------------
+
+@Injectable()
+export class TwoFactorEnforcementGuard implements CanActivate {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest();
+    const user: AuthenticatedUser | undefined = request.user;
+
+    if (!user) throw new UnauthorizedException('Autentifikatsiya talab qilinadi');
+
+    if (user.isBusinessAccount && !user.twoFactorEnabled) {
+      throw new ForbiddenException(
+        'Biznes hisob uchun 2FA yoqilishi shart. /api/auth/2fa/setup ga murojaat qiling.',
+      );
+    }
+
+    return true;
+  }
+}
+
+@Injectable()
+export class RolesGuard implements CanActivate {
+  constructor(private readonly allowedRoles: Role[]) {}
+
+  canActivate(context: ExecutionContext): boolean {
+    const request = context.switchToHttp().getRequest();
+    const user: AuthenticatedUser | undefined = request.user;
+    if (!user) throw new UnauthorizedException();
+    if (!this.allowedRoles.includes(user.role)) {
+      throw new ForbiddenException(`Ruxsat yo'q: ${this.allowedRoles.join(',')} talab qilinadi`);
+    }
+    return true;
+  }
+}
