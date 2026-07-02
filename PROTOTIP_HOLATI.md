@@ -1,9 +1,60 @@
 # AgentNet — Prototip holati ✅
 
-**Sana:** 2026-07-02 (Part 1 yakunlandi)
-**Holat:** Adaptiv yadro + **BESHTA FLAGMAN IMKONIYAT** (Life Twin, Autonomous
-Goals, Agent Fusion, Ethical Decision Engine, Knowledge Sync) + **Super Mode**.
-Uchala servis ishga tushirilgan va E2E tekshirilgan.
+**Sana:** 2026-07-02 (Part 2 yakunlandi)
+**Holat:** Adaptiv yadro + 5 flagman imkoniyat + Super Mode (Part 1) +
+**JAHON DARAJASIDAGI DIZAYN TIZIMI (3D)** + **AgentOS enterprise liniyasi** (Part 2).
+Deploy'ga to'liq tayyor (artefaktlar + guide); jonli chiqarish akkaunt kutmoqda.
+
+## YANGI: Part 2 — Dizayn tizimi + AgentOS (2026-07-02)
+
+### Deep-space dizayn tizimi (3D + liquid glass)
+- **Ranglar:** deep space black (asosiy dark rejim), electric cyan + emerald imzo,
+  binafsha-ko'k gradientlar, me'yorida oltin. Sayqallangan light rejim ham bor.
+- **Tokenlar:** `globals.css` to'liq qayta yozildi — glassmorphism (`.glass-panel`),
+  neon nur (`.shadow-glow`), global suyuq to'lqin (ripple) har bosishда,
+  `.aurora`, `.scanline` va h.k. Barcha eski sahifalar tokenlar orqali avtomatik kiyindi.
+- **Dark — default:** `layout.tsx` skript endi dark'ni standart qiladi.
+
+### 3D ekranlar (three.js + @react-three/fiber, kod-split, ssr:false)
+- **Splash/landing:** aylanuvchi **neyron sfera** (bog'langan yorug' nuqtalar) +
+  **zarrachali "AgentNet" logotipi** (2D canvas particle assemble).
+- **Dashboard:** markaziy **Personal Orb** (Life Twin langari) — agentlar orbitada
+  aylanadi, orb bosilsa holat paneli, agent tuguni bosilsa chat; sekin fon zarrachalari.
+  Kasbga qarab **rol-sahnasi** (healthcare→EKG+yurak, government→statistika ustunlari,
+  agriculture→maysa+quyosh).
+- **Agent Creator:** chap — no-code forma, o'ng — **jonli 3D motif** (vosita tanlangani
+  sari yig'iladi: ko'z=monitoring/bilim, kristall=moliya, kitob=ta'lim, barg=agri...).
+  Agent yaratilganda **zarrachali fireworks**.
+- **Life Twin:** what-if natijasi **3D shoxlanuvchi kelajak yo'llari** bilan
+  (davrlar shoxlanadi, tugun ustiga borilganda bashorat ochiladi).
+- **Perf byudjeti:** dpr [1,1.5], low-power qurilmada kam nuqta, reduced-motion'da
+  demand-frameloop, three.js faqat 3D sahifalarda yuklanadi. Production build o'tadi.
+
+### AgentOS — enterprise liniyasi (Part 1 Org/Agent modelining kengaytmasi)
+- **Sxema:** Org'ga `kind/tier/industry/ownerId`; Agent'ga `csuiteRole`; yangi
+  `OrgCommand` jadvali. Bitta hisob ham shaxs (Life Twin), ham tashkilot bo'la oladi.
+- **C-suite:** ish maydoni yaratilganda **5 ta agent** (AI-CEO/CFO/CMO/CLO/CTO)
+  Part 1 Agent modelida avtomatik urug'lanadi — alohida tizim emas.
+- **Flagman oqim:** rahbar bitta buyruq beradi → engine orkestratori (`agentos.py`)
+  bo'ladi va C-suite rollariga yo'naltiradi → har bir natija **Ethical Decision
+  Engine'dan** o'tadi → bitta **rahbariyat xulosasiga** yig'iladi. LLM-first + heuristik.
+- **UI:** `/agentos` command-center — ish maydoni setup, C-suite tarmog'i, buyruq
+  kiritish, bo'lim natijalari (ethics verdikti bilan), yig'ma hisobot, fireworks.
+  Sidebar'da "Pro" belgili enterprise ko'rinish.
+- **Endpointlar:** `POST/GET /api/agentos/workspace`, `POST /api/agentos/command`,
+  `GET /api/agentos/history`, `GET /api/agentos/csuite`; engine `/agentos/run`, `/agentos/csuite`.
+
+### Deploy tayyorligi
+- `apps/api/Dockerfile` (build vaqtida sqlite→postgresql, prisma migrate deploy),
+  `apps/agent-engine/Dockerfile` ($PORT), `render.yaml` (3 servis + Postgres bitta faylda),
+  `apps/web/vercel.json`, `DEPLOYMENT.md` (bosqichma-bosqich).
+- Postgres schema varianti tekshirildi (`prisma validate` ✓). Git init + commit qilindi (158 fayl).
+- **Sizdan kerak:** GitHub repo + Render (yoki Vercel) akkaunti. Bularsiz jonli
+  URL berilmaydi (login kerak). Batafsil — `DEPLOYMENT.md` va yakuniy hisobot.
+
+### Part 1/2 regressiya
+Fusion (shifokor+advokat+buxgalter), Goals (progress), Twin (what-if+3D timeline),
+AgentOS (to'liq oqim), light+dark rejim, halal blok — barchasi yangi dizaynda tekshirildi.
 
 ## YANGI: Beshta "wow" imkoniyat + Super Mode (Part 1, 2026-07-02)
 
