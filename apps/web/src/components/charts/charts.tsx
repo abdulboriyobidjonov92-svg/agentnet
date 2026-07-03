@@ -8,13 +8,19 @@ import { cn } from "@/lib/utils";
  * sparkline, trend-belgili stat plitka, ring gauge. Haqiqiy ma'lumotga asoslangan.
  */
 
+/**
+ * Chart palitrasi — faqat Obsidian tokenlaridan.
+ * Asosiy seriya: accent-line (arctic). Qo'shimcha seriyalar: shu accent'ning
+ * opacity pog'onalari (ko'p seriyani farqlash uchun yetarli, ikkinchi rang yo'q).
+ * Fill: accent 8% → 0% nozik gradient. Glow/drop-shadow ishlatilmaydi.
+ */
 const ACCENTS = {
-  cyan: { stroke: "hsl(187 95% 55%)", from: "hsl(187 95% 55% / 0.35)", to: "hsl(187 95% 55% / 0)" },
-  emerald: { stroke: "hsl(158 84% 52%)", from: "hsl(158 84% 52% / 0.32)", to: "hsl(158 84% 52% / 0)" },
-  violet: { stroke: "hsl(258 90% 66%)", from: "hsl(258 90% 66% / 0.32)", to: "hsl(258 90% 66% / 0)" },
-  gold: { stroke: "hsl(42 92% 60%)", from: "hsl(42 92% 60% / 0.30)", to: "hsl(42 92% 60% / 0)" },
-  rose: { stroke: "hsl(347 90% 62%)", from: "hsl(347 90% 62% / 0.30)", to: "hsl(347 90% 62% / 0)" },
-  blue: { stroke: "hsl(224 95% 64%)", from: "hsl(224 95% 64% / 0.30)", to: "hsl(224 95% 64% / 0)" },
+  cyan: { stroke: "hsl(var(--accent-line))", from: "hsl(var(--accent-line) / 0.08)", to: "hsl(var(--accent-line) / 0)" },
+  blue: { stroke: "hsl(var(--accent-line) / 0.8)", from: "hsl(var(--accent-line) / 0.07)", to: "hsl(var(--accent-line) / 0)" },
+  emerald: { stroke: "hsl(var(--accent-line) / 0.65)", from: "hsl(var(--accent-line) / 0.06)", to: "hsl(var(--accent-line) / 0)" },
+  violet: { stroke: "hsl(var(--accent-line) / 0.5)", from: "hsl(var(--accent-line) / 0.05)", to: "hsl(var(--accent-line) / 0)" },
+  gold: { stroke: "hsl(var(--accent-line) / 0.38)", from: "hsl(var(--accent-line) / 0.04)", to: "hsl(var(--accent-line) / 0)" },
+  rose: { stroke: "hsl(var(--danger))", from: "hsl(var(--danger) / 0.08)", to: "hsl(var(--danger) / 0)" },
 };
 export type Accent = keyof typeof ACCENTS;
 
@@ -74,8 +80,7 @@ export function AreaChart({
             <line key={f} x1="0" y1={height * f} x2={w} y2={height * f} stroke="hsl(var(--border))" strokeWidth="1" strokeDasharray="3 5" opacity="0.5" />
           ))}
         <path d={area} fill={`url(#${id})`} />
-        <path d={line} fill="none" stroke={a.stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-          style={{ filter: `drop-shadow(0 0 6px ${a.stroke})` }} />
+        <path d={line} fill="none" stroke={a.stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         {/* Oxirgi nuqta — "jonli" belgi */}
         <circle cx={pts[pts.length - 1].split(",")[0]} cy={pts[pts.length - 1].split(",")[1]} r="3.5" fill={a.stroke}>
           <animate attributeName="opacity" values="1;0.3;1" dur="1.8s" repeatCount="indefinite" />
@@ -101,7 +106,7 @@ export function Sparkline({ data, accent = "cyan", width = 96, height = 30 }: { 
         </linearGradient>
       </defs>
       <path d={area} fill={`url(#${id})`} />
-      <path d={line} fill="none" stroke={a.stroke} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={line} fill="none" stroke={a.stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -132,12 +137,12 @@ export function StatTile({
         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
         {icon && <span style={{ color: a.stroke }}>{icon}</span>}
       </div>
-      <p className="mt-1.5 font-display text-2xl font-bold tabular-nums tracking-tight" style={{ textShadow: `0 0 20px ${a.from}` }}>
+      <p className="mt-1.5 font-display text-2xl font-bold tabular-nums tracking-tight">
         {value}
       </p>
       <div className="mt-2 flex items-end justify-between gap-2">
         {trend !== undefined && (
-          <span className={cn("text-[11px] font-semibold tabular-nums", up ? "text-emeraldx" : "text-rose-400")}>
+          <span className={cn("text-[11px] font-semibold tabular-nums", up ? "text-ok" : "text-danger")}>
             {up ? "▲" : "▼"} {Math.abs(trend)}%
           </span>
         )}
@@ -164,7 +169,7 @@ export function RingGauge({ value, accent = "emerald", size = 132, label }: { va
         <circle
           cx={size / 2} cy={size / 2} r={r} fill="none" stroke={a.stroke} strokeWidth="9" strokeLinecap="round"
           strokeDasharray={circ} strokeDashoffset={circ * (1 - shown / 100)}
-          style={{ transition: "stroke-dashoffset 1.2s cubic-bezier(0.22,1,0.36,1)", filter: `drop-shadow(0 0 6px ${a.stroke})` }}
+          style={{ transition: "stroke-dashoffset 1.2s cubic-bezier(0.22,1,0.36,1)" }}
         />
       </svg>
       <div className="absolute text-center">
@@ -195,8 +200,8 @@ export function MultiLine({ series, height = 180, className }: { series: { data:
           const a = ACCENTS[s.accent];
           const pts = buildPath(s.data, w, height);
           return (
-            <path key={i} d={`M ${pts.join(" L ")}`} fill="none" stroke={a.stroke} strokeWidth="2" strokeLinecap="round"
-              strokeLinejoin="round" style={{ filter: `drop-shadow(0 0 4px ${a.stroke})` }} />
+            <path key={i} d={`M ${pts.join(" L ")}`} fill="none" stroke={a.stroke} strokeWidth="1.5" strokeLinecap="round"
+              strokeLinejoin="round" />
           );
         })}
       </svg>
