@@ -98,6 +98,7 @@ export function Sidebar({ email, name, onNavigate }: { email?: string; name?: st
           <button
             onClick={signOut}
             title={t("nav.signOut")}
+            aria-label={t("nav.signOut")}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
           >
             <LogOut className="h-4 w-4" />

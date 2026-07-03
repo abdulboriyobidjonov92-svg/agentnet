@@ -4,29 +4,14 @@ import dynamic from "next/dynamic";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApiClient } from "@/lib/api-client";
 import {
-  Bot, MessageSquare, ShieldCheck, Sparkles, ArrowUpRight, Plus,
-  TrendingUp, UserRound, Zap, Check, Loader2, Video, CircleUserRound, X,
+  Bot, MessageSquare, Sparkles, ArrowUpRight, Plus,
+  UserRound, Zap, Loader2, CircleUserRound, X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n/client";
-import { Counter, Reveal } from "@/components/motion";
-import { cn } from "@/lib/utils";
-import { AreaChart, StatTile, RingGauge, type Accent } from "@/components/charts/charts";
-
-/** Haqiqiy hisobdan barqaror, realistik trend seriyasi hosil qiladi (demo grafiklar emas). */
-function trendSeries(base: number, points = 24, seed = 1): number[] {
-  const out: number[] = [];
-  let v = Math.max(base * 0.55, 1);
-  for (let i = 0; i < points; i++) {
-    const wave = Math.sin((i / points) * Math.PI * 2 * 1.5 + seed) * 0.12;
-    const drift = (i / points) * 0.5;
-    v = v * (1 + wave * 0.5) + base * (drift / points) * 2;
-    out.push(Math.max(0, Math.round(v)));
-  }
-  out[out.length - 1] = Math.max(out[out.length - 1], base);
-  return out;
-}
+import { Reveal } from "@/components/motion";
+import { StatTile, type Accent } from "@/components/charts/charts";
 
 // 3D sahnalar — faqat klientda, sahifa yuklanishini bloklamaydi
 const PersonalOrb = dynamic(() => import("@/components/three/personal-orb"), {
@@ -70,17 +55,18 @@ export default function DashboardPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [installingIdx, setInstallingIdx] = useState<number | null>(null);
+  const [installError, setInstallError] = useState<string | null>(null);
   const [orbPanel, setOrbPanel] = useState(false);
 
   const { data: me } = useQuery({
     queryKey: ["me"],
     queryFn: () => api.get<Me>("/users/me"),
   });
-  const { data: stats } = useQuery({
+  const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["stats"],
     queryFn: () => api.get<{ agentCount: number; conversationCount: number }>("/users/me/stats"),
   });
-  const { data: agents } = useQuery({
+  const { data: agents, isLoading: agentsLoading } = useQuery({
     queryKey: ["agents"],
     queryFn: () => api.get<any[]>("/agents"),
   });
@@ -92,6 +78,7 @@ export default function DashboardPage() {
 
   const installAgent = async (agent: RecommendedAgent, idx: number) => {
     setInstallingIdx(idx);
+    setInstallError(null);
     try {
       await api.post("/users/me/recommendations/install", {
         agents: [
@@ -105,6 +92,8 @@ export default function DashboardPage() {
       queryClient.invalidateQueries({ queryKey: ["agents"] });
       queryClient.invalidateQueries({ queryKey: ["recommendations"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
+    } catch (e) {
+      setInstallError(e instanceof Error ? e.message : t("common.error"));
     } finally {
       setInstallingIdx(null);
     }
@@ -120,17 +109,12 @@ export default function DashboardPage() {
 
   const agentCount = stats?.agentCount ?? 0;
   const convCount = stats?.conversationCount ?? 0;
-  const msgCount = convCount * 4;
 
-  const tiles: { label: string; value: string | number; icon: any; accent: Accent; data: number[]; trend: number }[] = [
-    { label: t("dash.statAgents"), value: agentCount, icon: Bot, accent: "cyan", data: trendSeries(Math.max(agentCount, 4), 24, 1), trend: 12 },
-    { label: t("dash.statConversations"), value: convCount, icon: MessageSquare, accent: "emerald", data: trendSeries(Math.max(convCount, 6), 24, 2), trend: 8 },
-    { label: t("dash.statMessages"), value: msgCount.toLocaleString(), icon: Sparkles, accent: "violet", data: trendSeries(Math.max(msgCount, 20), 24, 3), trend: 23 },
-    { label: t("dash.halalRate"), value: "99.2%", icon: ShieldCheck, accent: "gold", data: trendSeries(95, 24, 4).map((v) => 92 + (v % 8)), trend: 2 },
+  // Faqat haqiqiy, serverdan kelgan ko'rsatkichlar — uydirma trend/foizlar yo'q
+  const tiles: { label: string; value: string | number; icon: any; accent: Accent }[] = [
+    { label: t("dash.statAgents"), value: agentCount, icon: Bot, accent: "cyan" },
+    { label: t("dash.statConversations"), value: convCount, icon: MessageSquare, accent: "emerald" },
   ];
-
-  // Operatsion o'tkazuvchanlik grafigi uchun seriya (haqiqiy hisobdan)
-  const throughput = trendSeries(Math.max(msgCount, 24), 24, 7);
 
   const domainLabel = pick(me?.profileData?.domain_label, locale);
   const quickActions = me?.profileData?.quick_actions ?? [];
@@ -159,7 +143,7 @@ export default function DashboardPage() {
       )}
 
       {/* Hero — Personal Orb (Life Twin langari) + agentlar orbitasi */}
-      <div className="relative overflow-hidden rounded-[1.75rem] border border-white/10 glass-panel shadow-glow">
+      <div className="relative overflow-hidden rounded-[1.75rem] glass-panel shadow-glow">
         <div className="absolute inset-0 aurora opacity-60" />
         <div className="relative grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
           {/* Matnli qism */}
@@ -195,12 +179,16 @@ export default function DashboardPage() {
 
             {/* Orb bosilganda: agentlar holati paneli */}
             {orbPanel && (
-              <div className="mt-5 animate-in-up rounded-2xl border border-white/10 bg-background/40 p-4 backdrop-blur">
+              <div className="mt-5 animate-in-up rounded-2xl border bg-background/40 p-4 backdrop-blur">
                 <div className="mb-2 flex items-center justify-between">
                   <p className="flex items-center gap-2 text-sm font-semibold">
                     <CircleUserRound className="h-4 w-4 text-primary" /> {t("dash.orbStatus")}
                   </p>
-                  <button onClick={() => setOrbPanel(false)} className="text-muted-foreground hover:text-foreground">
+                  <button
+                    onClick={() => setOrbPanel(false)}
+                    aria-label={t("common.cancel")}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
                     <X className="h-4 w-4" />
                   </button>
                 </div>
@@ -256,20 +244,20 @@ export default function DashboardPage() {
         </Reveal>
       )}
 
-      {/* Operatsion ko'rsatkichlar — command-center stat plitkalari */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {tiles.map((s, i) => (
-          <Reveal key={s.label} delay={i * 60}>
-            <StatTile
-              label={s.label}
-              value={s.value}
-              accent={s.accent}
-              data={s.data}
-              trend={s.trend}
-              icon={<s.icon className="h-4 w-4" />}
-            />
-          </Reveal>
-        ))}
+      {/* Operatsion ko'rsatkichlar — faqat haqiqiy hisoblar */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {statsLoading
+          ? [0, 1].map((i) => <div key={i} className="h-24 animate-pulse rounded-2xl border bg-card" />)
+          : tiles.map((s, i) => (
+              <Reveal key={s.label} delay={i * 60}>
+                <StatTile
+                  label={s.label}
+                  value={s.value}
+                  accent={s.accent}
+                  icon={<s.icon className="h-4 w-4" />}
+                />
+              </Reveal>
+            ))}
       </div>
 
       {/* Siz uchun tavsiya agentlar — kasbga moslashgan */}
@@ -277,6 +265,11 @@ export default function DashboardPage() {
         <Reveal>
           <div>
             <h2 className="mb-4 text-xl font-semibold">{t("dash.recommendedForYou")}</h2>
+            {installError && (
+              <p role="alert" className="mb-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {installError}
+              </p>
+            )}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {uninstalledRecs.map((agent, i) => (
                 <div key={i} className="flex flex-col rounded-2xl border border-dashed border-primary/40 bg-primary/[0.03] p-5">
@@ -305,32 +298,6 @@ export default function DashboardPage() {
         </Reveal>
       )}
 
-      {/* Operatsion analitika — area chart + integrity gauge (command-center) */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Reveal className="lg:col-span-2">
-          <div className="h-full rounded-2xl border border-white/10 bg-card/60 p-6 backdrop-blur">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h2 className="flex items-center gap-2 font-semibold">
-                  <TrendingUp className="h-4 w-4 text-primary" /> {t("dash.weeklyActivity")}
-                </h2>
-                <p className="text-xs text-muted-foreground">{t("dash.analytics")} · 24h</p>
-              </div>
-              <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emeraldx">▲ 18%</span>
-            </div>
-            <AreaChart data={throughput} accent="cyan" height={190} />
-          </div>
-        </Reveal>
-
-        <Reveal delay={120}>
-          <div className="flex h-full flex-col items-center justify-center gap-3 rounded-2xl border border-white/10 bg-card/60 p-6 text-center backdrop-blur">
-            <h2 className="self-start font-semibold">{t("dash.halalRate")}</h2>
-            <RingGauge value={99} accent="emerald" size={140} label="ETHICS" />
-            <p className="text-xs text-muted-foreground">ALLOW · BLOCK · REVIEW</p>
-          </div>
-        </Reveal>
-      </div>
-
       {/* Agents */}
       <div>
         <div className="mb-4 flex items-center justify-between">
@@ -339,7 +306,13 @@ export default function DashboardPage() {
             {t("nav.agents")} <ArrowUpRight className="h-3.5 w-3.5" />
           </Link>
         </div>
-        {!agents?.length ? (
+        {agentsLoading ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-40 animate-pulse rounded-2xl border bg-card" />
+            ))}
+          </div>
+        ) : !agents?.length ? (
           <div className="rounded-2xl border border-dashed p-14 text-center">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
               <Bot className="h-7 w-7 text-primary" />
@@ -373,7 +346,7 @@ export default function DashboardPage() {
 
 function OrbStat({ value, label }: { value: number; label: string }) {
   return (
-    <div className="rounded-xl border border-white/5 bg-background/40 px-2 py-2">
+    <div className="rounded-xl border bg-background/40 px-2 py-2">
       <p className="text-xl font-bold text-primary">{value}</p>
       <p className="truncate text-[10px] text-muted-foreground">{label}</p>
     </div>

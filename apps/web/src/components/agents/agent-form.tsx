@@ -73,8 +73,9 @@ export function AgentForm({ defaultValues, onSubmit, isLoading, error, submitLab
       )}
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium">{t("form.name")} *</label>
+        <label htmlFor="agent-name" className="text-sm font-medium">{t("form.name")} *</label>
         <input
+          id="agent-name"
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -84,9 +85,10 @@ export function AgentForm({ defaultValues, onSubmit, isLoading, error, submitLab
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium">{t("form.systemPrompt")} *</label>
+        <label htmlFor="agent-prompt" className="text-sm font-medium">{t("form.systemPrompt")} *</label>
         <p className="text-xs text-muted-foreground">{t("form.systemPromptHint")}</p>
         <textarea
+          id="agent-prompt"
           required
           rows={5}
           value={systemPrompt}
@@ -104,6 +106,7 @@ export function AgentForm({ defaultValues, onSubmit, isLoading, error, submitLab
               type="button"
               key={m.value}
               onClick={() => setModel(m.value)}
+              aria-pressed={model === m.value}
               className={cn(
                 "rounded-xl border p-3 text-left transition",
                 model === m.value ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "hover:bg-muted",
@@ -130,6 +133,7 @@ export function AgentForm({ defaultValues, onSubmit, isLoading, error, submitLab
                 key={tool.id}
                 type="button"
                 onClick={() => toggleTool(tool.id)}
+                aria-pressed={checked}
                 className={cn(
                   "flex items-start gap-3 rounded-xl border p-3 text-left transition",
                   checked ? "border-primary bg-primary/5" : "hover:bg-muted",
@@ -156,6 +160,9 @@ export function AgentForm({ defaultValues, onSubmit, isLoading, error, submitLab
         </div>
         <button
           type="button"
+          role="switch"
+          aria-checked={memoryEnabled}
+          aria-label={t("form.memory")}
           onClick={() => setMemoryEnabled(!memoryEnabled)}
           className={cn("relative h-6 w-11 rounded-full transition-colors", memoryEnabled ? "bg-primary" : "bg-input")}
         >

@@ -247,6 +247,7 @@ export function ChatInterface({ agentId, agentDefinition }: ChatInterfaceProps) 
           <button
             onClick={sendMessage}
             disabled={!input.trim() || isStreaming}
+            aria-label={t("chat.send")}
             className="h-11 w-11 rounded-xl bg-primary flex items-center justify-center text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors shrink-0"
           >
             {isStreaming ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

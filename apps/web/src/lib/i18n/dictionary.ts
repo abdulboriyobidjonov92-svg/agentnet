@@ -29,6 +29,8 @@ export const dictionary: Record<Locale, Dict> = {
     "common.back": "Back",
     "common.search": "Search",
     "common.new": "New",
+    "common.error": "Something went wrong. Please try again.",
+    "chat.send": "Send message",
 
     // Nav / brand
     "brand.tagline": "Sovereign AI operations · built for every profession",
@@ -469,6 +471,8 @@ export const dictionary: Record<Locale, Dict> = {
     "common.back": "Назад",
     "common.search": "Поиск",
     "common.new": "Новый",
+    "common.error": "Произошла ошибка. Попробуйте ещё раз.",
+    "chat.send": "Отправить сообщение",
 
     "brand.tagline": "Суверенные ИИ-операции · для каждой профессии",
 
@@ -898,6 +902,8 @@ export const dictionary: Record<Locale, Dict> = {
     "common.back": "Orqaga",
     "common.search": "Qidirish",
     "common.new": "Yangi",
+    "common.error": "Xatolik yuz berdi. Qayta urinib ko'ring.",
+    "chat.send": "Xabar yuborish",
 
     "brand.tagline": "Suveren AI operatsiyalari · har kasb uchun",
 

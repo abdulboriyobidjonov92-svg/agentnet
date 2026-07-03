@@ -71,10 +71,10 @@ export default function AgentsPage() {
                   <Bot className="h-5 w-5" />
                 </div>
                 <div className="flex gap-1 opacity-0 transition group-hover:opacity-100">
-                  <Link href={`/agents/${agent.id}/settings`} className="rounded-lg p-1.5 hover:bg-muted">
+                  <Link href={`/agents/${agent.id}/settings`} aria-label={t("agents.settings")} className="rounded-lg p-1.5 hover:bg-muted">
                     <Settings className="h-4 w-4 text-muted-foreground" />
                   </Link>
-                  <button onClick={() => handleDelete(agent.id)} disabled={deleting === agent.id} className="rounded-lg p-1.5 hover:bg-destructive/10">
+                  <button onClick={() => handleDelete(agent.id)} disabled={deleting === agent.id} aria-label={t("common.delete")} className="rounded-lg p-1.5 hover:bg-destructive/10">
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </button>
                 </div>

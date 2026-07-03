@@ -125,7 +125,7 @@ export function StatTile({
   const a = ACCENTS[accent];
   const up = (trend ?? 0) >= 0;
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-card/60 p-4 backdrop-blur transition hover:border-white/20">
+    <div className="group relative overflow-hidden rounded-2xl border bg-card/60 p-4 backdrop-blur transition hover:border-foreground/20">
       {/* Yuqori gradient urg'u chizig'i */}
       <div className="absolute inset-x-0 top-0 h-[2px]" style={{ background: `linear-gradient(90deg, transparent, ${a.stroke}, transparent)` }} />
       <div className="flex items-start justify-between">

@@ -17,6 +17,7 @@ export default function MarketplacePage() {
   const [search, setSearch] = useState("");
   const [installing, setInstalling] = useState<string | null>(null);
   const [installed, setInstalled] = useState<string[]>([]);
+  const [installError, setInstallError] = useState<{ id: string; message: string } | null>(null);
   const [showCreator, setShowCreator] = useState(false);
   const [ratingFor, setRatingFor] = useState<string | null>(null);
 
@@ -55,8 +56,15 @@ export default function MarketplacePage() {
 
   const handleInstall = async (id: string) => {
     setInstalling(id);
-    await installMutation.mutateAsync(id).catch(() => {}).finally(() => setInstalling(null));
-    setInstalled((p) => [...p, id]);
+    setInstallError(null);
+    try {
+      await installMutation.mutateAsync(id);
+      setInstalled((p) => [...p, id]);
+    } catch (e) {
+      setInstallError({ id, message: e instanceof Error ? e.message : t("common.error") });
+    } finally {
+      setInstalling(null);
+    }
   };
 
   return (
@@ -203,11 +211,18 @@ export default function MarketplacePage() {
                 <button
                   onClick={() => setRatingFor(ratingFor === agent.id ? null : agent.id)}
                   title={t("market.rate")}
+                  aria-label={t("market.rate")}
                   className="rounded-xl border px-3 py-2.5 text-sm transition hover:bg-muted"
                 >
                   <Star className="h-4 w-4" />
                 </button>
               </div>
+
+              {installError && installError.id === agent.id && (
+                <p role="alert" className="mt-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  {installError.message}
+                </p>
+              )}
 
               {ratingFor === agent.id && (
                 <div className="mt-2 flex justify-center gap-1">
@@ -215,6 +230,7 @@ export default function MarketplacePage() {
                     <button
                       key={r}
                       onClick={() => reviewMutation.mutate({ agentId: agent.id, rating: r })}
+                      aria-label={`${t("market.rate")}: ${r}/5`}
                       className="rounded-lg p-1.5 transition hover:bg-muted"
                     >
                       <Star className="h-5 w-5 text-gold" fill="currentColor" fillOpacity={0.4} />
