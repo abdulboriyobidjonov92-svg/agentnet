@@ -8,5 +8,6 @@ import { ClerkGuard } from '../auth/clerk.guard';
   imports: [AuthModule],
   controllers: [MarketplaceController],
   providers: [MarketplaceService, ClerkGuard],
+  exports: [MarketplaceService],
 })
 export class MarketplaceModule {}

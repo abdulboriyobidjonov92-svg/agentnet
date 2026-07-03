@@ -13,6 +13,12 @@ import { TwinModule } from './twin/twin.module';
 import { GoalsModule } from './goals/goals.module';
 import { IntelligenceModule } from './intelligence/intelligence.module';
 import { AgentOsModule } from './agentos/agentos.module';
+import { AutomationModule } from './automation/automation.module';
+import { ConnectorsModule } from './connectors/connectors.module';
+import { RetailModule } from './retail/retail.module';
+import { OperationsModule } from './operations/operations.module';
+import { GovtechModule } from './govtech/govtech.module';
+import { TradeModule } from './trade/trade.module';
 
 @Module({
   imports: [
@@ -30,6 +36,12 @@ import { AgentOsModule } from './agentos/agentos.module';
     GoalsModule,
     IntelligenceModule,
     AgentOsModule,
+    AutomationModule,
+    ConnectorsModule,
+    RetailModule,
+    OperationsModule,
+    GovtechModule,
+    TradeModule,
   ],
 })
 export class AppModule {}

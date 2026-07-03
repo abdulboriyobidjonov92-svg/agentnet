@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Bot, Store, Settings, LogOut, Sparkles, Plus, CircleUserRound, Target, Users, Zap, Building2 } from "lucide-react";
+import { LayoutDashboard, Bot, Store, Settings, LogOut, Sparkles, Plus, CircleUserRound, Target, Users, Zap, Building2, Globe, Plug, Camera, CalendarClock, Ship, Landmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { clearClientSession } from "@/lib/session";
 import { useT } from "@/lib/i18n/client";
@@ -20,6 +20,12 @@ export function Sidebar({ email, name, onNavigate }: { email?: string; name?: st
     { href: "/fusion", label: t("nav.fusion"), icon: Users },
     { href: "/supermode", label: t("nav.supermode"), icon: Zap },
     { href: "/agentos", label: t("nav.agentos"), icon: Building2, enterprise: true },
+    { href: "/automation", label: t("nav.automation"), icon: Globe },
+    { href: "/connectors", label: t("nav.connectors"), icon: Plug },
+    { href: "/retail", label: t("nav.retail"), icon: Camera },
+    { href: "/operations", label: t("nav.operations"), icon: CalendarClock },
+    { href: "/trade", label: t("nav.trade"), icon: Ship },
+    { href: "/govtech", label: t("nav.govtech"), icon: Landmark },
     { href: "/marketplace", label: t("nav.marketplace"), icon: Store },
     { href: "/settings", label: t("nav.settings"), icon: Settings },
   ];

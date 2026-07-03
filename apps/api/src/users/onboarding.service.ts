@@ -13,6 +13,17 @@ import { OnboardingDto, InstallRecommendationsDto } from './dto/onboarding.dto';
  * aniqlangan kasb-profilni foydalanuvchiga saqlaydi va shu profil asosida
  * tavsiya agentlar/dashboard konfiguratsiyasini beradi.
  */
+
+// S3: domain → vertical compliance pack (engine'dagi compliance_packs bilan mos).
+// Shablon agent o'rnatilganda pack avtomatik biriktiriladi.
+const DOMAIN_TO_VERTICAL: Record<string, string> = {
+  healthcare: 'healthcare',
+  law: 'legal',
+  government: 'government',
+  finance: 'finance',
+  retail: 'retail',
+  transport: 'trade',
+};
 @Injectable()
 export class OnboardingService {
   private readonly logger = new Logger(OnboardingService.name);
@@ -155,6 +166,8 @@ export class OnboardingService {
           halalFilterEnabled: true, // har doim yoqiq
           memoryEnabled: true,
           toolsConfig: (tpl.toolsConfig ?? []) as object,
+          // S3: vertikal compliance pack avtomatik biriktiriladi
+          vertical: DOMAIN_TO_VERTICAL[user.domain ?? ''] ?? null,
           userId: user.id,
         },
       });

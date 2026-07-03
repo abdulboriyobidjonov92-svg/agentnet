@@ -30,4 +30,14 @@ export class CreateAgentDto {
   @ApiProperty({ type: [ToolSpecDto] })
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => ToolSpecDto)
   toolsConfig?: ToolSpecDto[] = [];
+
+  // S3: vertical compliance pack (healthcare|finance|government|legal|retail|trade)
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsIn(['healthcare', 'finance', 'government', 'legal', 'retail', 'trade'])
+  vertical?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional() @IsString() @MaxLength(300)
+  description?: string;
 }

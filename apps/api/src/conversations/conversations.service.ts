@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TwinService } from '../twin/twin.service';
+import { MarketplaceService } from '../marketplace/marketplace.service';
 import type { User } from '@prisma/client';
 
 export interface ConversationMessage {
@@ -15,6 +16,7 @@ export class ConversationsService {
   constructor(
     private readonly prisma: PrismaService,
     @Optional() private readonly twin?: TwinService,
+    @Optional() private readonly marketplace?: MarketplaceService,
   ) {}
 
   async create(user: User, agentId: string) {
@@ -75,7 +77,30 @@ export class ConversationsService {
       void this.twin.extractAndStore(user, userText, 'conversation');
     }
 
+    // S8: Marketplace usage-tracking — o'rnatilgan agent har ishlaganda manba
+    // agent hisobiga haqiqiy foydalanish yoziladi (reyting + verified asosi).
+    // Fire-and-forget — suhbatni sekinlashtirmaydi.
+    if (this.marketplace) {
+      void this.trackMarketplaceUsage(conv.agentId, newMessages);
+    }
+
     return updated;
+  }
+
+  private async trackMarketplaceUsage(agentId: string, newMessages: ConversationMessage[]) {
+    try {
+      const agent = await this.prisma.agent.findUnique({
+        where: { id: agentId },
+        select: { sourceAgentId: true },
+      });
+      if (!agent?.sourceAgentId) return;
+      const assistant = newMessages.filter((m) => m.role === 'assistant');
+      if (!assistant.length) return;
+      const success = assistant.some((m) => m.content?.trim() && m.halalFlag !== 'BLOCK');
+      await this.marketplace!.recordUsage(agent.sourceAgentId, success);
+    } catch {
+      /* usage-tracking hech qachon suhbatni buzmasin */
+    }
   }
 
   async clear(id: string, user: User) {

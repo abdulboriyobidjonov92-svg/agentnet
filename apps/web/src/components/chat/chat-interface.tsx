@@ -33,7 +33,7 @@ export function ChatInterface({ agentId, agentDefinition }: ChatInterfaceProps) 
   // Kasb konteksti — halal filter chegara-holatlari uchun
   const { data: me } = useQuery({
     queryKey: ["me"],
-    queryFn: () => api.get<{ professionTitle?: string | null }>("/users/me"),
+    queryFn: () => api.get<{ professionTitle?: string | null; preferredLanguage?: string | null }>("/users/me"),
   });
 
   // Dashboard tezkor amalidan kelgan ?q= promptni oldindan to'ldirish
@@ -98,6 +98,9 @@ export function ChatInterface({ agentId, agentDefinition }: ChatInterfaceProps) 
             tools: agentDefinition.toolsConfig ?? [],
             halal_filter_enabled: agentDefinition.halalFilterEnabled ?? true,
             memory_enabled: agentDefinition.memoryEnabled ?? true,
+            // S3: vertikal compliance pack (engine avtomatik yuklaydi)
+            vertical: agentDefinition.vertical ?? null,
+            language: me?.preferredLanguage ?? "en",
           },
         }),
       });
@@ -131,6 +134,10 @@ export function ChatInterface({ agentId, agentDefinition }: ChatInterfaceProps) 
             } else if (event.type === "halal_block") {
               fullContent = `🚫 ${t("chat.blockedMsg")}\n\n_${event.reason}_`;
               halalFlag = "BLOCK";
+            } else if (event.type === "disclaimer") {
+              // S3: vertikal compliance disclaimeri javob oxiriga ulanadi
+              fullContent += `\n\n${event.content}`;
+              setStreamingContent(fullContent);
             } else if (event.type === "done") {
               halalFlag = event.halal_flag ?? "ALLOW";
               if (event.conversation_id) newConvId = event.conversation_id;

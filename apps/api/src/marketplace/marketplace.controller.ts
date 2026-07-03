@@ -10,10 +10,25 @@ import type { User } from '@prisma/client';
 export class MarketplaceController {
   constructor(private readonly marketplace: MarketplaceService) {}
 
+  /** Reyting bo'yicha saralangan bozor (leaderboard). */
   @Get()
   @ApiQuery({ name: 'search', required: false })
   list(@Query('search') search?: string) {
     return this.marketplace.listPublished(search);
+  }
+
+  @Get('creator/dashboard')
+  @ApiBearerAuth()
+  @UseGuards(ClerkGuard)
+  creatorDashboard(@CurrentUser() user: User) {
+    return this.marketplace.creatorDashboard(user);
+  }
+
+  @Post('creator/payout')
+  @ApiBearerAuth()
+  @UseGuards(ClerkGuard)
+  payout(@CurrentUser() user: User) {
+    return this.marketplace.requestPayout(user);
   }
 
   @Post(':agentId/publish')
@@ -22,9 +37,9 @@ export class MarketplaceController {
   publish(
     @CurrentUser() user: User,
     @Param('agentId') agentId: string,
-    @Body() body: { price?: number },
+    @Body() body: { price?: number; description?: string },
   ) {
-    return this.marketplace.publish(agentId, user, body.price);
+    return this.marketplace.publish(agentId, user, body.price, body.description);
   }
 
   @Delete(':agentId/publish')
@@ -40,5 +55,21 @@ export class MarketplaceController {
   @UseGuards(ClerkGuard)
   install(@CurrentUser() user: User, @Param('agentId') agentId: string) {
     return this.marketplace.install(agentId, user);
+  }
+
+  @Get(':agentId/reviews')
+  reviews(@Param('agentId') agentId: string) {
+    return this.marketplace.reviews(agentId);
+  }
+
+  @Post(':agentId/reviews')
+  @ApiBearerAuth()
+  @UseGuards(ClerkGuard)
+  review(
+    @CurrentUser() user: User,
+    @Param('agentId') agentId: string,
+    @Body() body: { rating: number; comment?: string },
+  ) {
+    return this.marketplace.review(agentId, user, body.rating, body.comment);
   }
 }

@@ -17,6 +17,7 @@ model User {
   id                     String    @id @default(cuid())
   clerkId                String    @unique
   email                  String    @unique
+  phone                  String?   @unique
   role                   String    @default("MEMBER")
   orgId                  String?
   org                    Org?      @relation(fields: [orgId], references: [id])
@@ -47,12 +48,26 @@ model User {
   agents                 Agent[]
   conversations          Conversation[]
   auditLogs              AuditLog[]
+  connectorConfigs       ConnectorConfig[]
+  automationRuns         AutomationRun[]
+  retailProducts         RetailProduct[]
+  retailSales            RetailSale[]
+  visionEvents           VisionEvent[]
+  retailAlerts           RetailAlert[]
+  retailSettings         RetailSettings?
+  employees              Employee[]
+  outboundMessages       OutboundMessage[]
+  citizenRequests        CitizenRequest[]
+  agentReviews           AgentReview[]
+  agentInstalls          AgentInstall[]
+  creatorLedger          CreatorLedger[]
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
   deletedAt              DateTime?
 
   @@index([clerkId])
   @@index([email])
+  @@index([phone])
   @@index([orgId])
 }
 
@@ -107,6 +122,14 @@ model Agent {
   // AgentOS C-suite roli: null=oddiy shaxsiy agent, aks holda
   // ceo|cfo|cmo|clo|cto — enterprise ish maydoni agentlari
   csuiteRole         String?
+  // Vertikal compliance pack: healthcare | finance | government | legal | retail | trade | null
+  // Agent yaratilganda shablon domenidan avtomatik belgilanadi; streaming
+  // paytida tegishli pack tizim-promptga va chiqish tekshiruviga ulanadi.
+  vertical           String?
+  description        String?
+  // Marketplace'dan o'rnatilgan bo'lsa — manba (nashr etilgan) agent id.
+  // Usage/reyting/daromad atributsiyasi shu orqali ishlaydi.
+  sourceAgentId      String?
   userId             String
   user               User           @relation(fields: [userId], references: [id])
   orgId              String?
@@ -114,12 +137,25 @@ model Agent {
   conversations      Conversation[]
   isPublished        Boolean        @default(false)
   marketplacePrice   Int?           // UZS tiyin, null = bepul
+
+  // --- Marketplace bozor dinamikasi (agregat hisoblagichlar) ---
+  installCount       Int            @default(0)
+  usageCount         Int            @default(0) // haqiqiy foydalanish hodisalari soni
+  successCount       Int            @default(0)
+  failCount          Int            @default(0)
+  ratingAvg          Float?
+  ratingCount        Int            @default(0)
+  verified           Boolean        @default(false) // sifat chegarasidan o'tgan agentlar
+
+  reviews            AgentReview[]
+  installs           AgentInstall[] @relation("SourceAgent")
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
   @@index([userId])
   @@index([orgId])
   @@index([isPublished])
+  @@index([sourceAgentId])
 }
 
 model Conversation {
@@ -209,4 +245,279 @@ model AuditLog {
   @@index([actorId])
   @@index([action])
   @@index([createdAt])
+}
+
+// ================================================================
+// PART 1B — Platform-wide superpowers
+// ================================================================
+
+// --- S1: Universal App Control (Tier 1 — brauzer avtomatlashtirish) ---
+// Har bir yurgizish: maqsad → LLM-rejalashtirilgan qadamlar (Playwright) →
+// qadam jurnali + yakuniy natija. Tier 2 (native OS) ROADMAP'da.
+model AutomationRun {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal      String
+  startUrl  String?
+  status    String   @default("running") // running | completed | failed | blocked
+  // [{ step, action, target, value?, observation, at }]
+  steps     Json?
+  result    Json?    // { summary, extracted?, finalUrl, finalTitle }
+  method    String?  // llm | scripted
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+// --- S2: Connector SDK ---
+// Bitta yagona interfeys: auth + action schema + data schema.
+// Connector ta'riflari kodda (registry), foydalanuvchi konfiglari shu jadvalda.
+model ConnectorConfig {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connectorId String    // registry slug: "telegram-bot", "whatsapp-business", ...
+  label       String    @default("default")
+  // Auth + sozlamalar (token, chat_id, shop domain...). Prod: KMS bilan shifrlanadi.
+  config      Json?
+  status      String    @default("connected") // connected | needs_credentials | error | disabled
+  lastUsedAt  DateTime?
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, connectorId, label])
+  @@index([userId])
+}
+
+// --- S4: Retail Intelligence (kamera + inventar fuziyasi) ---
+model RetailProduct {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sku           String
+  name          String
+  stock         Int      @default(0)
+  reorderLevel  Int      @default(5)
+  price         Int      @default(0) // UZS tiyin
+  shelfZone     String?  // kamera zonasi bilan bog'lash uchun: "A1", "ichimliklar"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([userId, sku])
+  @@index([userId])
+}
+
+model RetailSale {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sku       String
+  qty       Int      @default(1)
+  total     Int      @default(0) // UZS tiyin
+  source    String   @default("pos") // pos | manual | import
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, sku])
+  @@index([createdAt])
+}
+
+// Kamera-vision hodisasi — haqiqiy CV servis webhook orqali yuboradi
+// (POST /api/retail/vision-events). Hodisa O'ZI signal emas: POS/inventar
+// bilan solishtirilgandan keyingina alert bo'ladi.
+model VisionEvent {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  camera     String   @default("cam-1")
+  type       String   // shelf_empty | item_pickup | shelf_restocked | person_loitering | unknown
+  sku        String?
+  zone       String?
+  confidence Float    @default(0.8)
+  raw        Json?
+  status     String   @default("new") // new | reconciled | alerted | dismissed
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([status])
+}
+
+model RetailAlert {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String   // stockout | restock_needed | theft_suspect | discrepancy | false_alarm
+  severity  String   @default("info") // info | warning | critical
+  title     String
+  body      String
+  evidence  Json?    // { visionEvents, inventory, sales, assessment }
+  channel   String?  // telegram | sms | email | whatsapp | in_app
+  delivery  String   @default("pending") // sent | pending | failed | in_app
+  method    String?  // llm | heuristic
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([kind])
+}
+
+model RetailSettings {
+  id         String  @id @default(cuid())
+  userId     String  @unique
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel    String  @default("telegram") // telegram | sms | email | whatsapp
+  target     String? // chat_id / telefon / email
+  autoNotify Boolean @default(true)
+  updatedAt  DateTime @updatedAt
+}
+
+// --- S5: Business Operations (AgentOS kengaytmasi) ---
+model Employee {
+  id          String    @id @default(cuid())
+  userId      String    // ish beruvchi (workspace egasi)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orgId       String?
+  name        String
+  role        String?
+  phone       String?
+  email       String?
+  hourlyRate  Int?      // UZS tiyin/soat
+  monthlyRate Int?      // UZS tiyin/oy
+  active      Boolean   @default(true)
+  shifts      Shift[]
+  timeOffs    TimeOff[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model Shift {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  userId     String
+  date       String   // YYYY-MM-DD
+  startTime  String   // "09:00"
+  endTime    String   // "18:00"
+  status     String   @default("scheduled") // scheduled | completed | missed | cancelled
+  note       String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, date])
+  @@index([employeeId])
+}
+
+model TimeOff {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  userId     String
+  startDate  String   // YYYY-MM-DD
+  endDate    String   // YYYY-MM-DD
+  kind       String   @default("vacation") // vacation | sick | unpaid | other
+  status     String   @default("pending")  // pending | approved | rejected
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([employeeId])
+}
+
+// Tashqi kommunikatsiya: agent qoralama tayyorlaydi (draft), egasi
+// tasdiqlaydi (approved), keyin Connector SDK orqali haqiqiy yuboriladi (sent).
+model OutboundMessage {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orgId            String?
+  audience         String    @default("client") // client | partner | sponsor
+  recipientName    String?
+  recipientContact String    // chat_id / email / telefon
+  channel          String    @default("telegram") // telegram | email | sms | whatsapp
+  subject          String?
+  body             String
+  status           String    @default("draft") // draft | approved | sent | failed
+  sentAt           DateTime?
+  meta             Json?     // { purpose, method, deliveryResult }
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+// --- S7: GovTech — fuqaro so'rovi (mahalla/tuman raqamlashtirish) ---
+// Intake → tasnif → mas'ul xizmatga yo'naltirish → holat kuzatuvi.
+// Jonli davlat tizimiga topshirish data-sharing shartnomasini talab qiladi —
+// hozir ichki marshrutlangan tiket sifatida ishlaydi (routing.live=false).
+model CitizenRequest {
+  id        String   @id @default(cuid())
+  userId    String   // operator (mahalla xodimi) yoki fuqaroning o'zi
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName  String?
+  contact   String?
+  text      String
+  category  String?  // utilities | roads | documents | social | sanitation | dispute | other
+  service   String?  // mas'ul xizmat nomi
+  office    String?  // idora/portal
+  priority  String?  // low | normal | high | urgent
+  routing   Json?    // { service, office, steps, live: false, method }
+  status    String   @default("received") // received | routed | in_progress | resolved | rejected
+  timeline  Json?    // [{ at, status, note }]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+// --- S8: Marketplace bozor mexanikasi ---
+model AgentInstall {
+  id               String   @id @default(cuid())
+  sourceAgentId    String
+  sourceAgent      Agent    @relation("SourceAgent", fields: [sourceAgentId], references: [id], onDelete: Cascade)
+  installedAgentId String   @unique
+  userId           String   // o'rnatgan foydalanuvchi
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pricePaid        Int      @default(0) // UZS tiyin
+  createdAt        DateTime @default(now())
+
+  @@index([sourceAgentId])
+  @@index([userId])
+}
+
+model AgentReview {
+  id        String   @id @default(cuid())
+  agentId   String   // nashr etilgan (manba) agent
+  agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating    Int      // 1-5
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@unique([agentId, userId])
+  @@index([agentId])
+}
+
+// Kreator daromad daftari — har bir yozuv haqiqiy buxgalteriya:
+// install_revenue (70% kreator ulushi), usage_revenue, payout (manfiy).
+// To'lov protsessingi stub — hisob-kitob mantig'i haqiqiy.
+model CreatorLedger {
+  id        String   @id @default(cuid())
+  creatorId String
+  creator   User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  agentId   String?
+  kind      String   // install_revenue | usage_revenue | payout
+  amount    Int      // UZS tiyin; kredit musbat, payout manfiy
+  currency  String   @default("UZS")
+  meta      Json?    // { installId, grossAmount, platformShare, note }
+  createdAt DateTime @default(now())
+
+  @@index([creatorId])
+  @@index([agentId])
 }

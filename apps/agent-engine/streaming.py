@@ -14,6 +14,7 @@ from typing import AsyncIterator
 from anthropic import AsyncAnthropic
 from halal_filter import HalalFilter, Action
 
+import compliance_packs
 import knowledge_sync
 from agent_engine import registry
 from tools.islam_tools import prayer_times, quran_surah
@@ -52,6 +53,14 @@ async def stream_agent_response(
     system_prompt = agent_definition.get("system_prompt", "Sen foydali AI yordamchisisan.")
     model = agent_definition.get("model", "claude-sonnet-4-6")
 
+    # S3: Vertical Compliance Pack — agent vertikaliga qarab avtomatik yuklanadi.
+    # Tizim-promptga majburiy xulq qoidalari qo'shiladi (HIPAA-style by default).
+    vertical = agent_definition.get("vertical")
+    language = agent_definition.get("language", "en")
+    pack_addendum = compliance_packs.system_addendum(vertical)
+    if pack_addendum:
+        system_prompt = f"{system_prompt}\n\n{pack_addendum}"
+
     full_response = ""
     used_real_api = False
 
@@ -70,7 +79,7 @@ async def stream_agent_response(
     except Exception:
         # API mavjud emas — demo rejimga o'tamiz (hech qanday token chiqmagan bo'lsa)
         if not used_real_api:
-            async for ev in _demo_stream(message, agent_definition):
+            async for ev in _demo_stream(message, agent_definition, user_id):
                 if ev.startswith("__TEXT__"):
                     full_response += ev[len("__TEXT__"):]
                 else:
@@ -90,6 +99,21 @@ async def stream_agent_response(
         if output_check.action == Action.BLOCK:
             yield _sse({"type": "replace", "content": "🚫 Javob Halal Filter tomonidan bloklandi."})
 
+    # 4. S3: Vertical compliance post-tekshiruvi — taqiqlangan da'vo naqshlari
+    # va majburiy disclaimer. Javob o'zgartirilmaydi; disclaimer alohida
+    # event sifatida qo'shiladi (UI xabar oxiriga ulaydi).
+    if vertical and full_response.strip():
+        cc = compliance_packs.check_output(full_response, vertical, language)
+        if cc["violations"]:
+            yield _sse({
+                "type": "compliance_flag",
+                "vertical": vertical,
+                "violations": len(cc["violations"]),
+                "note": "Output matched prohibited-claim patterns for this vertical; corrective disclaimer enforced.",
+            })
+        if cc["disclaimer_needed"] and cc["disclaimer"]:
+            yield _sse({"type": "disclaimer", "content": cc["disclaimer"], "vertical": vertical})
+
     yield _sse({"type": "done", "halal_flag": input_check.action.value, "demo_mode": not used_real_api})
 
 
@@ -97,7 +121,7 @@ async def stream_agent_response(
 # DEMO REJIM — API kalitisiz ishlaydigan to'liq oqim
 # ----------------------------------------------------------------
 
-async def _demo_stream(message: str, agent_definition: dict) -> AsyncIterator[str]:
+async def _demo_stream(message: str, agent_definition: dict, user_id: str = "") -> AsyncIterator[str]:
     """
     Haqiqiy tool'lar bilan demo javob. '__TEXT__' prefiksli event'lar
     to'liq javobga qo'shiladi (chiqish halal tekshiruvi uchun).
@@ -174,6 +198,27 @@ async def _demo_stream(message: str, agent_definition: dict) -> AsyncIterator[st
             parts.append("\n")
         if len(parts) == 1:
             parts.append("Jonli manbalardan natija topilmadi — so'rovni aniqlashtiring.")
+
+    # --- S1: Brauzer-avtomatlashtirish (haqiqiy Playwright bridge orqali) ---
+    elif "web.automate" in tool_ids and (
+        re.search(r"https?://", message)
+        or any(k in lower for k in ["avtomat", "automate", "открой сайт", "saytni och", "open the site", "browse"])
+    ):
+        from tools.automation_tools import web_automate
+
+        yield _sse({"type": "tool_result", "result": {"tool_id": "web.automate", "calling": message[:60]}})
+        res = await web_automate(goal=message, user_id=user_id, language=agent_definition.get("language", "en"))
+        if res.get("holat") == "xato":
+            parts.append(f"Brauzer-avtomatlashtirishda xatolik: {res.get('sabab')}")
+        else:
+            result = res.get("result") or {}
+            parts.append(f"🌐 **Brauzer yurgizishi** — holat: **{res.get('status', '?')}**\n\n")
+            if result.get("summary"):
+                parts.append(f"{result['summary']}\n\n")
+            if result.get("extracted"):
+                parts.append(f"Olingan ma'lumot:\n\n{str(result['extracted'])[:800]}\n")
+            if result.get("finalUrl"):
+                parts.append(f"\nYakuniy sahifa: {result['finalUrl']} — \"{result.get('finalTitle', '')}\"")
 
     # --- Valyuta kurslari (haqiqiy open.er-api.com) ---
     elif "finance.currency_rates" in tool_ids and any(k in lower for k in ["valyuta", "kurs", "dollar", "currency", "курс", "валюта", "usd", "eur"]):

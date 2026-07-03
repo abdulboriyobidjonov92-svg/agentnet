@@ -1,10 +1,43 @@
 # AgentNet — "Wow" imkoniyatlar backlog'i (Part 2+)
 
-**Sana:** 2026-07-02
+**Sana:** 2026-07-03 (Part 1B yangilandi)
 **Holat:** Part 1'da beshta flagman imkoniyat qurildi (Life Twin, Autonomous
 Goals, Agent Fusion, Ethical Decision Engine, Knowledge Sync + Super Mode).
+Part 1B'da qurildi: brauzer-avtomatlashtirish (Tier 1), Connector SDK (17),
+Vertical Compliance Packs, Retail Intelligence, Business Operations,
+Cross-Border Trade, GovTech, Marketplace bozor mexanikasi.
 Quyidagilar keyingi bosqichlar uchun ustuvorlik tartibida saqlanadi.
-Har birida texnik feasibility izohi bor. **Hech biri hali qurilmagan.**
+Har birida texnik feasibility izohi bor.
+
+---
+
+## Tier 2: Native OS/qurilma boshqaruvi (Universal App Control davomi)
+
+**Part 1B'da ATAYLAB qurilmadi** — bu backend-kod bilan soxtalab bo'lmaydigan
+alohida muhandislik muammosi. Tier 1 (brauzer-avtomatlashtirish, Playwright)
+qurildi va ishlayapti; u real biznes-vositalarning katta qismini qoplaydi
+(CRM, davlat portallari, bank web-kabinetlari, e-commerce back-office).
+
+**Native Tier 2 uchun nima kerak (halol texnik yo'l):**
+
+1. **Desktop companion-ilova** (Windows/macOS):
+   - Tauri yoki Electron shell + lokal agent-daemon
+   - OS ruxsatlari: macOS'da Accessibility + Screen Recording (TCC prompt),
+     Windows'da UIAutomation API — foydalanuvchi qo'lda beradi
+   - Ekran-skrinshot → vision model → element topish → OS-darajali klik/klaviatura
+     (Claude Computer Use'dagi kabi)
+   - AgentNet serveriga xavfsiz WebSocket kanal (mutual TLS + qurilma tokeni)
+2. **Mobil companion** (Android birinchi):
+   - AccessibilityService API (Google Play siyosati bo'yicha alohida ko'rib chiqiladi
+     — reject xavfi bor, ehtimol sideload/enterprise-kanal)
+   - iOS'da tizim ekvivalenti YO'Q — faqat Shortcuts/App Intents darajasi realistik
+3. **Xavfsizlik modeli:** har amal oldin Ethics Engine + amal-jurnal (screenshot proof),
+   to'lov/o'chirish amallariga majburiy inson tasdig'i
+4. **Risk/baholash:** desktop MVP ~4-6 hafta (1 muhandis, Tauri + Windows UIA),
+   Android ~4 hafta + Play siyosati noaniqligi; vision-loop sifati uchun
+   ANTHROPIC_API_KEY shart. Server-tomoni tayyor: AutomationRun modeli va
+   planner endpointlari (Tier 1) qayta ishlatiladi — companion faqat yangi
+   "bridge" bo'ladi.
 
 ---
 

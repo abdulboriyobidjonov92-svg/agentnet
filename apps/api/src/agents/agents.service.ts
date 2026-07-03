@@ -24,6 +24,8 @@ export class AgentsService {
         halalFilterEnabled: dto.halalFilterEnabled ?? true,
         memoryEnabled: dto.memoryEnabled ?? true,
         toolsConfig: (dto.toolsConfig ?? []) as object,
+        vertical: dto.vertical ?? null,
+        description: dto.description ?? null,
         userId: user.id,
       },
     });
@@ -56,6 +58,8 @@ export class AgentsService {
         ...(dto.halalFilterEnabled !== undefined && { halalFilterEnabled: dto.halalFilterEnabled }),
         ...(dto.memoryEnabled !== undefined && { memoryEnabled: dto.memoryEnabled }),
         ...(dto.toolsConfig && { toolsConfig: dto.toolsConfig as object }),
+        ...(dto.vertical !== undefined && { vertical: dto.vertical }),
+        ...(dto.description !== undefined && { description: dto.description }),
         ...(dto.isPublished !== undefined && { isPublished: dto.isPublished }),
         ...(dto.marketplacePrice !== undefined && { marketplacePrice: dto.marketplacePrice }),
       },

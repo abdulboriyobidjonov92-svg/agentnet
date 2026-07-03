@@ -1,9 +1,118 @@
 # AgentNet — Prototip holati ✅
 
-**Sana:** 2026-07-02 (Part 2 yakunlandi)
+**Sana:** 2026-07-03 (Part 1B yakunlandi)
 **Holat:** Adaptiv yadro + 5 flagman imkoniyat + Super Mode (Part 1) +
-**JAHON DARAJASIDAGI DIZAYN TIZIMI (3D)** + **AgentOS enterprise liniyasi** (Part 2).
+**JAHON DARAJASIDAGI DIZAYN TIZIMI (3D)** + **AgentOS enterprise liniyasi** (Part 2) +
+**PLATFORMA SUPERKUCHLARI** (Part 1B: brauzer-avtomatlashtirish, Connector SDK,
+compliance packlar, retail fuziyasi, biznes-operatsiyalar, tashqi savdo, GovTech,
+marketplace bozor mexanikasi).
 Deploy'ga to'liq tayyor (artefaktlar + guide); jonli chiqarish akkaunt kutmoqda.
+
+## YANGI: Part 1B — Platforma superkuchlari (2026-07-03)
+
+Barcha 8 bo'lim qurildi va **haqiqiy kirishlar bilan tekshirildi** (quyida har birida
+tekshiruv natijasi). Naqsh o'zgarmadi: LLM-first + halol heuristik fallback,
+har kirish Halal Filter'dan o'tadi.
+
+### S1. Universal App Control — Tier 1: brauzer-avtomatlashtirish ✅
+- **Arxitektura:** Playwright (Chromium) NestJS "browser bridge"da; har qadam
+  QARORI engine'da (`automation_planner.py` — LLM sahifa holatiga qarab mulohaza
+  yuritadi; kalitsiz skriptli retseptlar: URL ochish, forma to'ldirish, o'qish).
+- **Yo'llar:** `/automation` sahifasi; `POST /api/automation/run`; agent-vositasi
+  `web.automate` (istalgan agent toolsConfig'iga qo'shiladi, demo-chatda ham ishlaydi).
+- **Model:** `AutomationRun` — qadam jurnali + natija + method.
+- **Tekshirildi:** example.com ochib matn o'qidi ✓; httpbin.org formasini haqiqiy
+  to'ldirdi ✓; URLsiz maqsad → halol fail ✓; "kazino" maqsadi → blocked ✓.
+- **Tier 2 (native OS)** ATAYLAB qurilmadi — halol texnik yo'l `ROADMAP_WOW_FEATURES.md`da.
+
+### S2. Connector SDK — 17 connector ✅
+- **SDK:** `apps/api/src/connectors/` — yagona interfeys (auth sxemasi + action
+  sxemasi + data sxemasi), registry, `ConnectorConfig` jadvali. Yangi integratsiya =
+  bitta fayl. Qo'llanma: `docs/CONNECTOR_SDK.md`.
+- **Connectorlar:** Telegram, WhatsApp Business, Eskiz SMS (UZ), Playmobile SMS (UZ),
+  SMTP email, Bitrix24, amoCRM, Shopify, WooCommerce, Uzum Market (UZ), Payme (UZ),
+  Click (UZ), Google Sheets, Didox e-faktura (UZ), AfterShip; my.gov.uz va soliq.uz —
+  halol `agreement_required` stub (sxema tayyor).
+- **Agent-vositasi:** `connector.invoke` — agentlar istalgan ulangan integratsiyani chaqiradi.
+- **Tekshirildi:** katalog 17 ✓; kredensialsiz configure → `needs_credentials` ✓;
+  soxta token bilan invoke → haqiqiy Telegram API xatosi ("Unauthorized") halol qaytdi ✓;
+  my-gov-uz → `needs: agreement` ✓. UI: `/connectors`.
+
+### S3. Vertical Compliance Packs ✅
+- `compliance_packs.py`: healthcare, finance, government, legal, retail, trade —
+  har birida majburiy tizim-prompt qoidalari, 3 tilda disclaimer, taqiqlangan-da'vo
+  regexlari, data-qoidalar. Ethical Decision Engine O'RNIGA EMAS — yoniga.
+- **Avtomatik yuklanadi:** Agent'da `vertical` maydoni; onboarding shablonlari
+  domenidan avto-belgilanadi; streaming'da pack tizim-promptga qo'shiladi,
+  chiqishda disclaimer/violation eventi (`disclaimer`, `compliance_flag`).
+- **Tekshirildi:** "You definitely have cancer. No need to see a doctor" → 2 ta
+  violation ✓; "guaranteed profit" → finance violation ✓; jonli streamda healthcare
+  agenti javobiga o'zbekcha disclaimer qo'shildi ✓.
+
+### S4. Retail Intelligence — kamera + inventar FUZIYASI ✅
+- **Naqsh:** vision-hodisa hech qachon o'zi signal emas — POS savdolari va inventar
+  bilan solishtiriladi (`RetailService.reconcileAndAlert` + `retail_intel.py`
+  kontekstli baho). Modellari: RetailProduct/Sale/VisionEvent/Alert/Settings.
+- **"Bu tovar tugadi" o'zi keladi:** alert egasi tanlagan kanalga (Telegram/SMS/
+  WhatsApp/email — Connector SDK orqali) avtonom yuboriladi, dashboard kutmaydi.
+- **CV webhook:** `POST /api/retail/vision-events` — haqiqiy kamera-servis shu yerga uradi.
+- **Tekshirildi:** shelf_empty + zaxira 0 → CRITICAL stockout, o'zbekcha xabar ✓;
+  kamera "bo'sh" lekin hisobda 24 → discrepancy ✓; pickup POS cheksiz → theft_suspect
+  (ayblovsiz) ✓; buzuq hodisa (alien_invasion, noma'lum SKU) → graceful ✓;
+  kanal sozlangach haqiqiy yuborish urinishi (soxta token → halol `failed`) ✓. UI: `/retail`.
+
+### S5. Business Operations Agent ✅
+- Xodimlar, **tabiiy tildan smena jadvali** (`business_ops.py` — LLM-first;
+  kalitsiz ham "Alisher juma ishlamaydi"ni tushunadigan cheklov-parser),
+  ta'til so'rovlari, **payroll-yaqin hisob** (soat × stavka, soliq YO'Q — halol
+  chegara), **tashqi xabarlar**: agent qoralaydi → ega tasdiqlaydi → Connector
+  SDK orqali haqiqiy yuboriladi. Modellari: Employee/Shift/TimeOff/OutboundMessage.
+- **Tekshirildi:** 3 xodim, "9-21, 2 kishi, Alisher juma ishlamaydi" → 14 smena,
+  jumada Alisher yo'q ✓; payroll 84 soat / 1 890 000 so'm to'g'ri ✓; mijozga
+  qoralama → tasdiq → yuborish urinishi (halol failed holati) ✓. UI: `/operations`.
+
+### S6. Cross-Border Trade Agent ✅
+- `trade.py`: bojxona hujjatlari (eksport/import to'plamlari + invoice qoralama),
+  tarif ma'lumotnomasi (HS bo'limlar + UZ boj/QQS taxminlari, "rasmiy manbada
+  tasdiqlang" disclaimeri bilan), muvofiqlik skriningi (dual-use + embargo
+  ro'yxatlari), trek-raqamdan tashuvchi aniqlash (jonli kuzatuv AfterShip
+  connectori bilan), jonli valyuta (open.er-api).
+- **Tekshirildi:** "smartfon" → HS 85, 10%/12% ✓; eksport meva → 8 hujjat ✓;
+  "drone/night vision → Iran" → 4 flag ✓; paxta → clear ✓; 1Z... → UPS ✓;
+  USD=11 912 UZS jonli kurs ✓. UI: `/trade`; builtin shablon "Cross-Border Trade Agent".
+
+### S7. GovTech vertikali ✅
+- `govtech.py` + `CitizenRequest`: murojaat intake → tasnif (7 kategoriya,
+  LLM-first + 3 tilli keyword fallback) → mas'ul idoraga marshrut → timeline'li
+  holat kuzatuvi. **Jarayon navigatori:** 8 ta ko'p bosqichli guide (pasport,
+  propiska, YaTT, metrika, pensiya, nikoh, kadastr, prava).
+- **Halol chegara:** har javobda `live: false` — jonli topshirish uchun rasmiy
+  data-sharing shartnomasi + my.gov.uz API kerakligi ochiq yozilgan.
+- **Tekshirildi:** "gaz hidi... suv yo'q... bolalar xavf" → utilities/URGENT ✓;
+  "pasport olish" → to'liq 4-bosqichli guide ✓; keraksiz matn → yagona darchaga
+  triage (yiqilmaydi) ✓; holat advance + timeline ✓. UI: `/govtech`.
+
+### S8. Marketplace bozor mexanikasi ✅
+- **Reyting:** score = foydalanish + o'rnatishlar×5 + baho×soni×2 + verified bonus;
+  leaderboard rank bilan. **Verified belgisi:** ≥10 foydalanish va ≥90% muvaffaqiyat.
+- **Haqiqiy signal:** suhbat saqlanganda o'rnatilgan agent → manba agentga
+  usage/success yoziladi (conversations hook, `sourceAgentId` atributsiyasi).
+- **Baholar:** faqat haqiqatan o'rnatganlar (reyting soxtalanmaydi).
+- **Daromad:** pulli o'rnatish → `CreatorLedger`ga 70/30 split (haqiqiy buxgalteriya);
+  payout so'rovi balansni yopadigan yozuv (to'lov protsessingi stub — ochiq yozilgan).
+- **Tekshirildi:** 5 000 so'mlik agent publish → install → ledger 3 500/1 500 ✓;
+  11 haqiqiy suhbat almashinuvi → usage 11, verified=true, rank #1 ✓; o'rnatmagan
+  foydalanuvchi bahosi → 403 ✓; payout → stub_pending yozuvi ✓. UI: marketplace qayta qurildi.
+
+### S9. Kesuvchi printsip — qoida emas, mulohaza
+Har yangi agent xulqi LLM-first (Claude kaliti bilan chuqur kontekstli mulohaza);
+fallbacklar ham dalil-asosli va buzuq kirishda gracefully ishlaydi (yuqoridagi
+har bo'limda buzuq-kirish testi bor). `method: llm|heuristic` belgisi hamma joyda.
+
+### Yangi env o'zgaruvchilar
+- `INTERNAL_API_TOKEN` — engine↔API ichki chaqiruvlar (default: dev qiymat)
+- `API_URL` — engine'dan NestJS'ga (default http://localhost:3001)
+- Playwright: `apps/api`da o'rnatilgan (`npx playwright install chromium` bajarilgan)
 
 ## YANGI: Part 2 — Dizayn tizimi + AgentOS (2026-07-02)
 

@@ -11,12 +11,18 @@ from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 import agentos as agentos_engine
+import automation_planner
+import business_ops
+import compliance_packs
 import ethics as ethics_engine
 import fusion as fusion_engine
 import goal_engine
+import govtech as govtech_engine
 import knowledge_sync
 import life_twin
+import retail_intel
 import supermode as supermode_engine
+import trade as trade_engine
 from agent_engine import AgentDefinition, AgentEngine, registry
 from halal_filter import Action, HalalFilter
 from role_detection import detect_role, domain_profile, domains_summary
@@ -29,6 +35,7 @@ from tools.finance_tools import get_transactions
 from tools.calendar_tools import get_events
 from tools.messaging_tools import telegram_send
 from tools.utility_tools import weather, currency_rates
+from tools.automation_tools import connector_invoke, web_automate
 
 halal_filter = HalalFilter()
 
@@ -65,6 +72,8 @@ async def lifespan(app: FastAPI):
     registry.register("finance.currency_rates",  make_sync_wrapper(currency_rates))
     registry.register("utility.weather",          make_sync_wrapper(weather))
     registry.register("knowledge.search",         make_sync_wrapper(knowledge_sync.knowledge_search_tool))
+    registry.register("web.automate",             make_sync_wrapper(web_automate))
+    registry.register("connector.invoke",         make_sync_wrapper(connector_invoke))
 
     print("✅ AgentNet Agent Engine ishga tushdi")
     print(f"   Ro'yxatdagi toollar: {registry.available()}")
@@ -184,6 +193,78 @@ class AgentOsRequest(BaseModel):
     roles: list[str] | None = None
     values: dict[str, Any] | None = None
     language: str = "en"
+
+
+# --- Part 1B sxemalari ---
+
+class AutomationPlanRequest(BaseModel):
+    goal: str
+    page_state: dict[str, Any] | None = None
+    history: list[dict[str, Any]] = []
+    language: str = "en"
+
+
+class AutomationSummaryRequest(BaseModel):
+    goal: str
+    steps: list[dict[str, Any]] = []
+    language: str = "en"
+
+
+class ComplianceCheckRequest(BaseModel):
+    text: str
+    vertical: str | None = None
+    language: str = "en"
+
+
+class RetailAssessRequest(BaseModel):
+    evidence: dict[str, Any]
+    language: str = "uz"
+
+
+class OpsScheduleRequest(BaseModel):
+    instructions: str
+    employees: list[dict[str, Any]] = []
+    week_start: str | None = None
+    language: str = "en"
+
+
+class OpsOutboundRequest(BaseModel):
+    purpose: str
+    audience: str = "client"
+    recipient_name: str = ""
+    channel: str = "telegram"
+    org_name: str = ""
+    context: str = ""
+    language: str = "en"
+
+
+class TradeDocsRequest(BaseModel):
+    shipment: dict[str, Any]
+    language: str = "en"
+
+
+class TradeTariffRequest(BaseModel):
+    goods: str
+    destination: str = "Uzbekistan"
+    language: str = "en"
+
+
+class TradeComplianceRequest(BaseModel):
+    goods: str
+    origin: str = ""
+    destination: str = ""
+    counterparty: str = ""
+    language: str = "en"
+
+
+class GovClassifyRequest(BaseModel):
+    text: str
+    language: str = "uz"
+
+
+class GovGuideRequest(BaseModel):
+    query: str
+    language: str = "uz"
 
 
 async def _guard(text: str, agent_name: str, profession: str = "") -> None:
@@ -395,6 +476,123 @@ async def agentos_csuite(language: str = "en"):
     return {"roles": agentos_engine.csuite_catalog(language)}
 
 
+# ================================================================
+# PART 1B — Platform-wide superpowers
+# ================================================================
+
+# --- S1: Universal App Control (Tier 1 — brauzer avtomatlashtirish) ---
+# Brauzer (Playwright) NestJS bridge'da; bu endpointlar har qadam uchun
+# LLM-first qaror qabul qiladi (kalitsiz — skriptli retseptlar).
+
+
+@app.post("/automation/plan")
+async def automation_plan(req: AutomationPlanRequest):
+    if not req.history:  # maqsad faqat birinchi qadar Halal Filter'dan o'tadi
+        await _guard(req.goal, "browser-automation")
+    return await automation_planner.plan_next_step(req.goal, req.page_state, req.history, req.language)
+
+
+@app.post("/automation/summarize")
+async def automation_summarize(req: AutomationSummaryRequest):
+    return {"summary": await automation_planner.summarize_run(req.goal, req.steps, req.language)}
+
+
+@app.get("/automation/capabilities")
+async def automation_capabilities():
+    return automation_planner.describe_capabilities()
+
+
+# --- S3: Vertical Compliance Packs ---
+
+
+@app.get("/compliance/packs")
+async def compliance_list(language: str = "en"):
+    return {"packs": compliance_packs.packs_summary(language)}
+
+
+@app.post("/compliance/check-output")
+async def compliance_check_output(req: ComplianceCheckRequest):
+    return compliance_packs.check_output(req.text, req.vertical, req.language)
+
+
+# --- S4: Retail Intelligence (kamera + inventar fuziyasi) ---
+
+
+@app.post("/retail/assess")
+async def retail_assess(req: RetailAssessRequest):
+    return await retail_intel.assess(req.evidence, req.language)
+
+
+# --- S5: Business Operations ---
+
+
+@app.post("/ops/schedule")
+async def ops_schedule(req: OpsScheduleRequest):
+    await _guard(req.instructions, "business-ops")
+    return await business_ops.schedule_from_text(req.instructions, req.employees, req.week_start, req.language)
+
+
+@app.post("/ops/outbound-draft")
+async def ops_outbound(req: OpsOutboundRequest):
+    await _guard(req.purpose, "business-ops")
+    return await business_ops.outbound_draft(
+        req.purpose, req.audience, req.recipient_name, req.channel, req.org_name, req.context, req.language
+    )
+
+
+# --- S6: Cross-Border Trade ---
+
+
+@app.post("/trade/customs-docs")
+async def trade_docs(req: TradeDocsRequest):
+    await _guard(str(req.shipment.get("goods", "")), "trade")
+    return await trade_engine.customs_docs(req.shipment, req.language)
+
+
+@app.post("/trade/tariff")
+async def trade_tariff(req: TradeTariffRequest):
+    await _guard(req.goods, "trade")
+    return await trade_engine.tariff_lookup(req.goods, req.destination, req.language)
+
+
+@app.post("/trade/compliance")
+async def trade_compliance(req: TradeComplianceRequest):
+    return await trade_engine.compliance_check(req.goods, req.origin, req.destination, req.counterparty, req.language)
+
+
+@app.get("/trade/tracking/{tracking_number}")
+async def trade_tracking(tracking_number: str):
+    return trade_engine.tracking_info(tracking_number)
+
+
+@app.get("/trade/fx")
+async def trade_fx(base: str = "USD", symbols: str = "UZS,EUR,RUB,CNY,KZT"):
+    return await trade_engine.fx(base, symbols)
+
+
+# --- S7: GovTech ---
+
+
+@app.post("/govtech/classify")
+async def govtech_classify(req: GovClassifyRequest):
+    await _guard(req.text, "govtech-intake")
+    return await govtech_engine.classify_request(req.text, req.language)
+
+
+@app.post("/govtech/guide")
+async def govtech_guide(req: GovGuideRequest):
+    await _guard(req.query, "govtech-navigator")
+    return await govtech_engine.process_guide(req.query, req.language)
+
+
+@app.get("/govtech/catalog")
+async def govtech_catalog(language: str = "uz"):
+    return {
+        "services": govtech_engine.services_catalog(language),
+        "guides": govtech_engine.guides_catalog(language),
+    }
+
+
 # ----------------------------------------------------------------
 # Built-in agentlar uchun endpoint
 # ----------------------------------------------------------------
@@ -464,6 +662,47 @@ async def get_builtin_agents():
                     {"tool_id": "knowledge.search", "config": {}},
                     {"tool_id": "utility.weather", "config": {}},
                 ],
+            },
+            {
+                "id": "builtin-trade",
+                "name": "Cross-Border Trade Agent",
+                "system_prompt": (
+                    "You are an import/export specialist for Central Asian businesses: customs "
+                    "documentation checklists, HS/tariff reference lookups, multi-currency math and "
+                    "trade-compliance screening. Duty figures are reference estimates — always tell "
+                    "the user to confirm with official customs sources. Always reply in the language the user writes in."
+                ),
+                "model": "claude-sonnet-4-6",
+                "vertical": "trade",
+                "tools": [
+                    {"tool_id": "knowledge.search", "config": {}},
+                    {"tool_id": "finance.currency_rates", "config": {}},
+                ],
+            },
+            {
+                "id": "builtin-govtech",
+                "name": "GovTech Navigator",
+                "system_prompt": (
+                    "You help citizens and mahalla/district staff navigate Uzbek government services: "
+                    "classify requests, route them to the responsible office, and walk people through "
+                    "multi-step processes (passport, propiska, YaTT, pension...). Procedural guidance "
+                    "only — final decisions belong to the responsible agency. Always reply in the language the user writes in."
+                ),
+                "model": "claude-sonnet-4-6",
+                "vertical": "government",
+                "tools": [{"tool_id": "knowledge.search", "config": {}}],
+            },
+            {
+                "id": "builtin-web-operator",
+                "name": "Web Operator",
+                "system_prompt": (
+                    "You operate web applications on the user's behalf through a real browser: open "
+                    "sites, read data, fill forms. Never submit payments or send messages unless the "
+                    "user explicitly asked. Report exactly what you did and what you found. "
+                    "Always reply in the language the user writes in."
+                ),
+                "model": "claude-sonnet-4-6",
+                "tools": [{"tool_id": "web.automate", "config": {}}],
             },
             {
                 "id": "builtin-ops",
