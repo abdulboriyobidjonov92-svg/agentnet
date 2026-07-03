@@ -5,6 +5,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Shield, Link2, User, Globe, Check, Scale, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT, LOCALES } from "@/lib/i18n/client";
+import { Button } from "@/components/ui/button";
+import { Input, Textarea } from "@/components/ui/input";
 
 type Tab = "profile" | "values" | "security" | "integrations";
 
@@ -188,42 +190,34 @@ function ValuesTab() {
         </div>
 
         <p className="mb-2 text-sm font-medium">{t("values.statements")}</p>
-        <textarea
+        <Textarea
           rows={5}
           value={statements}
           onChange={(e) => setStatements(e.target.value)}
           placeholder={t("values.statementsPh")}
-          className="mb-3 w-full resize-none rounded-xl border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary"
+          className="mb-3 resize-none"
         />
-        <button
-          onClick={save}
-          disabled={saving}
-          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-50"
-        >
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : saved ? <Check className="h-4 w-4" /> : <Scale className="h-4 w-4" />}
+        <Button onClick={save} disabled={saving}>
+          {saving ? <Loader2 className="animate-spin" /> : saved ? <Check /> : <Scale />}
           {saved ? t("values.saved") : t("values.save")}
-        </button>
+        </Button>
       </div>
 
       <form onSubmit={check} className="rounded-2xl border bg-card p-6 shadow-soft">
         <h2 className="mb-3 font-semibold">{t("values.check")}</h2>
         <div className="flex gap-2">
-          <input
+          <Input
             required
             minLength={5}
             value={action}
             onChange={(e) => setAction(e.target.value)}
             placeholder={t("values.checkPh")}
-            className="flex-1 rounded-xl border bg-background px-4 py-2.5 text-sm outline-none transition focus:border-primary"
+            className="flex-1"
           />
-          <button
-            type="submit"
-            disabled={checking || action.trim().length < 5}
-            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-50"
-          >
-            {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
+          <Button type="submit" disabled={checking || action.trim().length < 5} className="h-11 shrink-0">
+            {checking ? <Loader2 className="animate-spin" /> : <Shield />}
             {checking ? t("values.checking") : t("values.checkBtn")}
-          </button>
+          </Button>
         </div>
         {verdict && (
           <div className="mt-3 rounded-xl border p-4 animate-in-up">

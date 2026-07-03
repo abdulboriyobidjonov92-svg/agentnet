@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiClient } from "@/lib/api-client";
 import { useT } from "@/lib/i18n/client";
 import { Globe, Play, Loader2, CheckCircle2, XCircle, ShieldAlert, ChevronDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input, Textarea } from "@/components/ui/input";
 
 /** S1: Universal App Control (Tier 1) — brauzer-avtomatlashtirish UI. */
 export default function AutomationPage() {
@@ -41,31 +43,29 @@ export default function AutomationPage() {
 
       <div className="rounded-2xl border bg-card p-5 shadow-soft">
         <label className="mb-1.5 block text-sm font-medium">{t("auto.goal")}</label>
-        <textarea
+        <Textarea
           value={goal}
           onChange={(e) => setGoal(e.target.value)}
           placeholder={t("auto.goalPh")}
           rows={3}
-          className="w-full rounded-xl border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
         />
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <input
+          <Input
             value={startUrl}
             onChange={(e) => setStartUrl(e.target.value)}
             placeholder={t("auto.startUrl")}
-            className="flex-1 rounded-xl border bg-background px-4 py-2.5 text-sm outline-none transition focus:border-primary"
+            className="flex-1"
           />
-          <button
+          <Button
             onClick={() => runMutation.mutate()}
             disabled={!goal.trim() || runMutation.isPending}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:brightness-110 disabled:opacity-60"
           >
             {runMutation.isPending ? (
-              <><Loader2 className="h-4 w-4 animate-spin" /> {t("auto.running")}</>
+              <><Loader2 className="animate-spin" /> {t("auto.running")}</>
             ) : (
-              <><Play className="h-4 w-4" /> {t("auto.run")}</>
+              <><Play /> {t("auto.run")}</>
             )}
-          </button>
+          </Button>
         </div>
       </div>
 

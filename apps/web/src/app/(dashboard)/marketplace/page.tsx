@@ -4,6 +4,7 @@ import { useApiClient } from "@/lib/api-client";
 import { Bot, Download, Search, Check, BadgeCheck, Star, TrendingUp, Wallet, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useT } from "@/lib/i18n/client";
+import { Button } from "@/components/ui/button";
 
 /**
  * S8: Marketplace — haqiqiy bozor dinamikasi.
@@ -76,12 +77,9 @@ export default function MarketplacePage() {
             <TrendingUp className="h-4 w-4 text-primary" /> {t("market.leaderboard")}
           </p>
         </div>
-        <button
-          onClick={() => setShowCreator((v) => !v)}
-          className="inline-flex items-center gap-2 rounded-xl border bg-card px-4 py-2 text-sm font-medium shadow-soft transition hover:shadow-lift"
-        >
-          <Wallet className="h-4 w-4 text-primary" /> {t("market.creator")}
-        </button>
+        <Button variant="outline" onClick={() => setShowCreator((v) => !v)}>
+          <Wallet className="text-primary" /> {t("market.creator")}
+        </Button>
       </div>
 
       {/* Kreator kabineti */}
@@ -95,14 +93,13 @@ export default function MarketplacePage() {
                 Revenue share: {Math.round(creator.revenue_share.creator * 100)}% / {Math.round(creator.revenue_share.platform * 100)}%
               </p>
             </div>
-            <button
+            <Button
               onClick={() => payoutMutation.mutate()}
               disabled={payoutMutation.isPending || creator.balance_tiyin <= 0}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:brightness-110 disabled:opacity-50"
             >
-              {payoutMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
+              {payoutMutation.isPending ? <Loader2 className="animate-spin" /> : <Wallet />}
               {t("market.payout")}
-            </button>
+            </Button>
           </div>
           {!!creator.agents?.length && (
             <table className="mt-4 w-full text-sm">
@@ -194,28 +191,29 @@ export default function MarketplacePage() {
               </div>
 
               <div className="mt-auto flex gap-2">
-                <button
+                <Button
                   onClick={() => handleInstall(agent.id)}
                   disabled={installing === agent.id || installed.includes(agent.id)}
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:brightness-110 disabled:opacity-60"
+                  className="flex-1"
                 >
                   {installed.includes(agent.id) ? (
-                    <><Check className="h-4 w-4" /> {t("market.installed")}</>
+                    <><Check /> {t("market.installed")}</>
                   ) : (
                     <>
-                      <Download className="h-4 w-4" />
+                      <Download />
                       {agent.marketplacePrice ? `${Math.round(agent.marketplacePrice / 100).toLocaleString()} so'm` : t("market.install")}
                     </>
                   )}
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
                   onClick={() => setRatingFor(ratingFor === agent.id ? null : agent.id)}
                   title={t("market.rate")}
                   aria-label={t("market.rate")}
-                  className="rounded-xl border px-3 py-2.5 text-sm transition hover:bg-muted"
                 >
-                  <Star className="h-4 w-4" />
-                </button>
+                  <Star />
+                </Button>
               </div>
 
               {installError && installError.id === agent.id && (

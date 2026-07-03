@@ -7,6 +7,7 @@ import { AgentForm } from "@/components/agents/agent-form";
 import { ArrowLeft, Globe, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useT } from "@/lib/i18n/client";
+import { Button } from "@/components/ui/button";
 
 export default function AgentSettingsPage({ params }: { params: Promise<{ agentId: string }> }) {
   const { agentId } = use(params);
@@ -43,9 +44,11 @@ export default function AgentSettingsPage({ params }: { params: Promise<{ agentI
   return (
     <div className="max-w-2xl space-y-8">
       <div className="flex items-center gap-4">
-        <Link href={`/agents/${agentId}`} className="rounded-xl border p-2.5 transition hover:bg-muted">
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
+        <Button asChild variant="outline" size="icon-sm" aria-label={t("common.back")}>
+          <Link href={`/agents/${agentId}`}>
+            <ArrowLeft />
+          </Link>
+        </Button>
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{t("form.editTitle")}</h1>
           <p className="text-sm text-muted-foreground">{agent?.name}</p>
@@ -65,13 +68,13 @@ export default function AgentSettingsPage({ params }: { params: Promise<{ agentI
         <h2 className="mb-1 font-semibold">{t("nav.marketplace")}</h2>
         <p className="mb-4 text-sm text-muted-foreground">{t("market.subtitle")}</p>
         {agent?.isPublished ? (
-          <button onClick={() => unpublishMutation.mutate()} disabled={unpublishMutation.isPending} className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition hover:bg-muted">
-            <EyeOff className="h-4 w-4" /> {t("market.installed")} ✓
-          </button>
+          <Button variant="outline" onClick={() => unpublishMutation.mutate()} disabled={unpublishMutation.isPending}>
+            <EyeOff /> {t("market.installed")} ✓
+          </Button>
         ) : (
-          <button onClick={() => publishMutation.mutate()} disabled={publishMutation.isPending} className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:brightness-110">
-            <Globe className="h-4 w-4" /> {t("market.builtin")}
-          </button>
+          <Button onClick={() => publishMutation.mutate()} disabled={publishMutation.isPending}>
+            <Globe /> {t("market.builtin")}
+          </Button>
         )}
       </div>
     </div>

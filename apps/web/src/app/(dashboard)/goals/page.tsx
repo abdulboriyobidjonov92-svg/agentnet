@@ -8,6 +8,8 @@ import {
   CheckCircle2, Circle, Bot, ShieldAlert, Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import ReactMarkdown from "react-markdown";
 
 interface GoalTask {
@@ -93,22 +95,18 @@ export default function GoalsPage() {
 
       <form onSubmit={createGoal} className="space-y-3 rounded-2xl border bg-card p-4 shadow-soft">
         <div className="flex gap-2">
-          <input
+          <Input
             required
             minLength={5}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder={t("goals.ph")}
-            className="flex-1 rounded-xl border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary"
+            className="flex-1"
           />
-          <button
-            type="submit"
-            disabled={creating || title.trim().length < 5}
-            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-50"
-          >
-            {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Target className="h-4 w-4" />}
+          <Button type="submit" disabled={creating || title.trim().length < 5} className="h-11 shrink-0">
+            {creating ? <Loader2 className="animate-spin" /> : <Target />}
             {creating ? t("goals.creating") : t("goals.create")}
-          </button>
+          </Button>
         </div>
         {blocked && (
           <p className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -162,30 +160,33 @@ export default function GoalsPage() {
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
                     {goal.status === "active" && (
-                      <button
+                      <Button
+                        size="sm"
                         onClick={() => advance(goal.id)}
                         disabled={advancingId !== null}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-50"
                       >
                         {advancingId === goal.id ? (
                           <>
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("goals.advancing")}
+                            <Loader2 className="animate-spin" /> {t("goals.advancing")}
                           </>
                         ) : (
                           <>
-                            <Play className="h-3.5 w-3.5" /> {t("goals.advance")}
+                            <Play /> {t("goals.advance")}
                           </>
                         )}
-                      </button>
+                      </Button>
                     )}
                     <button
                       onClick={() => setExpanded(isOpen ? null : goal.id)}
+                      aria-label={isOpen ? t("common.back") : t("goals.tasksDone")}
+                      aria-expanded={isOpen}
                       className="rounded-lg p-2 text-muted-foreground transition hover:bg-muted"
                     >
                       {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </button>
                     <button
                       onClick={() => remove(goal.id)}
+                      aria-label={t("common.delete")}
                       className="rounded-lg p-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />

@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n/client";
 import { Reveal } from "@/components/motion";
+import { Button } from "@/components/ui/button";
 import { StatTile, type Accent } from "@/components/charts/charts";
 
 // 3D sahnalar — faqat klientda, sahifa yuklanishini bloklamaydi
@@ -132,12 +133,11 @@ export default function DashboardPage() {
               </div>
               <p className="max-w-xl text-sm font-medium">{t("dash.onbBanner")}</p>
             </div>
-            <Link
-              href="/onboarding"
-              className="inline-flex items-center gap-2 rounded-xl bg-gold px-4 py-2.5 text-sm font-semibold text-gold-foreground shadow-gold-glow transition hover:brightness-110"
-            >
-              <Sparkles className="h-4 w-4" /> {t("dash.onbBannerBtn")}
-            </Link>
+            <Button asChild>
+              <Link href="/onboarding">
+                <Sparkles /> {t("dash.onbBannerBtn")}
+              </Link>
+            </Button>
           </div>
         </Reveal>
       )}
@@ -161,12 +161,11 @@ export default function DashboardPage() {
             <p className="mt-1 max-w-md text-muted-foreground">{t("dash.subtitle")}</p>
 
             <div className="mt-5 flex flex-wrap items-center gap-3">
-              <Link
-                href="/agents/new"
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-glow transition hover:brightness-110"
-              >
-                <Plus className="h-4 w-4" /> {t("nav.newAgent")}
-              </Link>
+              <Button asChild size="lg">
+                <Link href="/agents/new">
+                  <Plus /> {t("nav.newAgent")}
+                </Link>
+              </Button>
               {me?.onboardingCompleted && (
                 <Link
                   href="/onboarding"
@@ -278,19 +277,20 @@ export default function DashboardPage() {
                   </div>
                   <h3 className="font-semibold">{pick(agent.name, locale)}</h3>
                   <p className="mt-1 flex-1 text-xs text-muted-foreground">{pick(agent.description, locale)}</p>
-                  <button
+                  <Button
+                    size="sm"
                     onClick={() => installAgent(agent, i)}
                     disabled={installingIdx !== null}
-                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-50"
+                    className="mt-4 w-full"
                   >
                     {installingIdx === i ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="animate-spin" />
                     ) : (
                       <>
-                        <Plus className="h-4 w-4" /> {t("dash.installAgent")}
+                        <Plus /> {t("dash.installAgent")}
                       </>
                     )}
-                  </button>
+                  </Button>
                 </div>
               ))}
             </div>
@@ -319,9 +319,11 @@ export default function DashboardPage() {
             </div>
             <h3 className="text-lg font-semibold">{t("dash.noAgents")}</h3>
             <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">{t("dash.noAgentsDesc")}</p>
-            <Link href="/agents/new" className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:brightness-110">
-              <Plus className="h-4 w-4" /> {t("dash.createFirst")}
-            </Link>
+            <Button asChild className="mt-5">
+              <Link href="/agents/new">
+                <Plus /> {t("dash.createFirst")}
+              </Link>
+            </Button>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -2,6 +2,8 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
+import { Button } from "@/components/ui/button";
+import { Input, Textarea } from "@/components/ui/input";
 import {
   Stethoscope, Flame, Wallet, CalendarDays,
   Send, DollarSign, CloudSun, Check, ShieldCheck, Globe,
@@ -74,27 +76,26 @@ export function AgentForm({ defaultValues, onSubmit, isLoading, error, submitLab
 
       <div className="space-y-1.5">
         <label htmlFor="agent-name" className="text-sm font-medium">{t("form.name")} *</label>
-        <input
+        <Input
           id="agent-name"
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder={t("form.namePlaceholder")}
-          className="w-full rounded-xl border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
         />
       </div>
 
       <div className="space-y-1.5">
         <label htmlFor="agent-prompt" className="text-sm font-medium">{t("form.systemPrompt")} *</label>
         <p className="text-xs text-muted-foreground">{t("form.systemPromptHint")}</p>
-        <textarea
+        <Textarea
           id="agent-prompt"
           required
           rows={5}
           value={systemPrompt}
           onChange={(e) => setSystemPrompt(e.target.value)}
           placeholder={t("form.systemPromptPlaceholder")}
-          className="w-full resize-none rounded-xl border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+          className="resize-none"
         />
       </div>
 
@@ -183,13 +184,9 @@ export function AgentForm({ defaultValues, onSubmit, isLoading, error, submitLab
         </div>
       </div>
 
-      <button
-        type="submit"
-        disabled={isLoading || !name || !systemPrompt}
-        className="w-full rounded-xl bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:brightness-110 disabled:opacity-50"
-      >
+      <Button type="submit" size="lg" disabled={isLoading || !name || !systemPrompt} className="w-full">
         {isLoading ? t("form.saving") : submitLabel || t("form.submit")}
-      </button>
+      </Button>
     </form>
   );
 }

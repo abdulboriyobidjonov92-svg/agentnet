@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiClient } from "@/lib/api-client";
 import { useT } from "@/lib/i18n/client";
 import { Plug, CheckCircle2, KeyRound, FileWarning, X, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 /** S2: Connector SDK UI — katalog, ulanish, holat. */
 export default function ConnectorsPage() {
@@ -78,7 +80,7 @@ export default function ConnectorsPage() {
                 <h3 className="text-lg font-bold">{selected.name}</h3>
                 <p className="text-sm text-muted-foreground">{selected.description}</p>
               </div>
-              <button onClick={() => setSelected(null)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
+              <button onClick={() => setSelected(null)} aria-label={t("common.cancel")} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -96,12 +98,11 @@ export default function ConnectorsPage() {
                   <label className="mb-1 block text-sm font-medium">
                     {f.label} {f.required && <span className="text-destructive">*</span>}
                   </label>
-                  <input
+                  <Input
                     type={f.secret ? "password" : "text"}
                     placeholder={f.placeholder ?? ""}
                     value={form[f.key] ?? ""}
                     onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
-                    className="w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none transition focus:border-primary"
                   />
                   {f.help && <p className="mt-1 text-xs text-muted-foreground">{f.help}</p>}
                 </div>
@@ -127,14 +128,14 @@ export default function ConnectorsPage() {
               </p>
             )}
 
-            <button
+            <Button
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending}
-              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:brightness-110 disabled:opacity-60"
+              className="mt-4 w-full"
             >
-              {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+              {saveMutation.isPending ? <Loader2 className="animate-spin" /> : <KeyRound />}
               {t("conn.save")}
-            </button>
+            </Button>
           </div>
         </div>
       )}

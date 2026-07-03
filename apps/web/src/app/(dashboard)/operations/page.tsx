@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiClient } from "@/lib/api-client";
 import { useT } from "@/lib/i18n/client";
 import { Users, CalendarClock, Wallet, Send, Loader2, Plus, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input, Textarea } from "@/components/ui/input";
 
 /** S5: Business Operations — jadval, ish haqi, tashqi xabarlar. */
 export default function OperationsPage() {
@@ -69,11 +71,11 @@ export default function OperationsPage() {
         <div className="rounded-2xl border bg-card p-5 shadow-soft">
           <h2 className="mb-3 inline-flex items-center gap-2 font-semibold"><Users className="h-4 w-4 text-primary" /> {t("ops.employees")}</h2>
           <div className="mb-3 flex gap-2">
-            <input value={empName} onChange={(e) => setEmpName(e.target.value)} placeholder="Ism" className="flex-1 rounded-xl border bg-background px-3 py-2 text-sm outline-none" />
-            <input value={empRate} onChange={(e) => setEmpRate(e.target.value)} placeholder="Soatlik (so'm)" className="w-36 rounded-xl border bg-background px-3 py-2 text-sm outline-none" />
-            <button onClick={() => addEmp.mutate()} disabled={!empName.trim() || addEmp.isPending} className="rounded-xl bg-primary px-3 py-2 text-primary-foreground disabled:opacity-60">
-              <Plus className="h-4 w-4" />
-            </button>
+            <Input value={empName} onChange={(e) => setEmpName(e.target.value)} placeholder="Ism" className="flex-1" />
+            <Input value={empRate} onChange={(e) => setEmpRate(e.target.value)} placeholder="Soatlik (so'm)" className="w-36" />
+            <Button size="icon" onClick={() => addEmp.mutate()} disabled={!empName.trim() || addEmp.isPending} aria-label={t("ops.employees")} className="h-11 shrink-0">
+              <Plus />
+            </Button>
           </div>
           {employees?.map((e) => (
             <div key={e.id} className="flex items-center justify-between border-t py-2 text-sm">
@@ -86,21 +88,21 @@ export default function OperationsPage() {
         {/* Jadval generatori */}
         <div className="rounded-2xl border bg-card p-5 shadow-soft">
           <h2 className="mb-3 inline-flex items-center gap-2 font-semibold"><CalendarClock className="h-4 w-4 text-primary" /> {t("ops.schedule")}</h2>
-          <textarea
+          <Textarea
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
             rows={3}
             placeholder={"Do'kon 9-21 ochiq, har kuni 2 kishi kerak. Alisher juma ishlamaydi."}
-            className="w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none"
           />
-          <button
+          <Button
+            size="sm"
             onClick={() => genSchedule.mutate()}
             disabled={!instructions.trim() || genSchedule.isPending}
-            className="mt-2 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-60"
+            className="mt-2"
           >
-            {genSchedule.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarClock className="h-4 w-4" />}
+            {genSchedule.isPending ? <Loader2 className="animate-spin" /> : <CalendarClock />}
             {t("ops.scheduleGen")}
-          </button>
+          </Button>
           {schedulePlan && (
             <p className="mt-2 text-xs text-muted-foreground">
               ✓ {schedulePlan.created} smena ({schedulePlan.method}). {schedulePlan.reasoning}
@@ -126,9 +128,9 @@ export default function OperationsPage() {
           <input type="date" value={payFrom} onChange={(e) => setPayFrom(e.target.value)} className="rounded-xl border bg-background px-3 py-2 text-sm outline-none" />
           <span className="text-muted-foreground">—</span>
           <input type="date" value={payTo} onChange={(e) => setPayTo(e.target.value)} className="rounded-xl border bg-background px-3 py-2 text-sm outline-none" />
-          <button onClick={() => runPayroll.mutate()} disabled={runPayroll.isPending} className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-60">
+          <Button size="sm" onClick={() => runPayroll.mutate()} disabled={runPayroll.isPending}>
             {runPayroll.isPending ? "…" : "Hisoblash"}
-          </button>
+          </Button>
         </div>
         {payroll && (
           <div className="mt-3">
@@ -164,8 +166,8 @@ export default function OperationsPage() {
       <div className="rounded-2xl border bg-card p-5 shadow-soft">
         <h2 className="mb-3 inline-flex items-center gap-2 font-semibold"><Send className="h-4 w-4 text-primary" /> {t("ops.outbound")}</h2>
         <div className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          <input value={obPurpose} onChange={(e) => setObPurpose(e.target.value)} placeholder="Maqsad: to'lov eslatmasi, taklif..." className="rounded-xl border bg-background px-3 py-2 text-sm outline-none lg:col-span-2" />
-          <input value={obContact} onChange={(e) => setObContact(e.target.value)} placeholder="Qabul qiluvchi (chat_id/email/tel)" className="rounded-xl border bg-background px-3 py-2 text-sm outline-none" />
+          <Input value={obPurpose} onChange={(e) => setObPurpose(e.target.value)} placeholder="Maqsad: to'lov eslatmasi, taklif..." className="lg:col-span-2" />
+          <Input value={obContact} onChange={(e) => setObContact(e.target.value)} placeholder="Qabul qiluvchi (chat_id/email/tel)" />
           <div className="flex gap-2">
             <select value={obAudience} onChange={(e) => setObAudience(e.target.value)} className="flex-1 rounded-xl border bg-background px-2 py-2 text-sm outline-none">
               <option value="client">Mijoz</option><option value="partner">Hamkor</option><option value="sponsor">Homiy</option>
@@ -175,14 +177,14 @@ export default function OperationsPage() {
             </select>
           </div>
         </div>
-        <button
+        <Button
+          size="sm"
           onClick={() => draftOb.mutate()}
           disabled={!obPurpose.trim() || !obContact.trim() || draftOb.isPending}
-          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-60"
         >
-          {draftOb.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+          {draftOb.isPending ? <Loader2 className="animate-spin" /> : <Plus />}
           {t("ops.draft")}
-        </button>
+        </Button>
 
         {!!outbound?.length && (
           <div className="mt-4 space-y-3">

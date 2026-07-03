@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, Bot, Store, Settings, LogOut, Sparkles, Plus, CircleUserRound, Target, Users, Zap, Building2, Globe, Plug, Camera, CalendarClock, Ship, Landmark } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { clearClientSession } from "@/lib/session";
 import { useT } from "@/lib/i18n/client";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -48,13 +49,11 @@ export function Sidebar({ email, name, onNavigate }: { email?: string; name?: st
       </div>
 
       <div className="px-3 pb-2 pt-1">
-        <Link
-          onClick={onNavigate}
-          href="/agents/new"
-          className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:brightness-110"
-        >
-          <Plus className="h-4 w-4" /> {t("nav.newAgent")}
-        </Link>
+        <Button asChild className="w-full">
+          <Link onClick={onNavigate} href="/agents/new">
+            <Plus /> {t("nav.newAgent")}
+          </Link>
+        </Button>
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-3">
@@ -95,14 +94,16 @@ export function Sidebar({ email, name, onNavigate }: { email?: string; name?: st
             <p className="truncate text-sm font-medium">{name || t("nav.user")}</p>
             <p className="truncate text-xs text-muted-foreground">{email}</p>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={signOut}
             title={t("nav.signOut")}
             aria-label={t("nav.signOut")}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+            className="hover:bg-destructive/10 hover:text-destructive"
           >
-            <LogOut className="h-4 w-4" />
-          </button>
+            <LogOut />
+          </Button>
         </div>
       </div>
     </aside>

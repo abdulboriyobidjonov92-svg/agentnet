@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiClient } from "@/lib/api-client";
 import { useT } from "@/lib/i18n/client";
 import { Landmark, Send, Loader2, MapPinned, ListChecks, CircleDot } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input, Textarea } from "@/components/ui/input";
 
 /** S7: GovTech — fuqaro murojaati intake + marshrut + jarayon navigatori. */
 export default function GovtechPage() {
@@ -46,37 +48,37 @@ export default function GovtechPage() {
         {/* Intake */}
         <div className="rounded-2xl border bg-card p-5 shadow-soft">
           <h2 className="mb-3 inline-flex items-center gap-2 font-semibold"><Landmark className="h-4 w-4 text-primary" /> {t("gov.intake")}</h2>
-          <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="F.I.Sh. (ixtiyoriy)" className="mb-2 w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none" />
-          <textarea
+          <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="F.I.Sh. (ixtiyoriy)" className="mb-2" />
+          <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={4}
             placeholder="Murojaat matni: masalan, 'Bizning ko'chada 3 kundan beri suv yo'q...'"
-            className="w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none"
           />
-          <button
+          <Button
+            size="sm"
             onClick={() => intake.mutate()}
             disabled={!text.trim() || intake.isPending}
-            className="mt-2 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-60"
+            className="mt-2"
           >
-            {intake.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {intake.isPending ? <Loader2 className="animate-spin" /> : <Send />}
             OK
-          </button>
+          </Button>
         </div>
 
         {/* Jarayon navigatori */}
         <div className="rounded-2xl border bg-card p-5 shadow-soft">
           <h2 className="mb-3 inline-flex items-center gap-2 font-semibold"><MapPinned className="h-4 w-4 text-primary" /> {t("gov.guide")}</h2>
           <div className="flex gap-2">
-            <input
+            <Input
               value={guideQuery}
               onChange={(e) => setGuideQuery(e.target.value)}
               placeholder="Masalan: 'Yangi pasport olish uchun nima qilaman?'"
-              className="flex-1 rounded-xl border bg-background px-3 py-2 text-sm outline-none"
+              className="flex-1"
             />
-            <button onClick={() => guide.mutate()} disabled={!guideQuery.trim() || guide.isPending} className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-60">
-              {guide.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "OK"}
-            </button>
+            <Button onClick={() => guide.mutate()} disabled={!guideQuery.trim() || guide.isPending} className="h-11 shrink-0">
+              {guide.isPending ? <Loader2 className="animate-spin" /> : "OK"}
+            </Button>
           </div>
           {guideData && (
             <div className="mt-3 space-y-2 text-sm">

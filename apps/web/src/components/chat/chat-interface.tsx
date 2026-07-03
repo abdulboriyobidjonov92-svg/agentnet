@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Send, ShieldAlert, ShieldCheck, User, Bot, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
 import { useT } from "@/lib/i18n/client";
 import { useApiClient } from "@/lib/api-client";
@@ -244,14 +245,15 @@ export function ChatInterface({ agentId, agentDefinition }: ChatInterfaceProps) 
             className="flex-1 resize-none rounded-xl border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 overflow-hidden"
             style={{ minHeight: 44 }}
           />
-          <button
+          <Button
+            size="icon"
             onClick={sendMessage}
             disabled={!input.trim() || isStreaming}
             aria-label={t("chat.send")}
-            className="h-11 w-11 rounded-xl bg-primary flex items-center justify-center text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors shrink-0"
+            className="h-11 w-11 shrink-0"
           >
-            {isStreaming ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </button>
+            {isStreaming ? <Loader2 className="animate-spin" /> : <Send />}
+          </Button>
         </div>
         <p className="text-xs text-muted-foreground mt-2 text-center">
           {t("chat.halalNote")}

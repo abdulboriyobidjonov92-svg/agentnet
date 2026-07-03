@@ -9,6 +9,8 @@ import {
   Megaphone, Scale, Cpu, Send, ChevronDown, ChevronUp, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import ReactMarkdown from "react-markdown";
 import { StatTile, AreaChart } from "@/components/charts/charts";
 
@@ -169,14 +171,10 @@ export default function AgentOsPage() {
               className="w-full rounded-xl border bg-background/60 px-4 py-3 text-sm outline-none transition focus:border-primary"
             />
           </div>
-          <button
-            type="submit"
-            disabled={creating || wsName.trim().length < 2}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-glow transition hover:brightness-110 disabled:opacity-50"
-          >
-            {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          <Button type="submit" disabled={creating || wsName.trim().length < 2} className="w-full">
+            {creating ? <Loader2 className="animate-spin" /> : <Sparkles />}
             {t("os.create")}
-          </button>
+          </Button>
           <p className="text-center text-xs text-muted-foreground">{t("os.createNote")}</p>
         </form>
       </div>
@@ -248,20 +246,16 @@ export default function AgentOsPage() {
           <Command className="h-4 w-4 text-primary" /> {t("os.commandTitle")}
         </label>
         <div className="flex gap-2">
-          <input
+          <Input
             value={command}
             onChange={(e) => setCommand(e.target.value)}
             placeholder={t("os.commandPh")}
-            className="flex-1 rounded-xl border bg-background/60 px-4 py-3 text-sm outline-none transition focus:border-primary"
+            className="flex-1 bg-background/60"
           />
-          <button
-            type="submit"
-            disabled={running || command.trim().length < 4}
-            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-glow transition hover:brightness-110 disabled:opacity-50"
-          >
-            {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          <Button type="submit" disabled={running || command.trim().length < 4} className="h-11 shrink-0">
+            {running ? <Loader2 className="animate-spin" /> : <Send />}
             {running ? t("os.running") : t("os.execute")}
-          </button>
+          </Button>
         </div>
         {blocked && (
           <p className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">

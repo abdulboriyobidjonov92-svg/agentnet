@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Menu, X, Sparkles } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
 
 export function DashboardShell({
   email,
@@ -29,13 +30,15 @@ export function DashboardShell({
           <div className="absolute left-0 top-0 h-full">
             <Sidebar email={email} name={name} onNavigate={() => setOpen(false)} />
           </div>
-          <button
+          <Button
+            variant="outline"
+            size="icon-sm"
             onClick={() => setOpen(false)}
-            className="absolute right-4 top-4 z-[60] flex h-9 w-9 items-center justify-center rounded-xl bg-card shadow-lift"
+            className="absolute right-4 top-4 z-[60] shadow-lift"
             aria-label="Close"
           >
-            <X className="h-5 w-5" />
-          </button>
+            <X className="!h-5 !w-5" />
+          </Button>
         </div>
       )}
 
@@ -51,13 +54,15 @@ export function DashboardShell({
           <div className="hidden lg:block" />
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <button
+            <Button
+              variant="outline"
+              size="icon-sm"
               onClick={() => setOpen(true)}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border transition hover:bg-muted lg:hidden"
+              className="lg:hidden"
               aria-label="Menu"
             >
-              <Menu className="h-5 w-5" />
-            </button>
+              <Menu className="!h-5 !w-5" />
+            </Button>
           </div>
         </header>
 

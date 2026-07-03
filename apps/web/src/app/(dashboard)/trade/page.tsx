@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useApiClient } from "@/lib/api-client";
 import { useT } from "@/lib/i18n/client";
 import { Ship, FileText, ShieldCheck, PackageSearch, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 /** S6: Cross-Border Trade — tarif, hujjat, muvofiqlik, kuzatuv, valyuta. */
 export default function TradePage() {
@@ -63,9 +64,9 @@ function Panel({ children }: { children: React.ReactNode }) {
 
 function RunBtn({ onClick, disabled, pending, label }: any) {
   return (
-    <button onClick={onClick} disabled={disabled || pending} className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-60">
-      {pending && <Loader2 className="h-4 w-4 animate-spin" />} {label}
-    </button>
+    <Button size="sm" onClick={onClick} disabled={disabled || pending}>
+      {pending && <Loader2 className="animate-spin" />} {label}
+    </Button>
   );
 }
 

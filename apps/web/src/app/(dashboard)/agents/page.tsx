@@ -5,6 +5,7 @@ import { Bot, Plus, Trash2, Settings, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useT } from "@/lib/i18n/client";
+import { Button } from "@/components/ui/button";
 
 export default function AgentsPage() {
   const api = useApiClient();
@@ -35,9 +36,11 @@ export default function AgentsPage() {
           <h1 className="text-3xl font-bold tracking-tight">{t("agents.title")}</h1>
           <p className="mt-1 text-muted-foreground">{t("agents.subtitle")}</p>
         </div>
-        <Link href="/agents/new" className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:brightness-110">
-          <Plus className="h-4 w-4" /> {t("agents.new")}
-        </Link>
+        <Button asChild>
+          <Link href="/agents/new">
+            <Plus /> {t("agents.new")}
+          </Link>
+        </Button>
       </div>
 
       {isLoading ? (
@@ -54,12 +57,12 @@ export default function AgentsPage() {
           <h3 className="mb-1 text-lg font-semibold">{t("agents.empty")}</h3>
           <p className="mb-6 text-muted-foreground">{t("agents.emptyDesc")}</p>
           <div className="flex justify-center gap-3">
-            <Link href="/agents/new" className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:brightness-110">
-              {t("common.create")}
-            </Link>
-            <Link href="/marketplace" className="rounded-xl border px-5 py-2.5 text-sm font-semibold transition hover:bg-muted">
-              {t("nav.marketplace")}
-            </Link>
+            <Button asChild>
+              <Link href="/agents/new">{t("common.create")}</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/marketplace">{t("nav.marketplace")}</Link>
+            </Button>
           </div>
         </div>
       ) : (
@@ -90,9 +93,11 @@ export default function AgentsPage() {
                   <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">{t("nav.marketplace")}</span>
                 )}
               </div>
-              <Link href={`/agents/${agent.id}`} className="mt-4 flex items-center justify-center gap-1.5 rounded-xl bg-primary/10 py-2.5 text-sm font-semibold text-primary transition hover:bg-primary hover:text-primary-foreground">
-                <MessageSquare className="h-4 w-4" /> {t("agents.chat")}
-              </Link>
+              <Button asChild variant="subtle" className="mt-4 w-full">
+                <Link href={`/agents/${agent.id}`}>
+                  <MessageSquare /> {t("agents.chat")}
+                </Link>
+              </Button>
             </div>
           ))}
         </div>

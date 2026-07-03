@@ -5,6 +5,8 @@ import { useApiClient } from "@/lib/api-client";
 import { useT } from "@/lib/i18n/client";
 import { Users, Loader2, ShieldAlert, Lightbulb, ListOrdered, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/input";
 
 interface FusionResult {
   roles: string[];
@@ -66,14 +68,14 @@ export default function FusionPage() {
       </div>
 
       <form onSubmit={run} className="space-y-4 rounded-2xl border bg-card p-5 shadow-soft">
-        <textarea
+        <Textarea
           required
           rows={4}
           minLength={10}
           value={problem}
           onChange={(e) => setProblem(e.target.value)}
           placeholder={t("fusion.ph")}
-          className="w-full resize-none rounded-xl border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary"
+          className="resize-none"
         />
         <div>
           <p className="mb-2 text-xs font-medium text-muted-foreground">{t("fusion.roles")}</p>
@@ -101,14 +103,10 @@ export default function FusionPage() {
           </p>
         )}
         {error && <p className="text-sm text-destructive">{error}</p>}
-        <button
-          type="submit"
-          disabled={running || problem.trim().length < 10}
-          className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-50"
-        >
-          {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
+        <Button type="submit" disabled={running || problem.trim().length < 10}>
+          {running ? <Loader2 className="animate-spin" /> : <Users />}
           {running ? t("fusion.running") : t("fusion.run")}
-        </button>
+        </Button>
       </form>
 
       {result && (

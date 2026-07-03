@@ -10,6 +10,8 @@ import {
   BadgeCheck, Target, RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input, Textarea } from "@/components/ui/input";
 
 type LocalizedText = Record<string, string>;
 
@@ -129,42 +131,39 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          <textarea
+          <Textarea
             required
             rows={5}
             minLength={3}
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={t("onb.placeholder")}
-            className="w-full resize-none rounded-2xl border bg-card px-5 py-4 text-sm shadow-soft outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+            className="resize-none rounded-2xl bg-card px-5 py-4 shadow-soft"
           />
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">{t("onb.city")}</label>
-            <input
+            <label htmlFor="onb-city" className="text-sm font-medium">{t("onb.city")}</label>
+            <Input
+              id="onb-city"
               value={city}
               onChange={(e) => setCity(e.target.value)}
               placeholder={t("onb.cityPlaceholder")}
-              className="w-full rounded-xl border bg-card px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+              className="bg-card"
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={analyzing || text.trim().length < 3}
-            className="group flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-lift transition hover:brightness-110 disabled:opacity-50"
-          >
+          <Button type="submit" size="lg" disabled={analyzing || text.trim().length < 3} className="group w-full">
             {analyzing ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" /> {t("onb.analyzing")}
+                <Loader2 className="animate-spin" /> {t("onb.analyzing")}
               </>
             ) : (
               <>
                 {t("onb.analyze")}
-                <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                <ArrowRight className="transition group-hover:translate-x-0.5" />
               </>
             )}
-          </button>
+          </Button>
 
           <p className="text-center">
             <Link href="/dashboard" className="text-sm text-muted-foreground hover:underline">
@@ -266,22 +265,18 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          <button
-            onClick={install}
-            disabled={installing}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-lift transition hover:brightness-110 disabled:opacity-50"
-          >
+          <Button size="lg" onClick={install} disabled={installing} className="w-full">
             {installing ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" /> {t("onb.installing")}
+                <Loader2 className="animate-spin" /> {t("onb.installing")}
               </>
             ) : (
               <>
                 {t("onb.install")} ({selected.size})
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight />
               </>
             )}
-          </button>
+          </Button>
         </div>
       )}
     </div>

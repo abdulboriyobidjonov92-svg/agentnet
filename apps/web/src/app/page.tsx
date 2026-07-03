@@ -11,6 +11,7 @@ import { getT } from "@/lib/i18n/server";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Reveal, Tilt, Counter } from "@/components/motion";
+import { Button } from "@/components/ui/button";
 import { HeroSphere, HeroWordmark } from "@/components/three/hero-visual";
 
 export default async function HomePage() {
@@ -32,12 +33,12 @@ export default async function HomePage() {
           <div className="flex items-center gap-1.5 sm:gap-2">
             <ThemeToggle />
             <LanguageSwitcher />
-            <Link href="/sign-in" className="hidden rounded-xl px-4 py-2 text-sm font-medium transition hover:bg-muted sm:block">
-              {t("landing.ctaSecondary")}
-            </Link>
-            <Link href="/sign-up" className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-soft transition hover:brightness-110">
-              {t("common.signUp")}
-            </Link>
+            <Button asChild variant="ghost" size="sm" className="hidden text-foreground sm:inline-flex">
+              <Link href="/sign-in">{t("landing.ctaSecondary")}</Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link href="/sign-up">{t("common.signUp")}</Link>
+            </Button>
           </div>
         </div>
       </header>
@@ -63,13 +64,15 @@ export default async function HomePage() {
               {t("landing.heroSubtitle")}
             </p>
             <div className="mt-9 flex flex-col items-center gap-3 animate-in-up delay-200 sm:flex-row lg:justify-start">
-              <Link href="/sign-up" className="group flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-7 py-3.5 text-base font-semibold text-primary-foreground shadow-glow transition hover:brightness-110 sm:w-auto">
-                {t("landing.ctaPrimary")}
-                <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
-              </Link>
-              <Link href="/sign-in" className="flex w-full items-center justify-center rounded-xl border bg-card px-7 py-3.5 text-base font-semibold shadow-soft transition hover:bg-muted sm:w-auto">
-                {t("landing.ctaSecondary")}
-              </Link>
+              <Button asChild size="lg" className="group w-full px-7 shadow-glow sm:w-auto">
+                <Link href="/sign-up">
+                  {t("landing.ctaPrimary")}
+                  <ArrowRight className="transition group-hover:translate-x-1" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="lg" className="w-full px-7 sm:w-auto">
+                <Link href="/sign-in">{t("landing.ctaSecondary")}</Link>
+              </Button>
             </div>
             {/* Stats — luxury data cue: mono raqamlar + Filament ajratgichlar */}
             <div className="mt-10 grid grid-cols-3 border-t pt-6 animate-in-up delay-300">
@@ -260,9 +263,11 @@ export default async function HomePage() {
             <div className="relative">
               <h2 className="text-3xl font-bold sm:text-4xl">{t("landing.ctaTitle")}</h2>
               <p className="mx-auto mt-3 max-w-md text-primary-foreground/80">{t("landing.ctaDesc")}</p>
-              <Link href="/sign-up" className="mt-8 inline-flex items-center gap-2 rounded-xl bg-gold px-8 py-3.5 font-semibold text-gold-foreground shadow-gold-glow transition hover:brightness-110">
-                {t("landing.ctaButton")} <ArrowRight className="h-4 w-4" />
-              </Link>
+              <Button asChild size="lg" className="mt-8 bg-gold px-8 text-gold-foreground shadow-gold-glow">
+                <Link href="/sign-up">
+                  {t("landing.ctaButton")} <ArrowRight />
+                </Link>
+              </Button>
             </div>
           </div>
         </Reveal>

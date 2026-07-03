@@ -9,6 +9,8 @@ import {
   HeartPulse, Wallet, Users, Briefcase, Repeat, GraduationCap, CircleDot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input, Textarea } from "@/components/ui/input";
 
 const FutureTimeline = dynamic(() => import("@/components/three/future-timeline"), {
   ssr: false,
@@ -133,29 +135,23 @@ export default function TwinPage() {
               ))}
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
-              <input
+              <Input
                 required
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
                 placeholder={t("twin.labelPh")}
-                className="rounded-xl border bg-background px-3 py-2.5 text-sm outline-none transition focus:border-primary"
               />
-              <input
+              <Input
                 required
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 placeholder={t("twin.valuePh")}
-                className="rounded-xl border bg-background px-3 py-2.5 text-sm outline-none transition focus:border-primary"
               />
             </div>
-            <button
-              type="submit"
-              disabled={adding || !label.trim() || !value.trim()}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-50"
-            >
-              {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            <Button type="submit" size="sm" disabled={adding || !label.trim() || !value.trim()}>
+              {adding ? <Loader2 className="animate-spin" /> : <Plus />}
               {t("twin.addFact")}
-            </button>
+            </Button>
           </form>
 
           {!facts?.length ? (
@@ -179,6 +175,7 @@ export default function TwinPage() {
                       </span>
                       <button
                         onClick={() => removeFact(f.id)}
+                        aria-label={t("common.delete")}
                         className="text-muted-foreground opacity-0 transition hover:text-destructive group-hover:opacity-100"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -200,13 +197,13 @@ export default function TwinPage() {
               </p>
               <p className="text-xs text-muted-foreground">{t("twin.whatifSub")}</p>
             </div>
-            <textarea
+            <Textarea
               required
               rows={3}
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               placeholder={t("twin.whatifPh")}
-              className="w-full resize-none rounded-xl border bg-background px-3 py-2.5 text-sm outline-none transition focus:border-primary"
+              className="resize-none"
             />
             {blocked && (
               <p className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -214,14 +211,10 @@ export default function TwinPage() {
               </p>
             )}
             {error && <p className="text-sm text-destructive">{error}</p>}
-            <button
-              type="submit"
-              disabled={asking || question.trim().length < 5}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-50"
-            >
-              {asking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            <Button type="submit" size="sm" disabled={asking || question.trim().length < 5}>
+              {asking ? <Loader2 className="animate-spin" /> : <Sparkles />}
               {asking ? t("twin.asking") : t("twin.ask")}
-            </button>
+            </Button>
           </form>
 
           {result && (
@@ -232,7 +225,7 @@ export default function TwinPage() {
               )}
               <Section title={t("twin.timeline")}>
                 {/* 3D shoxlanuvchi kelajak yo'llari */}
-                <div className="mb-2 h-56 overflow-hidden rounded-2xl border border-white/10 bg-background/30">
+                <div className="mb-2 h-56 overflow-hidden rounded-2xl border bg-background/30">
                   <FutureTimeline points={result.timeline} className="!h-full !w-full" />
                 </div>
                 <ol className="space-y-2">

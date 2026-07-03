@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiClient } from "@/lib/api-client";
 import { useT } from "@/lib/i18n/client";
 import { Camera, ShoppingCart, Package, BellRing, Loader2, Send, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 /**
  * S4: Retail Intelligence — kamera+inventar fuziyasi UI.
@@ -54,13 +56,14 @@ export default function RetailPage() {
         <div className="rounded-2xl border bg-card p-5 shadow-soft">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="inline-flex items-center gap-2 font-semibold"><Package className="h-4 w-4 text-primary" /> {t("retail.products")}</h2>
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => seedMutation.mutate()}
               disabled={seedMutation.isPending}
-              className="rounded-lg bg-secondary px-3 py-1.5 text-xs font-medium transition hover:brightness-110"
             >
               {seedMutation.isPending ? "…" : t("retail.seed")}
-            </button>
+            </Button>
           </div>
           {!products?.length ? (
             <p className="py-6 text-center text-sm text-muted-foreground">—</p>
@@ -79,6 +82,7 @@ export default function RetailPage() {
                         onClick={() => saleMutation.mutate(p.sku)}
                         disabled={saleMutation.isPending || p.stock === 0}
                         title={t("retail.sale")}
+                        aria-label={t("retail.sale")}
                         className="rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary transition hover:bg-primary/20 disabled:opacity-40"
                       >
                         <ShoppingCart className="h-3.5 w-3.5" />
@@ -106,13 +110,14 @@ export default function RetailPage() {
                 <option value="">SKU tanlang…</option>
                 {products?.map((p) => <option key={p.sku} value={p.sku}>{p.sku} — {p.name}</option>)}
               </select>
-              <button
+              <Button
+                size="icon"
                 onClick={() => visionMutation.mutate()}
                 disabled={visionMutation.isPending}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-60"
+                aria-label={t("retail.vision")}
               >
-                {visionMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              </button>
+                {visionMutation.isPending ? <Loader2 className="animate-spin" /> : <Send />}
+              </Button>
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
               Haqiqiy CV servis xuddi shu webhook'ka uradi: <code className="rounded bg-muted px-1">POST /api/retail/vision-events</code>
@@ -128,18 +133,15 @@ export default function RetailPage() {
                 <option value="whatsapp">WhatsApp</option>
                 <option value="email">Email</option>
               </select>
-              <input
+              <Input
                 value={target}
                 onChange={(e) => setTarget(e.target.value)}
                 placeholder={settings?.target ?? "chat_id / telefon / email"}
-                className="flex-1 rounded-xl border bg-background px-3 py-2 text-sm outline-none"
+                className="flex-1"
               />
-              <button
-                onClick={() => settingsMutation.mutate()}
-                className="rounded-xl bg-secondary px-4 py-2 text-sm font-medium transition hover:brightness-110"
-              >
+              <Button variant="outline" onClick={() => settingsMutation.mutate()}>
                 OK
-              </button>
+              </Button>
             </div>
           </div>
         </div>
