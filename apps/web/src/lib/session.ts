@@ -4,6 +4,7 @@
 export interface Session {
   userId: string;
   email: string;
+  phone?: string;
   name?: string;
 }
 

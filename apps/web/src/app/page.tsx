@@ -71,20 +71,25 @@ export default async function HomePage() {
                 {t("landing.ctaSecondary")}
               </Link>
             </div>
-            {/* Stats */}
-            <div className="mt-10 grid grid-cols-3 gap-4 border-t pt-6 animate-in-up delay-300">
-              <div>
-                <p className="text-2xl font-bold text-primary sm:text-3xl"><Counter to={1200} suffix="+" /></p>
-                <p className="text-xs text-muted-foreground">{t("landing.stat1")}</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-primary sm:text-3xl">3</p>
-                <p className="text-xs text-muted-foreground">{t("landing.stat2")}</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-primary sm:text-3xl">99.9%</p>
-                <p className="text-xs text-muted-foreground">{t("landing.stat3")}</p>
-              </div>
+            {/* Stats — luxury data cue: mono raqamlar + Filament ajratgichlar */}
+            <div className="mt-10 grid grid-cols-3 border-t pt-6 animate-in-up delay-300">
+              {[
+                { v: <Counter to={1200} suffix="+" />, l: t("landing.stat1") },
+                { v: "3", l: t("landing.stat2") },
+                { v: "99.9%", l: t("landing.stat3") },
+              ].map((s, i) => (
+                <div
+                  key={s.l}
+                  className={i > 0 ? "pl-4 sm:pl-6 border-l border-border/70" : "pr-2"}
+                >
+                  <p className="nums text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                    {s.v}
+                  </p>
+                  <p className="mt-1 text-[0.7rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                    {s.l}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -109,7 +114,7 @@ export default async function HomePage() {
                       Launch our new product across the region
                     </div>
                     <div className="max-w-[90%] rounded-2xl rounded-tl-sm bg-secondary px-3.5 py-2 text-xs leading-relaxed">
-                      <span className="text-primary">▸ AI-CEO</span> strategy · <span className="text-gold">▸ AI-CFO</span> budget · <span className="text-violetx">▸ AI-CMO</span> go-to-market · <span className="text-emeraldx">▸ AI-CLO</span> compliance · <span className="text-blue-400">▸ AI-CTO</span> build
+                      <span className="text-line">▸ AI-CEO</span> strategy · <span className="text-line">▸ AI-CFO</span> budget · <span className="text-line">▸ AI-CMO</span> go-to-market · <span className="text-line">▸ AI-CLO</span> compliance · <span className="text-line">▸ AI-CTO</span> build
                     </div>
                     <div className="flex items-center gap-1 text-xs text-primary">
                       <Check className="h-3 w-3" /> 5 departments · ethics passed
@@ -133,6 +138,13 @@ export default async function HomePage() {
       {/* ===== Audience: individuals + business ===== */}
       <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
         <Reveal className="mb-10 text-center">
+          <div className="mb-4 flex items-center justify-center gap-2.5">
+            <span className="h-px w-8 bg-gradient-to-r from-transparent to-[hsl(var(--accent-line))]" />
+            <span className="nums text-[0.7rem] font-medium uppercase tracking-[0.24em] text-line">
+              01
+            </span>
+            <span className="h-px w-8 bg-gradient-to-l from-transparent to-[hsl(var(--accent-line))]" />
+          </div>
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">{t("landing.audienceTitle")}</h2>
           <p className="mx-auto mt-3 max-w-xl text-muted-foreground">{t("landing.audienceSub")}</p>
         </Reveal>
@@ -190,8 +202,11 @@ export default async function HomePage() {
             { icon: Zap, t: t("landing.f3Title"), d: t("landing.f3Desc") },
           ].map(({ icon: Icon, t: tt, d }, i) => (
             <Reveal key={tt} delay={i * 90}>
-              <div className="group h-full rounded-2xl border bg-card p-6 shadow-soft tilt-hover hover:shadow-lift">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-primary-foreground">
+              <div className="filament group relative h-full overflow-hidden rounded-2xl border bg-card p-6 shadow-soft tilt-hover hover:border-foreground/16 hover:shadow-lift">
+                <span className="nums absolute right-5 top-5 text-xs font-medium tracking-widest text-muted-foreground/50">
+                  0{i + 1}
+                </span>
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl border bg-secondary text-foreground transition group-hover:border-[hsl(var(--accent-line)/0.5)] group-hover:text-line">
                   <Icon className="h-6 w-6" />
                 </div>
                 <h3 className="mb-1.5 text-lg font-semibold">{tt}</h3>
@@ -214,16 +229,16 @@ export default async function HomePage() {
           </Reveal>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              { icon: BarChart3, name: t("landing.a1"), d: t("landing.a1d"), c: "text-primary bg-primary/10" },
-              { icon: Wallet, name: t("landing.a2"), d: t("landing.a2d"), c: "text-gold bg-gold/10" },
-              { icon: Scale, name: t("landing.a3"), d: t("landing.a3d"), c: "text-violetx bg-violet-500/10" },
-              { icon: Globe, name: t("landing.a4"), d: t("landing.a4d"), c: "text-emeraldx bg-emerald-500/10" },
-              { icon: CalendarDays, name: t("landing.a5"), d: t("landing.a5d"), c: "text-blue-400 bg-blue-500/10" },
-              { icon: Building2, name: t("landing.a6"), d: t("landing.a6d"), c: "text-primary bg-primary/10" },
-            ].map(({ icon: Icon, name, d, c }, i) => (
+              { icon: BarChart3, name: t("landing.a1"), d: t("landing.a1d") },
+              { icon: Wallet, name: t("landing.a2"), d: t("landing.a2d") },
+              { icon: Scale, name: t("landing.a3"), d: t("landing.a3d") },
+              { icon: Globe, name: t("landing.a4"), d: t("landing.a4d") },
+              { icon: CalendarDays, name: t("landing.a5"), d: t("landing.a5d") },
+              { icon: Building2, name: t("landing.a6"), d: t("landing.a6d") },
+            ].map(({ icon: Icon, name, d }, i) => (
               <Reveal key={name} delay={i * 60}>
-                <div className="flex items-center gap-4 rounded-2xl border bg-card p-4 shadow-soft tilt-hover hover:shadow-lift">
-                  <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${c}`}>
+                <div className="group flex items-center gap-4 rounded-2xl border bg-card p-4 shadow-soft tilt-hover hover:border-foreground/16 hover:shadow-lift">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border bg-secondary text-foreground transition group-hover:border-[hsl(var(--accent-line)/0.5)] group-hover:text-line">
                     <Icon className="h-6 w-6" />
                   </div>
                   <div>

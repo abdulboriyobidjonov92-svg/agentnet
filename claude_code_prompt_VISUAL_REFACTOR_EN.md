@@ -39,6 +39,14 @@ If you find yourself editing a `.service.ts`, `.controller.ts`, a Prisma schema,
 - **Effortless intelligence**: despite AgentNet being powerful and universal underneath, the surface must feel simple, self-explanatory, and quietly intelligent — complexity should be earned through progressive disclosure, not hidden by omission.
 - **Accessibility is part of "premium," not opposed to it**: maintain real contrast ratios (WCAG AA minimum) even within a dark, muted palette; keep interactive targets appropriately sized; respect reduced-motion preferences.
 
+## 3b. Every screen must be fully responsive — this is not optional
+
+This product will be tested live by real people on their own phones, tablets, and laptops, on the first day it ships. Every single screen and component covered by this refactor must look and work correctly at minimum at these breakpoints: mobile (~375–430px), tablet (~768–1024px), and desktop (1280px+). This means:
+- No fixed pixel widths that break or overflow on a small screen; layouts must reflow (stack, collapse navigation into a menu, resize type) rather than force horizontal scrolling or clip content.
+- Touch targets on mobile must be comfortably tappable (roughly 44px minimum), not sized for a mouse cursor.
+- The signature 3D moment (Personal Orb / landing sphere) must degrade gracefully on low-power mobile devices — reduce complexity or fall back to a lighter version rather than lag or crash the page.
+- Test each screen at actual mobile and tablet widths (use browser device emulation at minimum) before marking it done — "it works on my desktop monitor" is not sufficient verification.
+
 ## 4. Execution Plan — Staged, Approval-Gated
 
 This pass runs differently from the rest of the build: **do not change all the code at once.**

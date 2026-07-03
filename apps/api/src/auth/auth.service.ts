@@ -9,6 +9,7 @@ import {
   Injectable,
   CanActivate,
   ExecutionContext,
+  BadRequestException,
   ForbiddenException,
   UnauthorizedException,
   Logger,
@@ -202,21 +203,59 @@ export class ClerkSyncService {
   }
 
   /**
-   * Lokal dev auth — Clerk'siz. Email bo'yicha foydalanuvchini topadi/yaratadi.
-   * Prototip uchun (tashqi auth xizmatiga bog'liqlikni yo'q qiladi).
+   * Lokal dev auth — Clerk'siz. Email YOKI telefon raqami bo'yicha
+   * foydalanuvchini topadi/yaratadi. Prototip uchun (tashqi auth'siz).
    */
-  async devLogin(email: string, name?: string) {
-    const clean = (email || '').trim().toLowerCase();
+  async devLogin(input: { email?: string; phone?: string; name?: string }) {
+    const name = input.name ?? '';
+
+    // --- Telefon bilan kirish ---
+    if (input.phone) {
+      const phone = this.normalizePhone(input.phone);
+      if (!phone) {
+        throw new BadRequestException('Yaroqli telefon raqamini kiriting');
+      }
+      const existing = await this.prisma.user.findUnique({ where: { phone } });
+      if (existing) {
+        return {
+          userId: existing.id,
+          email: existing.email,
+          phone: existing.phone,
+          role: existing.role,
+          isNewUser: false,
+        };
+      }
+      const user = await this.prisma.user.create({
+        data: {
+          clerkId: this.devClerkId(),
+          // email majburiy/unique — telefondan barqaror sintetik qiymat.
+          email: `${phone.replace('+', '')}@phone.agentnet`,
+          phone,
+          role: 'MEMBER',
+        },
+      });
+      await this.auditLog.record({
+        actorId: user.id,
+        action: 'auth.dev_login',
+        resourceType: 'user',
+        resourceId: user.id,
+        metadata: { name, method: 'phone' },
+      });
+      return { userId: user.id, email: user.email, phone: user.phone, role: user.role, isNewUser: true };
+    }
+
+    // --- Email bilan kirish ---
+    const clean = (input.email || '').trim().toLowerCase();
     if (!clean || !clean.includes('@')) {
-      throw new Error('Yaroqli email kiriting');
+      throw new BadRequestException('Yaroqli email kiriting');
     }
     const existing = await this.prisma.user.findUnique({ where: { email: clean } });
     if (existing) {
-      return { userId: existing.id, email: existing.email, role: existing.role };
+      return { userId: existing.id, email: existing.email, phone: existing.phone, role: existing.role, isNewUser: false };
     }
     const user = await this.prisma.user.create({
       data: {
-        clerkId: `dev_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`,
+        clerkId: this.devClerkId(),
         email: clean,
         role: 'MEMBER',
       },
@@ -226,9 +265,25 @@ export class ClerkSyncService {
       action: 'auth.dev_login',
       resourceType: 'user',
       resourceId: user.id,
-      metadata: { name: name ?? '' },
+      metadata: { name, method: 'email' },
     });
-    return { userId: user.id, email: user.email, role: user.role };
+    return { userId: user.id, email: user.email, phone: user.phone, role: user.role, isNewUser: true };
+  }
+
+  private devClerkId(): string {
+    return `dev_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+  }
+
+  /**
+   * Telefon raqamini E.164'ga normallashtiradi. Faqat raqam/ "+" saqlanadi.
+   * "+" bo'lmasa qo'shiladi. Yaroqsiz bo'lsa null qaytaradi (7–15 raqam).
+   */
+  private normalizePhone(raw: string): string | null {
+    const digits = (raw || '').replace(/[^\d+]/g, '');
+    const e164 = digits.startsWith('+') ? `+${digits.slice(1).replace(/\+/g, '')}` : `+${digits}`;
+    const bare = e164.slice(1);
+    if (!/^\d{7,15}$/.test(bare)) return null;
+    return e164;
   }
 }
 

@@ -37,11 +37,11 @@ export class AuthController {
     return { received: true };
   }
 
-  /** Lokal dev login — Clerk'siz, email bilan kirish/ro'yxatdan o'tish */
+  /** Lokal dev login — Clerk'siz, email YOKI telefon bilan kirish/ro'yxatdan o'tish */
   @Post('dev-login')
   @HttpCode(200)
-  async devLogin(@Body() body: { email: string; name?: string }) {
-    return this.clerkSync.devLogin(body.email, body.name);
+  async devLogin(@Body() body: { email?: string; phone?: string; name?: string }) {
+    return this.clerkSync.devLogin(body);
   }
 
   /** 2FA sozlash — QR kod va secret qaytaradi */

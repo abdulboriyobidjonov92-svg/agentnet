@@ -36,12 +36,27 @@ export default function ParticleWordmark({
     off.width = cssW;
     off.height = cssH;
     const octx = off.getContext("2d")!;
-    octx.font = `800 ${fontSize}px Sora, ui-sans-serif, system-ui`;
+    // Bitta oila — Geist (display bilan bir xil). Canvas `font` CSS o'zgaruvchini
+    // qo'llab-quvvatlamaydi, shuning uchun body'ning hisoblangan oilasini olamiz.
+    const family =
+      getComputedStyle(document.body).fontFamily ||
+      "ui-sans-serif, system-ui, sans-serif";
+    octx.font = `800 ${fontSize}px ${family}`;
     octx.textAlign = "center";
     octx.textBaseline = "middle";
     octx.fillStyle = "#fff";
     octx.fillText(text, cssW / 2, cssH / 2);
     const img = octx.getImageData(0, 0, cssW, cssH).data;
+
+    // Rang — dizayn tizimidan (Obsidian): monoxrom near-white,
+    // faqat nozik arctic "Filament" urg'usi. Neon palitra bekor qilindi.
+    const styles = getComputedStyle(document.documentElement);
+    const hsl = (name: string, fallback: string) => {
+      const v = styles.getPropertyValue(name).trim();
+      return v ? `hsl(${v})` : fallback;
+    };
+    const inkColor = hsl("--foreground", "#e8e9ec");
+    const filamentColor = hsl("--accent-line", "#6fb8dc");
 
     const gap = 4;
     const targets: { x: number; y: number }[] = [];
@@ -51,16 +66,16 @@ export default function ParticleWordmark({
       }
     }
 
-    const palette = ["#22d3ee", "#34d399", "#8b5cf6", "#e0faff"];
-    const particles = targets.map((tgt, i) => ({
+    // Deyarli barcha zarrachalar "ink" (near-white); ~8% Filament urg'usi.
+    const particles = targets.map((tgt) => ({
       x: Math.random() * cssW,
       y: Math.random() * cssH,
       vx: 0,
       vy: 0,
       tx: tgt.x,
       ty: tgt.y,
-      color: palette[i % palette.length],
-      size: Math.random() * 1.4 + 0.8,
+      color: Math.random() < 0.08 ? filamentColor : inkColor,
+      size: Math.random() * 1.2 + 0.7,
     }));
 
     let raf = 0;
