@@ -18,27 +18,11 @@ Do not undo or regress anything working from Part 1. This part is additive: visu
 
 You are explicitly permitted — and encouraged — to connect to and use any external tool, MCP server, API, or service available to you, including design tools like Figma or Canva, asset/image generation, animation libraries, hosting/deployment platforms, or anything else that meaningfully improves quality or speed. Use your own judgment on what to connect to and how. The only hard requirement is that the final result must be genuinely production-quality — polished, coherent, and real (not mocked placeholders where a real integration is available to you).
 
-## Design & UX system — this must ship, not just be described
+## Design & UX system — see the dedicated Visual Refactor prompt
 
-The current UI must be rebuilt to this standard; do not ship the current default styling as final. Evolve the existing component structure from Part 1 rather than starting a new design system from zero, unless the current one genuinely cannot support this.
+**Do not design the visual/UX layer from this section.** The full visual direction now lives in a separate, more current prompt: `claude_code_prompt_VISUAL_REFACTOR_EN.md`. Run that prompt (either right before or right after this one — it is self-contained and staged/approval-gated on its own) for all interface, styling, layout, animation, and UX work. It supersedes any earlier neon/maximalist direction with an ultra-premium minimalist direction (deep obsidian/slate/monochromatic, restrained accent color, Stripe/Linear/Vercel-caliber execution). Structural screen concepts referenced elsewhere in this document (Personal Orb, splash sequence, Life Twin timeline, role-adaptive layouts) should still exist functionally, but their final look and motion language must follow that prompt, not any color/effect description that may appear elsewhere.
 
-**Visual identity:**
-- Background: deep space black
-- Accents: electric cyan + soft emerald green as the signature combination, with subtle purple-blue gradients and soft gold highlights used sparingly
-- Soft neon glow on interactive elements throughout
-- Aesthetic direction: advanced 3D + liquid glassmorphism + organic motion — every element should have quality micro-interactions, nothing should feel static
-- Ship both a primary dark mode and a polished light mode
-
-**Key screens to build to this standard:**
-1. **Splash/entry screen** — a large rotating 3D "neural network" sphere made of small connected light points, with the AgentNet wordmark resolving in via a particle effect.
-2. **Home dashboard** — a central 3D "Personal Orb" (the visual anchor for the user's Life Twin from Part 1) with the user's agents orbiting it, each with distinct color/animation; interacting with the orb reveals agent status; a very slow, subtle particle network in the background.
-3. **Agent Creator** — chat on one side, live 3D preview on the other, where the agent's visual form assembles progressively as it's configured (e.g. a camera-monitoring agent renders as an eye motif, a finance agent as a crystal motif).
-4. **Role-adaptive page** — the whole page morphs with a fluid transition based on the detected profession from Part 1's role-adaptation logic (shop owner sees live camera-feed cards in 3D, doctor sees an anatomical 3D model with analysis panels, government-aide role sees a 3D document/statistics dashboard).
-5. **Insights / Life Twin page** — a 3D timeline with branching "future paths," each prediction expanding with animation on hover, wired to the real Life Twin data from Part 1.
-
-**Micro-interactions:** liquid ripple + glow on every button press; a soft "particle fireworks" success animation when an agent completes a task; if a voice mode exists, pair it with a live animated audio visualizer.
-
-Use real frontend technology capable of this (e.g. Three.js/WebGL or an equivalent compatible with the existing Next.js app) — do not fake this with static images. If a fully native 3D scene is too heavy for a given screen, use tasteful CSS/SVG animation as a fallback rather than skipping the effect entirely. Check real performance (load time, frame rate) on a mid-range device/connection, not just on your own machine — this must feel fast, not just look good.
+This document (Part 2) still owns: the Enterprise AgentOS build-out below, and shipping the whole product to a public URL.
 
 ## Enterprise line — "AgentOS" for companies and government bodies
 
@@ -57,7 +41,7 @@ Design the org/workspace data model so a single AgentNet account can represent e
 
 ## Autonomous execution
 
-Same operating mode as Part 1: **bypass/autopilot**. Do not stop to ask for approval on design choices, architecture, or implementation details — use your own best senior judgment and keep moving. Be ambitious; this needs to look and feel like a billion-dollar product, not an MVP.
+Same operating mode as Part 1 for the AgentOS build-out and deployment work in this document: **bypass/autopilot** — do not stop to ask for approval on architecture or implementation details, use your own best senior judgment and keep moving. Be ambitious; this needs to look and feel like a billion-dollar product, not an MVP. (The visual/UX layer is the one exception — that work is staged and approval-gated, per the dedicated Visual Refactor prompt referenced above.)
 
 ## Self-verification (no human in the loop)
 

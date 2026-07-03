@@ -1,30 +1,27 @@
 import type { Metadata } from "next";
-import { Sora, Manrope } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import { Providers } from "@/lib/providers";
 import { getLocale } from "@/lib/i18n/server";
 import "./globals.css";
 
-const display = Sora({
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
-  variable: "--font-display",
-});
-const body = Manrope({
-  subsets: ["latin", "cyrillic"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-body",
-});
+// Bitta oila — Geist. Display, UI va mono (raqamlar) uchun.
+// CDN'siz (next/font orqali o'z-o'zidan hosting) — yuklanish xavfi yo'q.
 
 export const metadata: Metadata = {
-  title: "AgentNet — Halal-first AI platform",
+  title: "AgentNet — Sovereign AI Operations",
   description:
-    "Build and orchestrate halal AI agents with a no-code builder. Prayer, Quran, health, finance — aligned with Islamic values.",
+    "Command an autonomous AI workforce. Life Twin, autonomous goals, cross-domain agent fusion and an enterprise C-suite — a real operations platform.",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = await getLocale();
   return (
-    <html lang={locale} suppressHydrationWarning className={`${display.variable} ${body.variable}`}>
+    <html
+      lang={locale}
+      suppressHydrationWarning
+      className={`${GeistSans.variable} ${GeistMono.variable}`}
+    >
       <head>
         {/* Deep space (dark) — asosiy rejim; foydalanuvchi tanlagan bo'lsa light */}
         <script

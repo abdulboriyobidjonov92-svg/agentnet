@@ -1,60 +1,64 @@
 "use client";
-import { Shield, Bot, Sparkles } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useT } from "@/lib/i18n/client";
 import { LanguageSwitcher } from "@/components/language-switcher";
 
-// Chap tomonda brend paneli (emerald gradient + Islom geometriyasi), o'ngda forma.
+// Yagona 3D lahza — sahnaga qo'yilgan obyekt (faqat klientda)
+const Monolith = dynamic(() => import("@/components/three/monolith"), {
+  ssr: false,
+  loading: () => <div className="h-full w-full" />,
+});
+
+/**
+ * Auth — birinchi taassurot (eng yuqori ta'sir). Obsidian keynote sahna:
+ * chapda Monolith, o'ngda editorial forma. Imzo: Filament (arctic hairline)
+ * — panellar orasidagi spine va sarlavha ostidagi chizilib keluvchi chiziq.
+ */
 export function AuthShell({ children }: { children: React.ReactNode }) {
   const { t } = useT();
   return (
-    <div className="flex min-h-screen">
-      {/* Brend paneli */}
-      <div className="relative hidden w-1/2 overflow-hidden bg-primary lg:block">
-        <div className="absolute inset-0 bg-dot-grid opacity-40" />
-        <div className="absolute -right-24 -top-24 h-96 w-96 rounded-full opacity-20"
-          style={{ background: "radial-gradient(circle, hsl(var(--accent-gold)), transparent 70%)" }} />
-        <div className="absolute -bottom-32 -left-16 h-96 w-96 rounded-full opacity-20"
-          style={{ background: "radial-gradient(circle, hsl(var(--accent-gold)), transparent 70%)" }} />
+    <div className="relative flex min-h-screen bg-background text-foreground">
+      {/* Chap — keynote sahna (yagona 3D obyekt, ko'p bo'sh joy) */}
+      <div className="relative hidden w-[54%] flex-col overflow-hidden lg:flex">
+        {/* Brend — kichik, yuqori chap */}
+        <div className="relative z-10 flex items-center gap-2.5 px-12 pt-12">
+          <div className="h-6 w-6 rounded-md border border-foreground/15 bg-surface-2" />
+          <span className="text-sm font-medium tracking-tight">AgentNet</span>
+        </div>
 
-        <div className="relative flex h-full flex-col justify-between p-12 text-primary-foreground">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold">
-              <Sparkles className="h-5 w-5 text-gold-foreground" />
-            </div>
-            <span className="text-xl font-bold">AgentNet</span>
+        {/* Monolith — markazda, yumshoq "prожektor" sahnasida */}
+        <div className="relative flex flex-1 items-center justify-center">
+          {/* Studio spotlight backdrop — obyektni sahnaga qo'yadi */}
+          <div
+            className="pointer-events-none absolute left-1/2 top-1/2 h-[80%] w-[80%] max-w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{ background: "radial-gradient(circle, hsl(220 20% 18% / 0.55), transparent 62%)" }}
+          />
+          <div className="relative h-[74%] w-[74%] max-w-[520px]">
+            <Monolith className="!h-full !w-full" />
           </div>
+        </div>
 
-          <div className="space-y-8">
-            <h2 className="max-w-md text-4xl font-bold leading-tight">{t("auth.brandTitle")}</h2>
-            <div className="space-y-5">
-              {[
-                { icon: Shield, t: t("auth.brandF1"), d: t("auth.brandF1d") },
-                { icon: Bot, t: t("auth.brandF2"), d: t("auth.brandF2d") },
-                { icon: Sparkles, t: t("auth.brandF3"), d: t("auth.brandF3d") },
-              ].map(({ icon: Icon, t: tt, d }) => (
-                <div key={tt} className="flex items-start gap-3.5">
-                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 backdrop-blur">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">{tt}</p>
-                    <p className="text-sm text-primary-foreground/70">{d}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <p className="text-sm text-primary-foreground/60">{t("auth.brandFooter")}</p>
+        {/* Bir qatorli tinch bayonot + Filament (chizilib keladi) */}
+        <div className="relative z-10 px-12 pb-14">
+          <div className="mb-4 h-px w-16 origin-left bg-line draw-x" />
+          <p className="max-w-sm text-lg font-medium leading-snug tracking-tight text-foreground/90">
+            {t("auth.brandTitle")}
+          </p>
+          <p className="mt-1.5 text-sm text-muted-foreground">{t("auth.brandFooter")}</p>
         </div>
       </div>
 
-      {/* Forma */}
-      <div className="relative flex w-full items-center justify-center bg-background px-6 lg:w-1/2">
-        <div className="absolute right-6 top-6">
+      {/* Vertikal spine — imzo urg'u chizig'i (panellar orasida) */}
+      <div className="spine relative hidden lg:block" aria-hidden />
+
+      {/* O'ng — editorial forma */}
+      <div className="relative flex w-full flex-col lg:w-[46%]">
+        <div className="absolute right-6 top-6 z-10">
           <LanguageSwitcher />
         </div>
-        {children}
+        <div className="flex flex-1 items-center px-6 sm:px-10 lg:px-16">
+          <div className="w-full max-w-md">{children}</div>
+        </div>
       </div>
     </div>
   );
