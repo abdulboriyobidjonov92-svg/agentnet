@@ -27,6 +27,13 @@ services:
     envVars:
       - key: ANTHROPIC_API_KEY
         sync: false        # ixtiyoriy — bo'lmasa demo/heuristik rejim
+      # web.automate/connector.invoke uchun API'ga ichki chaqiruv
+      - key: API_URL
+        value: https://agentnet-api.onrender.com
+      - key: INTERNAL_API_TOKEN
+        sync: false        # api servisidagi bilan bir xil qiymat bo'lishi shart
+      - key: AGENT_MAX_TOOL_ITERATIONS
+        value: "8"
 
   # 2) NestJS API — Core SaaS (auth, agents, twin, goals, intelligence, agentos)
   - type: web
@@ -47,6 +54,28 @@ services:
         sync: false
       - key: TELEGRAM_BOT_TOKEN
         sync: false
+      # CORS — bo'lmasa brauzerdan kelgan hamma so'rov bloklanadi (production bug)
+      - key: NEXT_PUBLIC_APP_URL
+        value: https://agentnet-web.onrender.com
+      # web.automate/connector.invoke ichki chaqiruvlari uchun umumiy token
+      - key: INTERNAL_API_TOKEN
+        sync: false        # engine servisidagi bilan bir xil qiymat bo'lishi shart
+      # Rate limiting / xarajat himoyasi (env bo'lmasa kod ichidagi defaultlar ishlaydi)
+      - key: USAGE_FREE_CHAT_PER_DAY
+        value: "20"
+      - key: USAGE_FREE_AGENTS_MAX
+        value: "5"
+      - key: USAGE_GLOBAL_LLM_PER_DAY
+        value: "2000"
+      # Prepaid billing — foydalanuvchi o'zi uchun to'laydi
+      - key: BILLING_PRICE_PER_MESSAGE_TIYIN
+        value: "50000"
+      - key: PAYME_MERCHANT_ID
+        sync: false        # ixtiyoriy — bo'lmasa to'ldirish funksiyasi aniq xato beradi
+      - key: PAYME_SECRET_KEY
+        sync: false
+      - key: PAYME_TEST_MODE
+        value: "true"
 
   # 3) Next.js web — deep-space UI + 3D + AgentOS command center
   - type: web
