@@ -35,6 +35,10 @@ export const dictionary: Record<Locale, Dict> = {
     "common.undo": "Undo",
     "agents.deleted": "Agent deleted",
     "chat.send": "Send message",
+    "nav.groupMain": "Main",
+    "nav.groupPower": "AI Power",
+    "nav.groupIndustries": "Industries",
+    "nav.groupSystem": "System",
 
     // Nav / brand
     "brand.tagline": "Sovereign AI operations · built for every profession",
@@ -481,6 +485,10 @@ export const dictionary: Record<Locale, Dict> = {
     "common.undo": "Отменить",
     "agents.deleted": "Агент удалён",
     "chat.send": "Отправить сообщение",
+    "nav.groupMain": "Основное",
+    "nav.groupPower": "AI-возможности",
+    "nav.groupIndustries": "Отрасли",
+    "nav.groupSystem": "Система",
 
     "brand.tagline": "Суверенные ИИ-операции · для каждой профессии",
 
@@ -916,6 +924,10 @@ export const dictionary: Record<Locale, Dict> = {
     "common.undo": "Bekor qilish",
     "agents.deleted": "Agent o'chirildi",
     "chat.send": "Xabar yuborish",
+    "nav.groupMain": "Asosiy",
+    "nav.groupPower": "AI kuchlari",
+    "nav.groupIndustries": "Sohalar",
+    "nav.groupSystem": "Tizim",
 
     "brand.tagline": "Suveren AI operatsiyalari · har kasb uchun",
 
