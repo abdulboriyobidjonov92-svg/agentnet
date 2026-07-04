@@ -472,6 +472,21 @@ const uz: Dict = {
     "pricing.free0": "0 so'm",
     "pricing.balanceNote": "Chat xabarlari har qanday tarifda prepaid balansdan xabar boshiga yechiladi — tarif limitlarni o'zgartiradi, xabar narxini emas.",
     "pricing.marketplaceNote": "Marketplace: kreatorlar har pulli o'rnatishdan 70% oladi — kreator paneliga qarang.",
+
+    // Cinematic hero ekranlari
+    "hero.welcome": "Xush kelibsiz, Aziza!",
+    "hero.tokens": "Token balansi",
+    "hero.tasksActive": "Vazifalar",
+    "hero.revenue": "Daromad",
+    "hero.createAgent": "Agent yarating",
+    "hero.getStarted": "Boshlash",
+    "hero.complexity": "Agent murakkabligi",
+    "hero.marketplaceTitle": "Marketplace'ni kashf eting",
+    "hero.topAgents": "Siz uchun top AI agentlar",
+    "hero.agent1": "E-savdo eksperti",
+    "hero.agent2": "Tibbiy maslahatchi",
+    "hero.agent3": "Xalqaro savdo boti",
+    "hero.agent4": "Do'kon monitori",
 };
 
 export default uz;

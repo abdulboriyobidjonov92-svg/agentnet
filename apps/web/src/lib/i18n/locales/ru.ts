@@ -472,6 +472,21 @@ const ru: Dict = {
     "pricing.free0": "0 сум",
     "pricing.balanceNote": "Сообщения чата на любом тарифе списываются с prepaid-баланса за каждое сообщение — тариф меняет лимиты, а не цену сообщения.",
     "pricing.marketplaceNote": "Маркетплейс: создатели получают 70% с каждой платной установки — см. панель создателя.",
+
+    // Cinematic hero экраны
+    "hero.welcome": "С возвращением, Азиза!",
+    "hero.tokens": "Баланс токенов",
+    "hero.tasksActive": "Задачи",
+    "hero.revenue": "Доход",
+    "hero.createAgent": "Создайте агента",
+    "hero.getStarted": "Начать",
+    "hero.complexity": "Сложность агента",
+    "hero.marketplaceTitle": "Исследуйте маркетплейс",
+    "hero.topAgents": "Топ AI-агенты для вас",
+    "hero.agent1": "Эксперт e-commerce",
+    "hero.agent2": "Медицинский советник",
+    "hero.agent3": "Бот внешней торговли",
+    "hero.agent4": "Монитор магазина",
 };
 
 export default ru;

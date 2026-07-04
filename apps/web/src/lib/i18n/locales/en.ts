@@ -484,6 +484,21 @@ const en: Dict = {
     "pricing.free0": "0 so'm",
     "pricing.balanceNote": "Chat messages are charged per message from your prepaid balance on every plan — the plan changes limits, not message price.",
     "pricing.marketplaceNote": "Marketplace: creators earn 70% on every paid install — see the creator dashboard.",
+
+    // Cinematic hero screens
+    "hero.welcome": "Welcome back, Aziza!",
+    "hero.tokens": "Token balance",
+    "hero.tasksActive": "Tasks",
+    "hero.revenue": "Revenue",
+    "hero.createAgent": "Create Your Agent",
+    "hero.getStarted": "Get Started",
+    "hero.complexity": "Agent Complexity",
+    "hero.marketplaceTitle": "Explore the Marketplace",
+    "hero.topAgents": "Top AI agents for you",
+    "hero.agent1": "E-Commerce Expert",
+    "hero.agent2": "Medical Advisor",
+    "hero.agent3": "Global Trade Bot",
+    "hero.agent4": "Retail Monitor",
 };
 
 export default en;
