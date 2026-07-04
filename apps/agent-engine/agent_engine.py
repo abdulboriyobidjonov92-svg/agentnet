@@ -60,12 +60,20 @@ class AgentDefinition(BaseModel):
 # ------------------------------------------------------------------
 
 
+# Xarajat himoyasi: bitta so'rov ichida reason→tool→reason sikli necha marta
+# aylanishi mumkin. Cheksiz loop = kutilmagan katta LLM hisobi. Env orqali sozlanadi.
+import os
+
+MAX_TOOL_ITERATIONS = int(os.getenv("AGENT_MAX_TOOL_ITERATIONS", "8"))
+
+
 class AgentState(TypedDict):
     messages: Annotated[list[dict[str, str]], operator.add]
     user_id: str
     agent_id: str
     pending_tool_calls: list[dict[str, Any]]
     halal_flag: str | None  # "ALLOW" | "BLOCK" | "HUMAN_REVIEW" | None
+    iterations: int  # reason node necha marta ishga tushdi (loop chegarasi uchun)
 
 
 # ------------------------------------------------------------------
@@ -172,9 +180,13 @@ class AgentEngine:
         }
         response = await self.llm.ainvoke([system, *state["messages"]])
         new_messages = [{"role": "assistant", "content": response.content}]
-        return {**state, "messages": new_messages, "pending_tool_calls": []}
+        iterations = state.get("iterations", 0) + 1
+        return {**state, "messages": new_messages, "pending_tool_calls": [], "iterations": iterations}
 
     def _route_after_reasoning(self, state: AgentState) -> str:
+        # Loop chegarasi: MAX_TOOL_ITERATIONS ga yetgach, tool chaqirmay javob beramiz
+        if state.get("iterations", 0) >= MAX_TOOL_ITERATIONS:
+            return "respond"
         return "tool_call" if state.get("pending_tool_calls") else "respond"
 
     async def _execute_tools_node(self, state: AgentState) -> AgentState:
@@ -201,8 +213,12 @@ class AgentEngine:
             "agent_id": self.definition.agent_id,
             "pending_tool_calls": [],
             "halal_flag": None,
+            "iterations": 0,
         }
-        final_state = await self.graph.ainvoke(initial_state)
+        # LangGraph'ning o'z recursion_limit'i — qo'shimcha xavfsizlik to'ri
+        final_state = await self.graph.ainvoke(
+            initial_state, config={"recursion_limit": MAX_TOOL_ITERATIONS * 2 + 4}
+        )
         return {
             "agent_id": self.definition.agent_id,
             "run_id": str(uuid.uuid4()),

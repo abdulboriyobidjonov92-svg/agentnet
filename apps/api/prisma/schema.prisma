@@ -19,6 +19,9 @@ model User {
   email                  String    @unique
   phone                  String?   @unique
   role                   String    @default("MEMBER")
+  // Tarif turi — monetizatsiya poydevori: "free" | "pro"
+  // (kelajakda Stripe/Payme webhook shu maydonni yangilaydi)
+  plan                   String    @default("free")
   orgId                  String?
   org                    Org?      @relation(fields: [orgId], references: [id])
   isBusinessAccount      Boolean   @default(false)
@@ -520,4 +523,17 @@ model CreatorLedger {
 
   @@index([creatorId])
   @@index([agentId])
+}
+
+// --- Foydalanish limitlari (rate limiting / xarajat himoyasi) ---
+// userId = foydalanuvchi id yoki "_global" (butun platforma bo'yicha kunlik LLM hisobi)
+model UsageCounter {
+  id     String @id @default(cuid())
+  userId String
+  day    String // "YYYY-MM-DD" (UTC)
+  kind   String // "chat" | "heavy" | "llm"
+  count  Int    @default(0)
+
+  @@unique([userId, day, kind])
+  @@index([day])
 }

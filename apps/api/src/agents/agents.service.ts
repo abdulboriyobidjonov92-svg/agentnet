@@ -3,6 +3,7 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../auth/auth.service';
+import { UsageService } from '../usage/usage.service';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
 import type { User } from '@prisma/client';
@@ -13,9 +14,12 @@ export class AgentsService {
     private readonly prisma: PrismaService,
     private readonly http: HttpService,
     private readonly audit: AuditLogService,
+    private readonly usage: UsageService,
   ) {}
 
   async create(user: User, dto: CreateAgentDto) {
+    // Tarif chegarasi — free foydalanuvchi cheksiz agent yarata olmaydi
+    await this.usage.assertCanCreateAgent(user);
     const agent = await this.prisma.agent.create({
       data: {
         name: dto.name,
@@ -74,6 +78,8 @@ export class AgentsService {
 
   async run(id: string, user: User, message: string, conversationId?: string) {
     const agent = await this.findOne(id, user);
+    // LLM chaqiruvidan oldin kunlik/global limitni tekshiramiz
+    await this.usage.consumeChat(user);
     const engineUrl = process.env.AGENT_ENGINE_URL ?? 'http://localhost:8000';
 
     const { data } = await firstValueFrom(

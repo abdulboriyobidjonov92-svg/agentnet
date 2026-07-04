@@ -7,6 +7,30 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const engineUrl = process.env.AGENT_ENGINE_URL ?? "http://localhost:8000";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+
+  // Rate limit / xarajat himoyasi — LLM'ga o'tishdan OLDIN kunlik+global limitni
+  // NestJS'da tekshiramiz va hisoblaymiz. 429 bo'lsa oqim boshlanmaydi.
+  try {
+    const limitRes = await fetch(`${apiUrl}/api/usage/consume-chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.userId}`,
+      },
+    });
+    if (limitRes.status === 429) {
+      const info = await limitRes.json().catch(() => ({}));
+      return new Response(
+        `data: ${JSON.stringify({ type: "rate_limit", message: info.message ?? "Limitga yetdingiz", reason: info.reason })}\n\n` +
+          `data: ${JSON.stringify({ type: "done", demo_mode: false })}\n\n`,
+        { status: 200, headers: { "Content-Type": "text/event-stream" } },
+      );
+    }
+  } catch {
+    // Usage API o'chik bo'lsa — chatni bloklamaymiz (soft-fail), lekin log qoladi
+    console.warn("[chat/stream] usage limit tekshiruvi o'tkazib yuborildi (API javob bermadi)");
+  }
 
   let upstream: Response;
   try {

@@ -19,6 +19,7 @@ import { RetailModule } from './retail/retail.module';
 import { OperationsModule } from './operations/operations.module';
 import { GovtechModule } from './govtech/govtech.module';
 import { TradeModule } from './trade/trade.module';
+import { UsageModule } from './usage/usage.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { TradeModule } from './trade/trade.module';
     OperationsModule,
     GovtechModule,
     TradeModule,
+    UsageModule,
   ],
 })
 export class AppModule {}
