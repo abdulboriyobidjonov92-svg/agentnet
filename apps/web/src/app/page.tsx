@@ -12,7 +12,8 @@ import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Reveal, Tilt, Counter } from "@/components/motion";
 import { Button } from "@/components/ui/button";
-import { HeroSphere, HeroWordmark } from "@/components/three/hero-visual";
+import { CinematicHero } from "@/components/hero/CinematicHero";
+import { HalalBadge } from "@/components/hero/HalalBadge";
 
 export default async function HomePage() {
   const store = await cookies();
@@ -43,99 +44,61 @@ export default async function HomePage() {
         </div>
       </header>
 
-      {/* ===== Hero — kirish ekrani: neyron sfera + zarrachali logotip ===== */}
-      <section className="aurora relative">
-        <div className="absolute inset-0 bg-grid-lines opacity-[0.5]" />
-        {/* 3D neyron sfera — hero fonining o'ng qismida */}
-        <HeroSphere className="pointer-events-none absolute right-[-10%] top-1/2 hidden h-[620px] w-[620px] -translate-y-1/2 lg:block" />
-        <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-2 lg:gap-8">
-          {/* Left */}
-          <div className="text-center lg:text-left">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-gold bg-gold/10 px-4 py-1.5 text-sm font-medium text-gold animate-in-up">
-              <Shield className="h-4 w-4" /> {t("landing.badge")}
-            </div>
-            <HeroWordmark className="mx-auto h-[110px] w-full max-w-[520px] lg:mx-0" />
-            <h1 className="animate-in-up text-3xl font-bold leading-[1.08] tracking-tight sm:text-4xl lg:text-5xl">
-              {t("landing.heroTitle1")}{" "}
-              <span className="text-gradient-animated">{t("landing.heroTitleAccent")}</span>{" "}
-              {t("landing.heroTitle2")}
-            </h1>
-            <p className="mx-auto mt-6 max-w-xl text-base text-muted-foreground animate-in-up delay-100 sm:text-lg lg:mx-0">
-              {t("landing.heroSubtitle")}
-            </p>
-            <div className="mt-9 flex flex-col items-center gap-3 animate-in-up delay-200 sm:flex-row lg:justify-start">
-              <Button asChild size="lg" className="group w-full px-7 shadow-glow sm:w-auto">
-                <Link href="/sign-up">
-                  {t("landing.ctaPrimary")}
-                  <ArrowRight className="transition group-hover:translate-x-1" />
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="lg" className="w-full px-7 sm:w-auto">
-                <Link href="/sign-in">{t("landing.ctaSecondary")}</Link>
-              </Button>
-            </div>
-            {/* Stats — luxury data cue: mono raqamlar + Filament ajratgichlar */}
-            <div className="mt-10 grid grid-cols-3 border-t pt-6 animate-in-up delay-300">
-              {[
-                { v: <Counter to={1200} suffix="+" />, l: t("landing.stat1") },
-                { v: "3", l: t("landing.stat2") },
-                { v: "99.9%", l: t("landing.stat3") },
-              ].map((s, i) => (
-                <div
-                  key={s.l}
-                  className={i > 0 ? "pl-4 sm:pl-6 border-l border-border/70" : "pr-2"}
-                >
-                  <p className="nums text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                    {s.v}
-                  </p>
-                  <p className="mt-1 text-[0.7rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                    {s.l}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* ===== Hero — ultra-cinematic sahna: MacBook + iPhone + iPad, hologram
+           agentlar; markaziy shar YO'Q (reference kompozitsiyasi) ===== */}
+      <section className="hero-cinematic relative overflow-hidden">
+        {/* Halal belgisi — yuqori chap */}
+        <div className="absolute left-4 top-4 z-20 sm:left-8 sm:top-6">
+          <HalalBadge />
+        </div>
 
-          {/* Right — floating 3D chat mockup */}
-          <div className="relative mx-auto hidden w-full max-w-md lg:block">
-            <div className="animate-float">
-              <Tilt max={8} className="rounded-3xl">
-                <div className="glass-panel rounded-3xl p-5 shadow-glow">
-                  <div className="mb-4 flex items-center gap-3 border-b border-white/10 pb-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                      <Building2 className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold">AgentOS · Command</p>
-                      <p className="flex items-center gap-1 text-xs text-primary">
-                        <Shield className="h-3 w-3" /> Ethics-verified
-                      </p>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-tr-sm bg-primary px-3.5 py-2 text-sm text-primary-foreground">
-                      Launch our new product across the region
-                    </div>
-                    <div className="max-w-[90%] rounded-2xl rounded-tl-sm bg-secondary px-3.5 py-2 text-xs leading-relaxed">
-                      <span className="text-line">▸ AI-CEO</span> strategy · <span className="text-line">▸ AI-CFO</span> budget · <span className="text-line">▸ AI-CMO</span> go-to-market · <span className="text-line">▸ AI-CLO</span> compliance · <span className="text-line">▸ AI-CTO</span> build
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-primary">
-                      <Check className="h-3 w-3" /> 5 departments · ethics passed
-                    </div>
-                  </div>
-                </div>
-              </Tilt>
-            </div>
-            {/* floating badges */}
-            <div className="absolute -left-8 top-8 animate-float-slow rounded-2xl border bg-card px-3 py-2 text-xs font-medium shadow-lift">
-              💱 UZS 12,650
-            </div>
-            <div className="absolute -right-6 bottom-10 animate-float rounded-2xl border bg-card px-3 py-2 text-xs font-medium shadow-lift delay-300">
-              🌤️ +24°C
-            </div>
+        <div className="relative z-10 mx-auto max-w-4xl px-4 pt-14 text-center sm:px-6 sm:pt-16">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[hsl(var(--cta-gold)/0.45)] bg-[hsl(var(--cta-gold)/0.1)] px-4 py-1.5 text-sm font-medium text-[hsl(var(--cta-gold))] animate-in-up">
+            <Shield className="h-4 w-4" /> {t("landing.badge")}
+          </div>
+          <h1 className="type-display animate-in-up">
+            {t("landing.heroTitle1")}{" "}
+            <span className="text-gradient-animated">{t("landing.heroTitleAccent")}</span>{" "}
+            {t("landing.heroTitle2")}
+          </h1>
+          <p className="mx-auto mt-5 max-w-xl text-base text-white/60 animate-in-up delay-100 sm:text-lg">
+            {t("landing.heroSubtitle")}
+          </p>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 animate-in-up delay-200 sm:flex-row">
+            <Button asChild size="lg" className="cta-gold group w-full border-0 px-8 sm:w-auto">
+              <Link href="/sign-up">
+                {t("landing.ctaPrimary")}
+                <ArrowRight className="transition group-hover:translate-x-1" />
+              </Link>
+            </Button>
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="w-full border-white/20 bg-white/5 px-8 text-white hover:bg-white/10 sm:w-auto"
+            >
+              <Link href="/sign-in">{t("landing.ctaSecondary")}</Link>
+            </Button>
           </div>
         </div>
-        <div className="relative z-10 pb-10 text-center text-xs text-muted-foreground">{t("landing.trusted")}</div>
+
+        {/* 3D sahna — qurilmalar + hologramlar (lazy, reduced-motion fallback) */}
+        <CinematicHero className="relative z-10 mx-auto h-[380px] w-full max-w-6xl sm:h-[480px] lg:h-[560px]" />
+
+        {/* Stats — sahna ostida */}
+        <div className="relative z-10 mx-auto grid max-w-3xl grid-cols-3 border-t border-white/10 px-4 pb-10 pt-6 sm:px-6">
+          {[
+            { v: <Counter to={1200} suffix="+" />, l: t("landing.stat1") },
+            { v: "3", l: t("landing.stat2") },
+            { v: "99.9%", l: t("landing.stat3") },
+          ].map((s, i) => (
+            <div key={s.l} className={i > 0 ? "border-l border-white/10 pl-4 sm:pl-6" : "pr-2"}>
+              <p className="nums text-2xl font-semibold tracking-tight text-white sm:text-3xl">{s.v}</p>
+              <p className="mt-1 text-[0.7rem] font-medium uppercase tracking-[0.14em] text-white/50">{s.l}</p>
+            </div>
+          ))}
+        </div>
+        <div className="relative z-10 pb-8 text-center text-xs text-white/40">{t("landing.trusted")}</div>
       </section>
 
       {/* ===== Audience: individuals + business ===== */}

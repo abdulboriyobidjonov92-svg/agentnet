@@ -1,19 +1,23 @@
 "use client";
 import { Bot, Camera, ShoppingCart, Stethoscope, Ship, Sparkles, TrendingUp } from "lucide-react";
-import { useT } from "@/lib/i18n/client";
 import { TokenMeter } from "./TokenMeter";
 
 /**
  * Hero qurilma ekranlari — DOM sifatida chiziladi (uch o'lchamli sahnada
  * drei <Html transform>, fallback'da oddiy div). Matn har doim keskin
  * o'qiladi (canvas texture emas) va 3 tilda ishlaydi.
+ *
+ * MUHIM: drei <Html> kontentni ALOHIDA React root'da chizadi — u yerda
+ * i18n konteksti (useT) mavjud emas. Shu sabab tarjima funksiyasi `t`
+ * tashqaridan (asosiy daraxtdan) prop sifatida beriladi.
  */
+
+export type HeroT = (key: string) => string;
 
 const panel = "rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2";
 
 /** MacBook — dashboard: salomlashuv, statistika, daromad sparkline */
-export function MacScreen() {
-  const { t } = useT();
+export function MacScreen({ t }: { t: HeroT }) {
   return (
     <div className="flex h-full w-full flex-col gap-2.5 bg-[hsl(230_12%_5%)] p-4 text-left text-white">
       <div className="flex items-center justify-between">
@@ -61,8 +65,7 @@ export function MacScreen() {
 }
 
 /** iPhone — "Create Your Agent" + murakkablik o'lchagichi (TokenMeter) */
-export function PhoneScreen() {
-  const { t } = useT();
+export function PhoneScreen({ t }: { t: HeroT }) {
   return (
     <div className="flex h-full w-full flex-col items-center gap-2 bg-[hsl(230_12%_5%)] p-3 pt-5 text-center text-white">
       <p className="text-[13px] font-bold leading-tight">{t("hero.createAgent")}</p>
@@ -81,8 +84,7 @@ export function PhoneScreen() {
 }
 
 /** iPad — "Explore the Marketplace" + top agent kartalari */
-export function PadScreen() {
-  const { t } = useT();
+export function PadScreen({ t }: { t: HeroT }) {
   const agents = [
     { icon: ShoppingCart, name: t("hero.agent1"), tone: "text-[hsl(var(--accent-cyan))]" },
     { icon: Stethoscope, name: t("hero.agent2"), tone: "text-[hsl(var(--accent-emerald))]" },

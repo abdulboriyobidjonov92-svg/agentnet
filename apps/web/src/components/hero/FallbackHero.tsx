@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n/client";
 import { MacScreen, PhoneScreen, PadScreen } from "./screens";
 
 /**
@@ -7,6 +8,7 @@ import { MacScreen, PhoneScreen, PadScreen } from "./screens";
  * bilan, statik hologram-glow fon. Hech qanday animatsiya majburlanmaydi.
  */
 export default function FallbackHero({ className }: { className?: string }) {
+  const { t } = useT();
   return (
     <div className={`relative overflow-hidden ${className ?? ""}`} aria-hidden>
       {/* Statik hologram glowlar */}
@@ -23,7 +25,7 @@ export default function FallbackHero({ className }: { className?: string }) {
           className="glass-panel edge-cyan hidden w-[150px] shrink-0 overflow-hidden rounded-2xl sm:block"
           style={{ transform: "rotateY(18deg) translateZ(0)", height: 320 }}
         >
-          <PhoneScreen />
+          <PhoneScreen t={t} />
         </div>
 
         {/* MacBook — markaz */}
@@ -32,7 +34,7 @@ export default function FallbackHero({ className }: { className?: string }) {
             className="glass-panel edge-cyan overflow-hidden rounded-t-xl"
             style={{ transform: "rotateX(4deg)", height: 320 }}
           >
-            <MacScreen />
+            <MacScreen t={t} />
           </div>
           {/* Klaviatura bazasi */}
           <div className="mx-auto h-3 w-[112%] max-w-[620px] -translate-x-[5.5%] rounded-b-xl bg-[#101318] shadow-[0_10px_30px_rgba(0,0,0,0.6)]" />
@@ -43,7 +45,7 @@ export default function FallbackHero({ className }: { className?: string }) {
           className="glass-panel edge-emerald hidden w-[240px] shrink-0 overflow-hidden rounded-2xl md:block"
           style={{ transform: "rotateY(-18deg) translateZ(0)", height: 260 }}
         >
-          <PadScreen />
+          <PadScreen t={t} />
         </div>
       </div>
 

@@ -4,16 +4,20 @@ import { useFrame } from "@react-three/fiber";
 import { Sparkles } from "@react-three/drei";
 import * as THREE from "three";
 import { SceneCanvas, useLowPower } from "@/components/three/scene-canvas";
-import { MacBookMock, PhoneMock, TabletMock } from "./DeviceMock";
 import { DoctorHologram, RetailOwnerHologram, LogisticsDrone } from "./HologramActors";
-import { MacScreen, PhoneScreen, PadScreen } from "./screens";
 
 /**
- * HeroCanvas — kirish sahnasi: MacBook markazda, iPhone chapda, iPad o'ngda,
- * ekranlardan hologram agentlar (Doctor / Retail Owner / Logistics Drone)
- * ko'tarilib turadi. Markaziy shar YO'Q (reference talabi).
- * Perf: dpr 1–1.5, past quvvatda kam zarracha, reduced-motion'da FallbackHero
- * ko'rsatiladi (bu komponent umuman mount bo'lmaydi).
+ * HeroCanvas — kirish sahnasining 3D atmosfera qatlami: hologram aktyorlar
+ * (Doctor / Retail Owner / Logistics Drone), zarrachalar, pol va rim-lightlar.
+ * Markaziy shar YO'Q (reference talabi).
+ *
+ * ARXITEKTURA QARORI: qurilma ekranlari (MacBook/iPhone/iPad) DOM qatlamida
+ * chiziladi (DeviceRow / FallbackHero) — matn har doim keskin va o'qiladi,
+ * i18n ishonchli ishlaydi. Canvas DOM orqasida atmosfera beradi. drei Html
+ * transform rejimiga tayanmaymiz (brauzerlararo mo'rt). 3D qurilma meshlar
+ * DeviceMock.tsx'da saqlanadi — kelajakdagi chuqur 3D versiya uchun.
+ * Perf: dpr 1–1.5, past quvvatda kam zarracha, reduced-motion'da bu komponent
+ * umuman mount bo'lmaydi.
  */
 
 function CameraDrift() {
@@ -59,15 +63,11 @@ export default function HeroCanvas({ className }: { className?: string }) {
       <Lights />
       <Floor />
 
-      {/* Qurilmalar — reference kompozitsiyasi */}
-      <MacBookMock position={[0, 0, 0]} screen={<MacScreen />} />
-      <PhoneMock position={[-3.1, 0, 1.0]} rotation={[0, 0.45, 0]} screen={<PhoneScreen />} />
-      <TabletMock position={[3.15, 0, 0.55]} rotation={[0, -0.5, 0]} screen={<PadScreen />} />
-
-      {/* Hologram aktyorlar — ekranlardan ko'tariladi */}
-      <DoctorHologram position={[-2.2, 1.15, -0.7]} />
-      <RetailOwnerHologram position={[1.7, 1.2, -1.2]} />
-      <LogisticsDrone position={[3.5, 2.4, -0.9]} />
+      {/* Hologram aktyorlar — DOM qurilma ekranlari ustidan ko'tariladi
+          (x-pozitsiyalar DeviceRow joylashuviga mos: chap/markaz-o'ng/o'ng) */}
+      <DoctorHologram position={[-2.6, 1.15, -0.7]} />
+      <RetailOwnerHologram position={[1.9, 1.2, -1.2]} />
+      <LogisticsDrone position={[3.6, 2.4, -0.9]} />
 
       {/* Fon zarrachalari — chuqur kosmik chang */}
       <Sparkles

@@ -4,28 +4,28 @@ import { useEffect, useState } from "react";
 import FallbackHero from "./FallbackHero";
 
 /**
- * CinematicHero — landing sahnasining kirish nuqtasi.
- * three.js sahna faqat klientda, lazy (dynamic ssr:false); reduced-motion
- * yoki WebGL bo'lmasa FallbackHero (CSS kompozitsiya) ko'rsatiladi.
+ * CinematicHero — landing sahnasining kirish nuqtasi. Ikki qatlam:
+ *   1. DOM qatlam (FallbackHero) — MacBook/iPhone/iPad ekranlari HAR DOIM
+ *      DOM sifatida chiziladi: matn keskin, i18n ishonchli, a11y o'qiydi.
+ *   2. 3D atmosfera (HeroCanvas) — hologram aktyorlar + zarrachalar + pol,
+ *      DOM orqasida. Lazy (ssr:false); reduced-motion yoki WebGL bo'lmasa
+ *      umuman yuklanmaydi — DOM qatlam yolg'iz ham to'liq kompozitsiya.
  */
 const HeroCanvas = dynamic(() => import("./HeroCanvas"), {
   ssr: false,
-  loading: () => <FallbackHero className="h-full w-full" />,
+  loading: () => null,
 });
 
-function useCanUse3D(): boolean | null {
-  const [ok, setOk] = useState<boolean | null>(null);
+function useCanUse3D(): boolean {
+  const [ok, setOk] = useState(false);
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduced) {
-      setOk(false);
-      return;
-    }
+    if (reduced) return;
     try {
       const c = document.createElement("canvas");
       setOk(!!(c.getContext("webgl2") || c.getContext("webgl")));
     } catch {
-      setOk(false);
+      /* WebGL yo'q — DOM qatlam yetarli */
     }
   }, []);
   return ok;
@@ -34,8 +34,17 @@ function useCanUse3D(): boolean | null {
 export function CinematicHero({ className }: { className?: string }) {
   const can3D = useCanUse3D();
   return (
-    <div className={className} aria-hidden>
-      {can3D ? <HeroCanvas className="!h-full !w-full" /> : <FallbackHero className="h-full w-full" />}
+    <div className={`relative ${className ?? ""}`}>
+      {/* 3D atmosfera — orqa qatlam */}
+      {can3D && (
+        <div className="absolute inset-0" aria-hidden>
+          <HeroCanvas className="!h-full !w-full" />
+        </div>
+      )}
+      {/* Qurilma ekranlari — old qatlam (har doim DOM) */}
+      <div className="relative flex h-full items-end">
+        <FallbackHero className="w-full" />
+      </div>
     </div>
   );
 }
