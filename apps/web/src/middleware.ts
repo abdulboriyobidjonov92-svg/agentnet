@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // Lokal auth (Clerk'siz). Dashboard yo'llari uchun sessiya cookie'sini tekshiradi.
-const PUBLIC_PATHS = ["/", "/sign-in", "/sign-up"];
+// /agentos-demo — ochiq ko'rgazma sahifasi (Living Interface demo, shaxsiy ma'lumot yo'q)
+const PUBLIC_PATHS = ["/", "/sign-in", "/sign-up", "/agentos-demo"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
