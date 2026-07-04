@@ -204,7 +204,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
             <div className="filament flex items-stretch overflow-hidden rounded-lg border border-border bg-surface-2 focus-within:border-[hsl(var(--accent-line)/0.75)]">
               {/* +998 prefiks chip — UZ (bayroq emoji Windows'da renderlanmaydi) */}
               <span className="flex select-none items-center gap-2 border-r border-border bg-surface-3 px-3.5">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">UZ</span>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">UZ</span>
                 <span className="nums text-[15px] font-medium tracking-tight text-foreground">{DIAL_CODE}</span>
               </span>
               <input

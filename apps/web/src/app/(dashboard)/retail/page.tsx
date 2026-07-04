@@ -86,7 +86,7 @@ export default function RetailPage() {
                         disabled={saleMutation.isPending || p.stock === 0}
                         title={t("retail.sale")}
                         aria-label={t("retail.sale")}
-                        className="rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary transition hover:bg-primary/20 disabled:opacity-40"
+                        className="hit-target rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary transition hover:bg-primary/20 disabled:opacity-40"
                       >
                         <ShoppingCart className="h-3.5 w-3.5" />
                       </button>

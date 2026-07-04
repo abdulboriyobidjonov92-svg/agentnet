@@ -134,7 +134,7 @@ export function StatTile({
       {/* Yuqori gradient urg'u chizig'i */}
       <div className="absolute inset-x-0 top-0 h-[2px]" style={{ background: `linear-gradient(90deg, transparent, ${a.stroke}, transparent)` }} />
       <div className="flex items-start justify-between">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
         {icon && <span style={{ color: a.stroke }}>{icon}</span>}
       </div>
       <p className="mt-1.5 font-display text-2xl font-bold tabular-nums tracking-tight">
@@ -174,7 +174,7 @@ export function RingGauge({ value, accent = "emerald", size = 132, label }: { va
       </svg>
       <div className="absolute text-center">
         <p className="font-display text-2xl font-bold tabular-nums">{value}%</p>
-        {label && <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>}
+        {label && <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>}
       </div>
     </div>
   );

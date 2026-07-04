@@ -3,6 +3,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Providers } from "@/lib/providers";
 import { getLocale } from "@/lib/i18n/server";
+import { loadDictionary } from "@/lib/i18n/dictionary";
 import "./globals.css";
 
 // Bitta oila — Geist. Display, UI va mono (raqamlar) uchun.
@@ -16,6 +17,7 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = await getLocale();
+  const dict = await loadDictionary(locale);
   return (
     <html
       lang={locale}
@@ -31,7 +33,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       </head>
       <body className="font-sans antialiased">
-        <Providers initialLocale={locale}>{children}</Providers>
+        <Providers initialLocale={locale} initialDict={dict}>{children}</Providers>
       </body>
     </html>
   );

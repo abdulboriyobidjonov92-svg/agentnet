@@ -83,7 +83,7 @@ export default function ConnectorsPage() {
                 <h3 className="text-lg font-bold">{selected.name}</h3>
                 <p className="text-sm text-muted-foreground">{selected.description}</p>
               </div>
-              <button onClick={() => setSelected(null)} aria-label={t("common.cancel")} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
+              <button onClick={() => setSelected(null)} aria-label={t("common.cancel")} className="-m-2 rounded-lg p-3.5 text-muted-foreground hover:bg-muted">
                 <X className="h-4 w-4" />
               </button>
             </div>

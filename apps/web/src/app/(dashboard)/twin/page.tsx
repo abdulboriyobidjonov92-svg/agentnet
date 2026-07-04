@@ -172,14 +172,14 @@ export default function TwinPage() {
                     <li key={f.id} className="group flex items-center justify-between gap-2 rounded-lg bg-muted/50 px-3 py-2 text-sm">
                       <span>
                         <span className="font-medium">{f.label}:</span> {f.value}
-                        <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary">
+                        <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary">
                           {t(`twin.source.${f.source}`) !== `twin.source.${f.source}` ? t(`twin.source.${f.source}`) : f.source}
                         </span>
                       </span>
                       <button
                         onClick={() => removeFact(f.id)}
                         aria-label={t("common.delete")}
-                        className="text-muted-foreground opacity-0 transition hover:text-destructive group-hover:opacity-100"
+                        className="hit-target text-muted-foreground opacity-0 transition hover:text-destructive group-hover:opacity-100"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>

@@ -2,14 +2,16 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { LanguageProvider } from "@/lib/i18n/client";
-import type { Locale } from "@/lib/i18n/dictionary";
+import type { Dict, Locale } from "@/lib/i18n/dictionary";
 import { Toaster } from "@/components/ui/toast";
 
 export function Providers({
   initialLocale,
+  initialDict,
   children,
 }: {
   initialLocale: Locale;
+  initialDict: Dict;
   children: React.ReactNode;
 }) {
   const [queryClient] = useState(
@@ -17,7 +19,7 @@ export function Providers({
   );
   return (
     <QueryClientProvider client={queryClient}>
-      <LanguageProvider initialLocale={initialLocale}>
+      <LanguageProvider initialLocale={initialLocale} initialDict={initialDict}>
         {children}
         <Toaster />
       </LanguageProvider>

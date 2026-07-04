@@ -293,7 +293,7 @@ export default function AgentOsPage() {
                   <span
                     key={v}
                     className={cn(
-                      "rounded-full px-2 py-0.5 text-[10px] font-bold",
+                      "rounded-full px-2 py-0.5 text-[11px] font-bold",
                       v === "APPROVE" && "bg-primary/15 text-primary",
                       v === "CAUTION" && "bg-gold/15 text-gold",
                       v === "REJECT" && "bg-destructive/15 text-destructive",
@@ -326,7 +326,7 @@ function DeptCard({ dept }: { dept: Dept }) {
         </span>
         <span
           className={cn(
-            "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold",
+            "flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold",
             dept.ethics.verdict === "APPROVE" && "bg-primary/15 text-primary",
             dept.ethics.verdict === "CAUTION" && "bg-gold/15 text-gold",
             dept.ethics.verdict === "REJECT" && "bg-destructive/15 text-destructive",

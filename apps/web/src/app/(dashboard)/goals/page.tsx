@@ -139,7 +139,7 @@ export default function GoalsPage() {
                       <h3 className="truncate font-semibold">{goal.title}</h3>
                       <span
                         className={cn(
-                          "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                          "rounded-full px-2 py-0.5 text-[11px] font-semibold",
                           goal.status === "completed" ? "bg-primary/10 text-primary" : "bg-gold/10 text-gold",
                         )}
                       >
@@ -183,14 +183,14 @@ export default function GoalsPage() {
                       onClick={() => setExpanded(isOpen ? null : goal.id)}
                       aria-label={isOpen ? t("common.back") : t("goals.tasksDone")}
                       aria-expanded={isOpen}
-                      className="rounded-lg p-2 text-muted-foreground transition hover:bg-muted"
+                      className="-m-1.5 rounded-lg p-3.5 text-muted-foreground transition hover:bg-muted"
                     >
                       {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </button>
                     <button
                       onClick={() => remove(goal.id)}
                       aria-label={t("common.delete")}
-                      className="rounded-lg p-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+                      className="-m-1.5 rounded-lg p-3.5 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -231,12 +231,12 @@ function TaskRow({ task }: { task: GoalTask }) {
           {task.description && <p className="text-xs text-muted-foreground">{task.description}</p>}
           <div className="mt-1 flex flex-wrap items-center gap-2">
             {task.agentRole && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium">
+              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium">
                 <Bot className="h-3 w-3" /> {task.agentRole}
               </span>
             )}
             {task.cadence && task.cadence !== "once" && (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium">{task.cadence}</span>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium">{task.cadence}</span>
             )}
             {isDone && task.result && (
               <button

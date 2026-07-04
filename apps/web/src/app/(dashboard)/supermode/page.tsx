@@ -150,7 +150,7 @@ function StageCard({ stage, index }: { stage: Stage; index: number }) {
                     <span className="shrink-0 font-mono text-xs font-semibold text-primary">{b.time}</span>
                     <span className="flex-1">{b.activity}</span>
                     {b.agent_role && (
-                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
                         <Bot className="h-3 w-3" /> {b.agent_role}
                       </span>
                     )}
@@ -182,7 +182,7 @@ function StageCard({ stage, index }: { stage: Stage; index: number }) {
                 <li key={i} className="flex items-start gap-2.5 rounded-lg bg-muted/50 px-3 py-2">
                   <span
                     className={cn(
-                      "mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold",
+                      "mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold",
                       c.verdict === "APPROVE" && "bg-primary/10 text-primary",
                       c.verdict === "CAUTION" && "bg-gold/10 text-gold",
                       c.verdict === "REJECT" && "bg-destructive/10 text-destructive",

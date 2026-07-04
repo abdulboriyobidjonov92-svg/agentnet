@@ -178,7 +178,7 @@ export default function MarketplacePage() {
               <div className="mb-3 flex items-start gap-3">
                 <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <Bot className="h-5 w-5" />
-                  <span className="absolute -left-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shadow-soft">
+                  <span className="absolute -left-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground shadow-soft">
                     {agent.rank}
                   </span>
                 </div>
@@ -246,7 +246,7 @@ export default function MarketplacePage() {
                       key={r}
                       onClick={() => reviewMutation.mutate({ agentId: agent.id, rating: r })}
                       aria-label={`${t("market.rate")}: ${r}/5`}
-                      className="rounded-lg p-1.5 transition hover:bg-muted"
+                      className="rounded-lg p-2.5 transition hover:bg-muted"
                     >
                       <Star className="h-5 w-5 text-gold" fill="currentColor" fillOpacity={0.4} />
                     </button>

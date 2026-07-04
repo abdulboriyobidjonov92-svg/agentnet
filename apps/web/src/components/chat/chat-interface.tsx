@@ -318,7 +318,7 @@ function MessageBubble({ message }: { message: Message }) {
           </div>
         )}
 
-        <p className={cn("text-[10px] text-muted-foreground", isUser && "text-right")}>
+        <p className={cn("text-[11px] text-muted-foreground", isUser && "text-right")}>
           {new Date(message.timestamp).toLocaleTimeString(TIME_LOCALES[locale] ?? "en-US", { hour: "2-digit", minute: "2-digit" })}
         </p>
       </div>

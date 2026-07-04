@@ -189,7 +189,7 @@ export default function DashboardPage() {
                   <button
                     onClick={() => setOrbPanel(false)}
                     aria-label={t("common.cancel")}
-                    className="text-muted-foreground hover:text-foreground"
+                    className="hit-target text-muted-foreground hover:text-foreground"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -355,7 +355,7 @@ function OrbStat({ value, label }: { value: number; label: string }) {
   return (
     <div className="rounded-xl border bg-background/40 px-2 py-2">
       <p className="text-xl font-bold text-primary">{value}</p>
-      <p className="truncate text-[10px] text-muted-foreground">{label}</p>
+      <p className="truncate text-[11px] text-muted-foreground">{label}</p>
     </div>
   );
 }
