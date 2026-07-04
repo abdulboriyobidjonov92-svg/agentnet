@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useT, LOCALES } from "@/lib/i18n/client";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
+import { ErrorState } from "@/components/ui/error-state";
 
 type Tab = "profile" | "values" | "security" | "integrations";
 
@@ -15,7 +16,7 @@ export default function SettingsPage() {
   const api = useApiClient();
   const { t } = useT();
 
-  const { data: profile } = useQuery({
+  const { data: profile, isError: profileError, refetch: refetchProfile } = useQuery({
     queryKey: ["profile"],
     queryFn: () => api.get<any>("/users/me"),
   });
@@ -49,7 +50,8 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {tab === "profile" && <ProfileTab profile={profile} />}
+      {tab === "profile" &&
+        (profileError ? <ErrorState onRetry={() => refetchProfile()} /> : <ProfileTab profile={profile} />)}
       {tab === "values" && <ValuesTab />}
       {tab === "security" && <SecurityTab />}
       {tab === "integrations" && <IntegrationsTab />}

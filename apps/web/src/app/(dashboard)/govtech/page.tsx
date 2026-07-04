@@ -6,6 +6,7 @@ import { useT } from "@/lib/i18n/client";
 import { Landmark, Send, Loader2, MapPinned, ListChecks, CircleDot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
+import { ErrorState } from "@/components/ui/error-state";
 
 /** S7: GovTech — fuqaro murojaati intake + marshrut + jarayon navigatori. */
 export default function GovtechPage() {
@@ -17,7 +18,7 @@ export default function GovtechPage() {
   const [guideQuery, setGuideQuery] = useState("");
   const [openReq, setOpenReq] = useState<string | null>(null);
 
-  const { data: requests } = useQuery({ queryKey: ["gov-requests"], queryFn: () => api.get<any[]>("/govtech/requests") });
+  const { data: requests, isError: reqError, refetch: refetchReq } = useQuery({ queryKey: ["gov-requests"], queryFn: () => api.get<any[]>("/govtech/requests") });
 
   const intake = useMutation({
     mutationFn: () => api.post<any>("/govtech/requests", { text, fullName: fullName || undefined }),
@@ -101,7 +102,9 @@ export default function GovtechPage() {
       {/* Murojaatlar ro'yxati */}
       <div className="rounded-2xl border bg-card p-5 shadow-soft">
         <h2 className="mb-3 inline-flex items-center gap-2 font-semibold"><ListChecks className="h-4 w-4 text-primary" /> {t("gov.requests")}</h2>
-        {!requests?.length ? (
+        {reqError ? (
+          <ErrorState onRetry={() => refetchReq()} />
+        ) : !requests?.length ? (
           <p className="py-6 text-center text-sm text-muted-foreground">—</p>
         ) : (
           <div className="space-y-3">

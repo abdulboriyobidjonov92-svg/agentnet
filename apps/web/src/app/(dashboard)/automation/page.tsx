@@ -6,6 +6,7 @@ import { useT } from "@/lib/i18n/client";
 import { Globe, Play, Loader2, CheckCircle2, XCircle, ShieldAlert, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
+import { ErrorState } from "@/components/ui/error-state";
 
 /** S1: Universal App Control (Tier 1) — brauzer-avtomatlashtirish UI. */
 export default function AutomationPage() {
@@ -17,7 +18,7 @@ export default function AutomationPage() {
   const [lastRun, setLastRun] = useState<any>(null);
   const [openRun, setOpenRun] = useState<string | null>(null);
 
-  const { data: runs } = useQuery({
+  const { data: runs, isError: runsError, refetch: refetchRuns } = useQuery({
     queryKey: ["automation-runs"],
     queryFn: () => api.get<any[]>("/automation/runs"),
   });
@@ -70,6 +71,8 @@ export default function AutomationPage() {
       </div>
 
       {lastRun && <RunCard run={lastRun} t={t} expanded />}
+
+      {runsError && <ErrorState onRetry={() => refetchRuns()} />}
 
       {!!runs?.length && (
         <div>

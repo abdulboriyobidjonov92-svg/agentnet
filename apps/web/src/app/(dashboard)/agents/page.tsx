@@ -6,14 +6,20 @@ import Link from "next/link";
 import { useState } from "react";
 import { useT } from "@/lib/i18n/client";
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
+import { toast } from "@/components/ui/toast";
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 
 export default function AgentsPage() {
   const api = useApiClient();
   const qc = useQueryClient();
   const { t } = useT();
-  const [deleting, setDeleting] = useState<string | null>(null);
+  const [confirmAgent, setConfirmAgent] = useState<any | null>(null);
 
-  const { data: agents, isLoading } = useQuery({
+  const { data: agents, isLoading, isError, refetch } = useQuery({
     queryKey: ["agents"],
     queryFn: () => api.get<any[]>("/agents"),
   });
@@ -21,12 +27,31 @@ export default function AgentsPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/agents/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["agents"] }),
+    onError: () => {
+      qc.invalidateQueries({ queryKey: ["agents"] });
+      toast({ variant: "destructive", title: t("common.error") });
+    },
   });
 
-  const handleDelete = async (id: string) => {
-    if (!confirm(t("agents.deleteConfirm"))) return;
-    setDeleting(id);
-    await deleteMutation.mutateAsync(id).finally(() => setDeleting(null));
+  /** Linear patterni: optimistik olib tashlash + 5s undo; server DELETE undo muddati o'tgach. */
+  const executeDelete = () => {
+    const agent = confirmAgent;
+    if (!agent) return;
+    setConfirmAgent(null);
+    qc.setQueryData(["agents"], (old: any[] | undefined) => old?.filter((a) => a.id !== agent.id));
+    const timer = setTimeout(() => deleteMutation.mutate(agent.id), 5000);
+    toast({
+      title: t("agents.deleted"),
+      description: agent.name,
+      duration: 5000,
+      action: {
+        label: t("common.undo"),
+        onClick: () => {
+          clearTimeout(timer);
+          qc.invalidateQueries({ queryKey: ["agents"] });
+        },
+      },
+    });
   };
 
   return (
@@ -49,6 +74,8 @@ export default function AgentsPage() {
             <div key={i} className="h-52 animate-pulse rounded-2xl border bg-card" />
           ))}
         </div>
+      ) : isError ? (
+        <ErrorState onRetry={() => refetch()} />
       ) : !agents?.length ? (
         <div className="rounded-2xl border border-dashed p-16 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
@@ -77,7 +104,7 @@ export default function AgentsPage() {
                   <Link href={`/agents/${agent.id}/settings`} aria-label={t("agents.settings")} className="rounded-lg p-1.5 hover:bg-muted">
                     <Settings className="h-4 w-4 text-muted-foreground" />
                   </Link>
-                  <button onClick={() => handleDelete(agent.id)} disabled={deleting === agent.id} aria-label={t("common.delete")} className="rounded-lg p-1.5 hover:bg-destructive/10">
+                  <button onClick={() => setConfirmAgent(agent)} aria-label={t("common.delete")} className="rounded-lg p-1.5 hover:bg-destructive/10">
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </button>
                 </div>
@@ -102,6 +129,21 @@ export default function AgentsPage() {
           ))}
         </div>
       )}
+
+      <AlertDialog open={!!confirmAgent} onOpenChange={(o) => !o && setConfirmAgent(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("agents.deleteConfirm")}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmAgent?.name}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction destructive onClick={executeDelete}>
+              {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

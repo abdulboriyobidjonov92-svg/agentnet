@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ErrorState } from "@/components/ui/error-state";
 import ReactMarkdown from "react-markdown";
 import { StatTile, AreaChart } from "@/components/charts/charts";
 
@@ -63,7 +64,7 @@ export default function AgentOsPage() {
   const [wsIndustry, setWsIndustry] = useState("");
   const [creating, setCreating] = useState(false);
 
-  const { data: workspace, isLoading } = useQuery({
+  const { data: workspace, isLoading, isError: wsError, refetch: refetchWs } = useQuery({
     queryKey: ["agentos-workspace"],
     queryFn: () => api.get<any>("/agentos/workspace"),
   });
@@ -117,6 +118,10 @@ export default function AgentOsPage() {
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
+  }
+
+  if (wsError) {
+    return <ErrorState onRetry={() => refetchWs()} className="mx-auto max-w-xl" />;
   }
 
   // ---- Ish maydoni yo'q: setup ekрани ----

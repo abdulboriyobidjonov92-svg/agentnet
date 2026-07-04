@@ -6,6 +6,7 @@ import { useT } from "@/lib/i18n/client";
 import { Camera, ShoppingCart, Package, BellRing, Loader2, Send, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ErrorState } from "@/components/ui/error-state";
 
 /**
  * S4: Retail Intelligence — kamera+inventar fuziyasi UI.
@@ -21,7 +22,7 @@ export default function RetailPage() {
   const [channel, setChannel] = useState("telegram");
   const [target, setTarget] = useState("");
 
-  const { data: products } = useQuery({ queryKey: ["retail-products"], queryFn: () => api.get<any[]>("/retail/products") });
+  const { data: products, isError: productsError, refetch: refetchProducts } = useQuery({ queryKey: ["retail-products"], queryFn: () => api.get<any[]>("/retail/products") });
   const { data: alerts } = useQuery({ queryKey: ["retail-alerts"], queryFn: () => api.get<any[]>("/retail/alerts"), refetchInterval: 5000 });
   const { data: settings } = useQuery({ queryKey: ["retail-settings"], queryFn: () => api.get<any>("/retail/settings") });
 
@@ -65,7 +66,9 @@ export default function RetailPage() {
               {seedMutation.isPending ? "…" : t("retail.seed")}
             </Button>
           </div>
-          {!products?.length ? (
+          {productsError ? (
+            <ErrorState onRetry={() => refetchProducts()} />
+          ) : !products?.length ? (
             <p className="py-6 text-center text-sm text-muted-foreground">—</p>
           ) : (
             <table className="w-full text-sm">

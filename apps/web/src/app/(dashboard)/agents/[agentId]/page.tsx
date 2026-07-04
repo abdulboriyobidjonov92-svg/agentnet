@@ -5,12 +5,13 @@ import { useApiClient } from "@/lib/api-client";
 import { ChatInterface } from "@/components/chat/chat-interface";
 import { ArrowLeft, Bot, Settings, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import { ErrorState } from "@/components/ui/error-state";
 
 export default function AgentChatPage({ params }: { params: Promise<{ agentId: string }> }) {
   const { agentId } = use(params);
   const api = useApiClient();
 
-  const { data: agent, isLoading } = useQuery({
+  const { data: agent, isLoading, isError, refetch } = useQuery({
     queryKey: ["agent", agentId],
     queryFn: () => api.get<any>(`/agents/${agentId}`),
   });
@@ -22,6 +23,8 @@ export default function AgentChatPage({ params }: { params: Promise<{ agentId: s
       </div>
     );
   }
+
+  if (isError) return <ErrorState onRetry={() => refetch()} className="mx-auto max-w-md" />;
 
   if (!agent) return <div className="py-12 text-center text-muted-foreground">404</div>;
 

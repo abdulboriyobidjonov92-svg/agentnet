@@ -5,6 +5,8 @@ import { Bot, Download, Search, Check, BadgeCheck, Star, TrendingUp, Wallet, Loa
 import { useState } from "react";
 import { useT } from "@/lib/i18n/client";
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
+import { toast } from "@/components/ui/toast";
 
 /**
  * S8: Marketplace — haqiqiy bozor dinamikasi.
@@ -22,7 +24,7 @@ export default function MarketplacePage() {
   const [showCreator, setShowCreator] = useState(false);
   const [ratingFor, setRatingFor] = useState<string | null>(null);
 
-  const { data: agents } = useQuery({
+  const { data: agents, isError, refetch } = useQuery({
     queryKey: ["marketplace", search],
     queryFn: () => api.getPublic<any[]>(`/marketplace${search ? `?search=${search}` : ""}`),
   });
@@ -61,6 +63,7 @@ export default function MarketplacePage() {
     try {
       await installMutation.mutateAsync(id);
       setInstalled((p) => [...p, id]);
+      toast({ title: t("market.installed") });
     } catch (e) {
       setInstallError({ id, message: e instanceof Error ? e.message : t("common.error") });
     } finally {
@@ -150,7 +153,9 @@ export default function MarketplacePage() {
         />
       </div>
 
-      {!agents?.length ? (
+      {isError ? (
+        <ErrorState onRetry={() => refetch()} />
+      ) : !agents?.length ? (
         <p className="py-10 text-center text-sm text-muted-foreground">
           {t("market.community")}: — (nashr etilgan agentlar shu yerda reyting bilan chiqadi)
         </p>

@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
+import { ErrorState } from "@/components/ui/error-state";
 
 const FutureTimeline = dynamic(() => import("@/components/three/future-timeline"), {
   ssr: false,
@@ -62,7 +63,7 @@ export default function TwinPage() {
   const [error, setError] = useState("");
   const [blocked, setBlocked] = useState(false);
 
-  const { data: facts } = useQuery({
+  const { data: facts, isError: factsError, refetch: refetchFacts } = useQuery({
     queryKey: ["twin-facts"],
     queryFn: () => api.get<TwinFact[]>("/twin/facts"),
   });
@@ -154,7 +155,9 @@ export default function TwinPage() {
             </Button>
           </form>
 
-          {!facts?.length ? (
+          {factsError ? (
+            <ErrorState onRetry={() => refetchFacts()} />
+          ) : !facts?.length ? (
             <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
               {t("twin.noFacts")}
             </div>

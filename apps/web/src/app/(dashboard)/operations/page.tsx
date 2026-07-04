@@ -6,6 +6,7 @@ import { useT } from "@/lib/i18n/client";
 import { Users, CalendarClock, Wallet, Send, Loader2, Plus, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
+import { ErrorState } from "@/components/ui/error-state";
 
 /** S5: Business Operations — jadval, ish haqi, tashqi xabarlar. */
 export default function OperationsPage() {
@@ -25,7 +26,7 @@ export default function OperationsPage() {
   const [obAudience, setObAudience] = useState("client");
   const [obChannel, setObChannel] = useState("telegram");
 
-  const { data: employees } = useQuery({ queryKey: ["ops-employees"], queryFn: () => api.get<any[]>("/operations/employees") });
+  const { data: employees, isError: empError, refetch: refetchEmp } = useQuery({ queryKey: ["ops-employees"], queryFn: () => api.get<any[]>("/operations/employees") });
   const { data: shifts } = useQuery({ queryKey: ["ops-shifts"], queryFn: () => api.get<any[]>("/operations/shifts") });
   const { data: outbound } = useQuery({ queryKey: ["ops-outbound"], queryFn: () => api.get<any[]>("/operations/outbound") });
 
@@ -77,6 +78,7 @@ export default function OperationsPage() {
               <Plus />
             </Button>
           </div>
+          {empError && <ErrorState onRetry={() => refetchEmp()} />}
           {employees?.map((e) => (
             <div key={e.id} className="flex items-center justify-between border-t py-2 text-sm">
               <span className="font-medium">{e.name}</span>

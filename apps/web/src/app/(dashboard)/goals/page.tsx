@@ -10,6 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ErrorState } from "@/components/ui/error-state";
 import ReactMarkdown from "react-markdown";
 
 interface GoalTask {
@@ -45,7 +46,7 @@ export default function GoalsPage() {
   const [error, setError] = useState("");
   const [blocked, setBlocked] = useState(false);
 
-  const { data: goals } = useQuery({
+  const { data: goals, isError: goalsError, refetch: refetchGoals } = useQuery({
     queryKey: ["goals"],
     queryFn: () => api.get<Goal[]>("/goals"),
   });
@@ -119,7 +120,9 @@ export default function GoalsPage() {
         </p>
       </form>
 
-      {!goals?.length ? (
+      {goalsError ? (
+        <ErrorState onRetry={() => refetchGoals()} />
+      ) : !goals?.length ? (
         <div className="rounded-2xl border border-dashed p-10 text-center text-sm text-muted-foreground">
           {t("goals.empty")}
         </div>

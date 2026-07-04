@@ -6,6 +6,7 @@ import { useT } from "@/lib/i18n/client";
 import { Plug, CheckCircle2, KeyRound, FileWarning, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ErrorState } from "@/components/ui/error-state";
 
 /** S2: Connector SDK UI — katalog, ulanish, holat. */
 export default function ConnectorsPage() {
@@ -16,7 +17,7 @@ export default function ConnectorsPage() {
   const [form, setForm] = useState<Record<string, string>>({});
   const [saveResult, setSaveResult] = useState<string | null>(null);
 
-  const { data: connectors } = useQuery({
+  const { data: connectors, isError, refetch } = useQuery({
     queryKey: ["connectors"],
     queryFn: () => api.get<any[]>("/connectors/mine"),
   });
@@ -38,6 +39,8 @@ export default function ConnectorsPage() {
         <h1 className="text-3xl font-bold tracking-tight">{t("conn.title")}</h1>
         <p className="mt-1 max-w-2xl text-muted-foreground">{t("conn.subtitle")}</p>
       </div>
+
+      {isError && <ErrorState onRetry={() => refetch()} />}
 
       {categories.map((cat) => (
         <div key={cat}>

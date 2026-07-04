@@ -12,6 +12,8 @@ import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n/client";
 import { Reveal } from "@/components/motion";
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
+import { toast } from "@/components/ui/toast";
 import { StatTile, type Accent } from "@/components/charts/charts";
 
 // 3D sahnalar — faqat klientda, sahifa yuklanishini bloklamaydi
@@ -67,7 +69,7 @@ export default function DashboardPage() {
     queryKey: ["stats"],
     queryFn: () => api.get<{ agentCount: number; conversationCount: number }>("/users/me/stats"),
   });
-  const { data: agents, isLoading: agentsLoading } = useQuery({
+  const { data: agents, isLoading: agentsLoading, isError: agentsError, refetch: refetchAgents } = useQuery({
     queryKey: ["agents"],
     queryFn: () => api.get<any[]>("/agents"),
   });
@@ -93,6 +95,7 @@ export default function DashboardPage() {
       queryClient.invalidateQueries({ queryKey: ["agents"] });
       queryClient.invalidateQueries({ queryKey: ["recommendations"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
+      toast({ title: t("dash.installedAgent"), description: pick(agent.name, locale) });
     } catch (e) {
       setInstallError(e instanceof Error ? e.message : t("common.error"));
     } finally {
@@ -312,6 +315,8 @@ export default function DashboardPage() {
               <div key={i} className="h-40 animate-pulse rounded-2xl border bg-card" />
             ))}
           </div>
+        ) : agentsError ? (
+          <ErrorState onRetry={() => refetchAgents()} />
         ) : !agents?.length ? (
           <div className="rounded-2xl border border-dashed p-14 text-center">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">

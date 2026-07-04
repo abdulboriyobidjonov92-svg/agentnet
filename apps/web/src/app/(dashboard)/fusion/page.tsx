@@ -7,6 +7,7 @@ import { Users, Loader2, ShieldAlert, Lightbulb, ListOrdered, Scale } from "luci
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
+import { ErrorState } from "@/components/ui/error-state";
 
 interface FusionResult {
   roles: string[];
@@ -28,7 +29,7 @@ export default function FusionPage() {
   const [error, setError] = useState("");
   const [blocked, setBlocked] = useState(false);
 
-  const { data: catalog } = useQuery({
+  const { data: catalog, isError: rolesError, refetch: refetchRoles } = useQuery({
     queryKey: ["fusion-roles"],
     queryFn: () => api.get<{ roles: { slug: string; label: string }[] }>("/fusion/roles"),
   });
@@ -79,6 +80,7 @@ export default function FusionPage() {
         />
         <div>
           <p className="mb-2 text-xs font-medium text-muted-foreground">{t("fusion.roles")}</p>
+          {rolesError && <ErrorState onRetry={() => refetchRoles()} className="mb-2 p-4" />}
           <div className="flex flex-wrap gap-1.5">
             {(catalog?.roles ?? []).map((role) => (
               <button
