@@ -263,8 +263,10 @@ export function ChatInterface({ agentId, agentDefinition }: ChatInterfaceProps) 
   );
 }
 
+const TIME_LOCALES: Record<string, string> = { uz: "uz-UZ", ru: "ru-RU", en: "en-US" };
+
 function MessageBubble({ message }: { message: Message }) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
 
@@ -317,7 +319,7 @@ function MessageBubble({ message }: { message: Message }) {
         )}
 
         <p className={cn("text-[10px] text-muted-foreground", isUser && "text-right")}>
-          {new Date(message.timestamp).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" })}
+          {new Date(message.timestamp).toLocaleTimeString(TIME_LOCALES[locale] ?? "en-US", { hour: "2-digit", minute: "2-digit" })}
         </p>
       </div>
     </div>
