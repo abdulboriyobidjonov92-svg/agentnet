@@ -82,7 +82,10 @@ services:
     name: agentnet-web
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build --prefix apps/web
+    # --include=dev shart: NODE_ENV=production muhitida npm devDependencies'ni
+    # o'tkazib yuboradi, lekin Next.js build vaqtida tailwindcss/postcss/
+    # autoprefixer'ga muhtoj (ular devDependencies'da) — shu sabab build qulaydi.
+    buildCommand: npm install --include=dev && npm run build --prefix apps/web
     startCommand: npm run start --prefix apps/web
     envVars:
       - key: NEXT_PUBLIC_API_URL
