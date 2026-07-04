@@ -2,9 +2,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiClient } from "@/lib/api-client";
 import { Bot, Download, Search, Check, BadgeCheck, Star, TrendingUp, Wallet, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ErrorState } from "@/components/ui/error-state";
 import { toast } from "@/components/ui/toast";
 
@@ -18,6 +19,12 @@ export default function MarketplacePage() {
   const qc = useQueryClient();
   const { t } = useT();
   const [search, setSearch] = useState("");
+  // 300ms debounce — har tugma bosishda server so'rovi ketmasligi uchun
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(id);
+  }, [search]);
   const [installing, setInstalling] = useState<string | null>(null);
   const [installed, setInstalled] = useState<string[]>([]);
   const [installError, setInstallError] = useState<{ id: string; message: string } | null>(null);
@@ -25,8 +32,11 @@ export default function MarketplacePage() {
   const [ratingFor, setRatingFor] = useState<string | null>(null);
 
   const { data: agents, isError, refetch } = useQuery({
-    queryKey: ["marketplace", search],
-    queryFn: () => api.getPublic<any[]>(`/marketplace${search ? `?search=${search}` : ""}`),
+    queryKey: ["marketplace", debouncedSearch],
+    queryFn: () =>
+      api.getPublic<any[]>(
+        `/marketplace${debouncedSearch ? `?search=${encodeURIComponent(debouncedSearch)}` : ""}`,
+      ),
   });
 
   const { data: creator } = useQuery({
@@ -105,7 +115,8 @@ export default function MarketplacePage() {
             </Button>
           </div>
           {!!creator.agents?.length && (
-            <table className="mt-4 w-full text-sm">
+            <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[480px] text-sm">
               <thead>
                 <tr className="text-left text-xs text-muted-foreground">
                   <th className="py-1">Agent</th><th>{t("market.installs")}</th><th>{t("market.uses")}</th><th>★</th><th className="text-right">Narx</th>
@@ -125,6 +136,7 @@ export default function MarketplacePage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
           {!!creator.ledger?.length && (
             <div className="mt-3 max-h-40 overflow-auto rounded-xl bg-muted p-3 text-xs">
@@ -144,12 +156,12 @@ export default function MarketplacePage() {
 
       <div className="relative max-w-md">
         <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <input
+        <Input
           type="text"
           placeholder={t("common.search")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-xl border bg-card py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+          className="bg-card pl-10"
         />
       </div>
 
