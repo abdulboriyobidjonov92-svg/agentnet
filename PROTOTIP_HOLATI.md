@@ -8,6 +8,53 @@ compliance packlar, retail fuziyasi, biznes-operatsiyalar, tashqi savdo, GovTech
 marketplace bozor mexanikasi).
 Deploy'ga to'liq tayyor (artefaktlar + guide); jonli chiqarish akkaunt kutmoqda.
 
+## YANGI: Cinematic Hero + AgentOS "Living Interface" (2026-07-04, kech)
+
+### Landing hero — reference rasmga mos qayta qurildi
+- **Kompozitsiya:** MacBook markaz + iPhone chap + iPad o'ng, markaziy shar
+  OLIB TASHLANDI; hologram aktyorlar (Doctor cyan / RetailOwner emerald /
+  LogisticsDrone) proyeksiya nurlari bilan; qorong'i reflektiv pol; HALAL
+  belgisi yuqori chapda; oltin CTA.
+- **Arxitektura qarori:** qurilma ekranlari DOM qatlamida (matn har doim
+  keskin, i18n ishonchli, a11y o'qiydi), three.js atmosfera orqa qatlamda.
+  drei `Html transform` mo'rtligi hujjatlashtirilib chetlab o'tildi —
+  batafsil: `docs/threejs-integration.md`.
+- **TokenMeter:** qo'lda yozilgan Lottie JSON (arc gauge, 3s loop) +
+  `TokenMeter.tsx` (frozen mid-frame rejimi, reduced-motion'da avtomuzlash).
+- **Tokenlar:** `--bg-deep/--accent-cyan/--accent-emerald/--cta-gold` +
+  tipografiya shkalasi (`.type-display` ... `.type-caption`) globals.css'da.
+- **Tekshirildi:** uch ekran kontenti DOM'da (uz matnlar, sparkline, meter)
+  1440px'da ko'rinadi ✓; hero top qismi real Chrome'da vizual tasdiqlandi ✓
+  (HALAL badge, oltin CTA, headline); reduced-motion/WebGL'siz → sof DOM ✓.
+
+### AgentOS "Living Interface" demo — /agentos-demo (ochiq sahifa)
+- **NeuralBackground:** bitta draw-call shader zarracha maydoni (4k–14k,
+  quvvatga qarab) — kursorga magnit tortilish, rol almashganda rang/tezlik
+  morfi (lerp), inqiroz rejimida xaotik, agent nutqida sintetik audio-puls.
+- **HologramActor:** wireframe inson silueti (halol placeholder — rigged
+  model yo'q), shader ovoz-to'lqini, skan chizig'i, "ACE LINK · SIM" statusi.
+- **AdaptiveShell:** RoleLayoutMap lug'ati (layout qattiq kodlanmagan) —
+  Shifokor (EKG vitals/navbat/protokol), Mexanik (diagnostika sxemasi/katta
+  touch tugmalar/ish navbati), Prezident (globus/strategik tickerlar/maxfiy
+  kanal); bento-grid + framer-motion spring morflari.
+- **useDemoMode simulyatsiya harness:** biometrik skan → "ROL ANIQLANDI:
+  AVTO MEXANIK" → UI amber'ga morflanadi → agent gapiradi ("Moy jadvali
+  yangilandi") → Diagnostics Plugin avto-xaridi → muvaffaqiyat animatsiyasi.
+- **Halollik:** barcha ko'rsatkichlar SIM belgisi bilan; sahifa backend
+  chaqirmaydi; ACE link — mockup holati.
+- **Tekshirildi:** demo oqimining 6 bosqichi ham bitta uzluksiz yugurishda
+  yashil (biometric ✓ role_detect ✓ amber transform ✓ speech ✓ plugin ✓
+  installed ✓); rol almashtirish vidjetlarni morflaydi ✓; production build
+  o'tadi (`/agentos-demo` 292 kB route) ✓; tsc toza ✓.
+- **Yangi dep:** framer-motion 12; Inter + JetBrains Mono (next/font, sahifa
+  doirasida — global Geist tizimi o'zgarmadi).
+
+### Ochiq qoldiq (halol)
+- Vizual pixel-parity skrinshot brauzer oynasi ko'rinib turganda olinadi
+  (yashirin oynada rAF/ResizeObserver to'xtaydi — WebGL o'lchanmaydi).
+- Figma frames va 8K PNG render lokal muhitda hosil qilinmadi — dizayn
+  hujjati sifatida `docs/threejs-integration.md` + jonli sahnalar xizmat qiladi.
+
 ## YANGI: CTO audit + Pricing/Pro obuna (2026-07-04)
 
 ### To'liq audit — barcha modullar jonli tekshirildi
