@@ -446,6 +446,32 @@ const ru: Dict = {
     "tool.currencyDesc": "актуальные курсы",
     "tool.weather": "Погода",
     "tool.weatherDesc": "текущий прогноз",
+
+    // Pricing
+    "nav.pricing": "Тарифы",
+    "pricing.title": "Тарифы и цены",
+    "pricing.subtitle": "Честная prepaid-модель: каждое сообщение оплачивается с вашего баланса. Pro повышает дневные лимиты на 30 дней.",
+    "pricing.freeName": "Бесплатный",
+    "pricing.freeDesc": "Попробуйте платформу — настоящие агенты, настоящие инструменты, дневные лимиты.",
+    "pricing.proName": "Pro",
+    "pricing.proDesc": "Повышенные лимиты для тех, кто работает с агентами каждый день.",
+    "pricing.entName": "Enterprise · AgentOS",
+    "pricing.entDesc": "Оркестрация AI C-suite (CEO/CFO/CMO/CLO/CTO) для организаций.",
+    "pricing.perMonth": "/ 30 дней",
+    "pricing.chatPerDay": "сообщений в день",
+    "pricing.agentsMax": "агентов (макс.)",
+    "pricing.perMessage": "за сообщение с prepaid-баланса",
+    "pricing.currentPlan": "Ваш текущий тариф",
+    "pricing.activeUntil": "Действует до",
+    "pricing.upgradeBtn": "Перейти на Pro",
+    "pricing.upgrading": "Обработка…",
+    "pricing.upgraded": "Pro активирован!",
+    "pricing.insufficient": "Недостаточно средств. Сначала пополните баланс.",
+    "pricing.topupLink": "Пополнить баланс",
+    "pricing.entCta": "Открыть AgentOS",
+    "pricing.free0": "0 сум",
+    "pricing.balanceNote": "Сообщения чата на любом тарифе списываются с prepaid-баланса за каждое сообщение — тариф меняет лимиты, а не цену сообщения.",
+    "pricing.marketplaceNote": "Маркетплейс: создатели получают 70% с каждой платной установки — см. панель создателя.",
 };
 
 export default ru;

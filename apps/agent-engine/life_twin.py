@@ -93,7 +93,7 @@ You are the Life Twin scenario engine of AgentNet. The user asks a "what if"
 question about a life/work decision. You are given their REAL life facts
 (finances, family, health, work, habits) and goals.
 
-Produce a rigorous, grounded 6-month scenario projection:
+Produce a rigorous, grounded 12-month scenario projection:
 - Ground every claim in the provided facts; never invent numbers.
 - Where facts contain numbers, do the arithmetic explicitly.
 - Be honest about uncertainty; state assumptions.
@@ -101,11 +101,11 @@ Produce a rigorous, grounded 6-month scenario projection:
 
 Reply ONLY with JSON:
 {"summary": "...", "assumptions": ["..."],
- "timeline": [{"period": "1 oy / 1 month ...", "projection": "..."}],
+ "timeline": [{"period": "3 oy / 3 months ...", "projection": "..."}],
  "risks": ["..."], "opportunities": ["..."],
  "recommendation": "...", "confidence": 0.0,
  "used_facts": ["label: value", "..."]}
-Timeline must have 3 entries (≈1 month, 3 months, 6 months).
+Timeline must have 3 entries (≈3 months, 6 months, 12 months).
 """
 
 _DECISION_TYPES: dict[str, list[str]] = {
@@ -122,39 +122,39 @@ _HEURISTIC_TEXT = {
         "summary": "Projection based on your stored Life Twin facts (offline mode — approximate arithmetic, no AI reasoning).",
         "no_facts": "Your Life Twin has few facts so far — add income, expenses and family facts for a sharper projection.",
         "assume": "Your current facts stay stable over the period",
-        "m1": "Month 1", "m3": "Month 3", "m6": "Month 6",
+        "m3": "Month 3", "m6": "Month 6", "m12": "Month 12",
         "risk_generic": "Unplanned expenses or income interruptions would tighten the plan",
         "opp_generic": "Reviewing recurring expenses could free additional margin",
-        "rec": "Decide only after checking the 6-month cash effect below against your obligations. This is decision support, not professional advice.",
+        "rec": "Decide only after checking the 12-month cash effect below against your obligations. This is decision support, not professional advice.",
         "cost_note": "estimated decision cost found in your question",
         "income_note": "monthly income on file",
-        "cash6": "Approximate 6-month cash effect",
+        "cash_final": "Approximate 12-month cash effect",
         "committed": "~{share}% of {months}-month income committed",
     },
     "ru": {
         "summary": "Прогноз на основе фактов вашего Life Twin (офлайн-режим — приблизительная арифметика, без ИИ-рассуждений).",
         "no_facts": "В вашем Life Twin пока мало фактов — добавьте доход, расходы и семью для точного прогноза.",
         "assume": "Ваши текущие факты остаются стабильными в течение периода",
-        "m1": "1-й месяц", "m3": "3-й месяц", "m6": "6-й месяц",
+        "m3": "3-й месяц", "m6": "6-й месяц", "m12": "12-й месяц",
         "risk_generic": "Незапланированные расходы или перебои дохода усложнят план",
         "opp_generic": "Пересмотр регулярных расходов может высвободить запас",
-        "rec": "Принимайте решение после проверки 6-месячного денежного эффекта ниже. Это поддержка решения, а не профессиональный совет.",
+        "rec": "Принимайте решение после проверки 12-месячного денежного эффекта ниже. Это поддержка решения, а не профессиональный совет.",
         "cost_note": "оценочная стоимость решения из вашего вопроса",
         "income_note": "месячный доход в профиле",
-        "cash6": "Приблизительный денежный эффект за 6 месяцев",
+        "cash_final": "Приблизительный денежный эффект за 12 месяцев",
         "committed": "занято ~{share}% дохода за {months} мес.",
     },
     "uz": {
         "summary": "Life Twin faktlaringizga asoslangan prognoz (oflayn rejim — taxminiy arifmetika, AI mulohazasisiz).",
         "no_facts": "Life Twin'ingizda hozircha faktlar kam — aniqroq prognoz uchun daromad, xarajat va oila faktlarini qo'shing.",
         "assume": "Joriy faktlaringiz davr mobaynida barqaror qoladi",
-        "m1": "1-oy", "m3": "3-oy", "m6": "6-oy",
+        "m3": "3-oy", "m6": "6-oy", "m12": "12-oy",
         "risk_generic": "Kutilmagan xarajatlar yoki daromad uzilishlari rejani qiyinlashtiradi",
         "opp_generic": "Doimiy xarajatlarni qayta ko'rib chiqish qo'shimcha zaxira ochishi mumkin",
-        "rec": "Qarorni quyidagi 6 oylik pul ta'sirini majburiyatlaringizga solishtirib ko'rib qabul qiling. Bu qaror-yordami, professional maslahat emas.",
+        "rec": "Qarorni quyidagi 12 oylik pul ta'sirini majburiyatlaringizga solishtirib ko'rib qabul qiling. Bu qaror-yordami, professional maslahat emas.",
         "cost_note": "savolingizdan topilgan taxminiy qaror narxi",
         "income_note": "profildagi oylik daromad",
-        "cash6": "6 oylik taxminiy pul ta'siri",
+        "cash_final": "12 oylik taxminiy pul ta'siri",
         "committed": "{months} oylik daromadning ~{share}% i band bo'ladi",
     },
 }
@@ -231,12 +231,12 @@ async def whatif(
     if income is not None:
         assumptions.append(f"{T['income_note']}: ~{_fmt(income)}")
 
-    for key, months in ((T["m1"], 1), (T["m3"], 3), (T["m6"], 6)):
+    for key, months in ((T["m3"], 3), (T["m6"], 6), (T["m12"], 12)):
         parts = []
         if cost is not None and income is not None:
             share = cost / (income * months) * 100
-            if months == 6:
-                parts.append(f"{T['cash6']}: -{_fmt(cost)} ({share:.0f}%)")
+            if months == 12:
+                parts.append(f"{T['cash_final']}: -{_fmt(cost)} ({share:.0f}%)")
             else:
                 parts.append(T["committed"].format(share=f"{share:.0f}", months=months))
         elif cost is not None:

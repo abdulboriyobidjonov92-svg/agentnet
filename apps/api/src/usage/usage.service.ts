@@ -24,7 +24,7 @@ import type { User } from '@prisma/client';
 
 const GLOBAL_KEY = '_global';
 
-interface PlanLimits {
+export interface PlanLimits {
   chatPerDay: number;
   agentsMax: number;
 }
@@ -39,6 +39,22 @@ export class UsageService {
   private readonly logger = new Logger('UsageService');
 
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Foydalanuvchining amaldagi tarifi — pro muddati (`proUntil`) o'tgan
+   * bo'lsa limitlar avtomatik free'ga qaytadi (soxta pro yo'q).
+   */
+  effectivePlan(user: User): string {
+    if (user.plan === 'pro' && user.proUntil && user.proUntil.getTime() < Date.now()) {
+      return 'free';
+    }
+    return user.plan;
+  }
+
+  /** Pricing sahifasi uchun tariflar katalogi (env'dagi haqiqiy limitlar). */
+  limitsCatalog(): Record<string, PlanLimits> {
+    return { free: this.planLimits('free'), pro: this.planLimits('pro') };
+  }
 
   private planLimits(plan: string): PlanLimits {
     if (plan === 'pro') {
@@ -89,7 +105,7 @@ export class UsageService {
    */
   async consumeChat(user: User): Promise<{ remaining: number; plan: string }> {
     const day = this.today();
-    const limits = this.planLimits(user.plan);
+    const limits = this.planLimits(this.effectivePlan(user));
 
     // 1) Global himoya — platforma kunlik LLM chegarasi
     const globalCount = await this.read(GLOBAL_KEY, 'llm', day);
@@ -135,7 +151,7 @@ export class UsageService {
 
   /** Agent yaratishdan oldin tarif chegarasini tekshiradi. */
   async assertCanCreateAgent(user: User): Promise<void> {
-    const limits = this.planLimits(user.plan);
+    const limits = this.planLimits(this.effectivePlan(user));
     const count = await this.prisma.agent.count({ where: { userId: user.id } });
     if (count >= limits.agentsMax) {
       throw new ForbiddenException({
@@ -150,14 +166,16 @@ export class UsageService {
   /** UI uchun joriy holat — qolgan kvota. */
   async status(user: User) {
     const day = this.today();
-    const limits = this.planLimits(user.plan);
+    const plan = this.effectivePlan(user);
+    const limits = this.planLimits(plan);
     const [chatUsed, agentCount, globalCount] = await Promise.all([
       this.read(user.id, 'chat', day),
       this.prisma.agent.count({ where: { userId: user.id } }),
       this.read(GLOBAL_KEY, 'llm', day),
     ]);
     return {
-      plan: user.plan,
+      plan,
+      proUntil: plan === 'pro' ? user.proUntil : null,
       chat: { used: chatUsed, limit: limits.chatPerDay, remaining: Math.max(0, limits.chatPerDay - chatUsed) },
       agents: { used: agentCount, limit: limits.agentsMax, remaining: Math.max(0, limits.agentsMax - agentCount) },
       global: { used: globalCount, cap: this.globalCap },

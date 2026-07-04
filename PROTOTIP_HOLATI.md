@@ -1,12 +1,62 @@
 # AgentNet — Prototip holati ✅
 
-**Sana:** 2026-07-03 (Part 1B yakunlandi)
+**Sana:** 2026-07-04 (CTO audit + Pricing/Pro obuna yakunlandi)
 **Holat:** Adaptiv yadro + 5 flagman imkoniyat + Super Mode (Part 1) +
 **JAHON DARAJASIDAGI DIZAYN TIZIMI (3D)** + **AgentOS enterprise liniyasi** (Part 2) +
 **PLATFORMA SUPERKUCHLARI** (Part 1B: brauzer-avtomatlashtirish, Connector SDK,
 compliance packlar, retail fuziyasi, biznes-operatsiyalar, tashqi savdo, GovTech,
 marketplace bozor mexanikasi).
 Deploy'ga to'liq tayyor (artefaktlar + guide); jonli chiqarish akkaunt kutmoqda.
+
+## YANGI: CTO audit + Pricing/Pro obuna (2026-07-04)
+
+### To'liq audit — barcha modullar jonli tekshirildi
+14 modul curl bilan jonli sinovdan o'tdi: onboarding/role-detect (fermer→
+agriculture 80% ✓), twin faktlar + what-if ✓, goals dekompozitsiya ✓, fusion ✓,
+ethics (verdikt + audit log ✓), knowledge (jonli USD=11 950 UZS, manba+URL ✓),
+connectors (17 katalog ✓), marketplace ✓, retail (shelf_empty→discrepancy alert ✓),
+operations payroll ✓, trade tariff (HS 85 ✓), govtech katalog ✓, agentos
+(workspace→command→bo'lim natijalari + ethics ✓), billing/usage ✓.
+Ilgari shubha qilingan muammolar allaqachon hal bo'lgan edi: dashboard real
+statistika, marketplace UI'da ichki ID ko'rinmaydi, connector'lar halol
+`needs_credentials` qaytaradi.
+
+### Tuzatishlar (qabul mezonlariga moslash)
+- **Twin what-if:** timeline 1/3/6 oy → **3/6/12 oy** (LLM prompt + heuristik,
+  uch tilda). Javob 3 bo'limli: prognoz (summary+assumptions), fakt havolalari
+  (used_facts), ssenariylar (timeline). O'zbekcha tekshirildi ✓.
+- **Fusion:** rol-tanlash hint'lari kengaytirildi (sog'liq/soglig/salomat,
+  kredit/qarz/foiz, solig', qurilish/issiqxona — uz/ru/en); fallback endi
+  kamida **3 ekspert** beradi. Test: kredit+soliq+sog'liq savoli →
+  accountant+engineer+doctor ✓.
+
+### YANGI: /pricing sahifasi + Pro obuna (haqiqiy mexanika)
+- **Sxema:** `User.proUntil` (DateTime?) — Pro muddati; o'tgach limitlar
+  avtomatik free'ga qaytadi (`UsageService.effectivePlan`, soxta pro yo'q).
+- **Endpointlar:** `GET /api/billing/plans` (env'dagi haqiqiy narx/limitlar),
+  `POST /api/billing/upgrade-pro` — prepaid balansdan 30 kunlik obuna atomik
+  yechiladi (balans yetmasa halol 402), `CreditLedger`ga `kind: subscription`
+  yozuvi. Faol obuna ustiga olinsa muddat oxiridan davom etadi.
+- **UI:** `/pricing` — 3 karta (Bepul / Pro / Enterprise·AgentOS), 3 tilda,
+  haqiqiy limitlar API'dan, joriy tarif + amal muddati ko'rsatiladi; sidebar'da
+  "Tariflar" bandi (Gem) va AgentOS'dagi **PRO chip endi /pricing'ga olib boradi**.
+- **Env:** `BILLING_PRO_MONTH_TIYIN` (default 2 500 000 = 25 000 so'm/oy) —
+  `.env.example` va `render.yaml`ga qo'shildi.
+- **Tekshirildi:** bo'sh balans → 402 ✓; 30 000 so'm to'ldirish → upgrade →
+  plan=pro, 500 xabar/kun, 100 agent, ledger -25 000 ✓; sahifa o'zbekcha render ✓;
+  production build o'tadi (`/pricing` route ✓); web+api tsc toza ✓.
+
+### E2E regressiya (2026-07-04, yangi foydalanuvchi bilan)
+signup → o'zbekcha onboarding (do'kon egasi) → retail/80% aniqlandi → tavsiya
+agent o'rnatildi → o'z agenti yaratildi (retail vertical avto) → balanssiz chat
+→ halol 402 → to'ldirish → chat stream jonli ob-havo tool bilan javob berdi
+(demo_mode: true belgisi) → ethics verdict audit logda → marketplace'ga 2 000
+so'mga publish → boshqa foydalanuvchi install → CreatorLedger'ga 1 400 so'm
+(70%) ✓ → faqat o'rnatgan foydalanuvchi baho qo'ydi ✓.
+
+### Eslatma
+SQLite'da schema o'zgarishi `prisma db push` bilan qo'llandi (migrate emas).
+Jonli deploy hali ham GitHub + Render/Vercel akkauntlarini kutmoqda.
 
 ## YANGI: Part 1B — Platforma superkuchlari (2026-07-03)
 

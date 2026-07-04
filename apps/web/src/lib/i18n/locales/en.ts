@@ -458,6 +458,32 @@ const en: Dict = {
     "tool.currencyDesc": "live exchange rates",
     "tool.weather": "Weather",
     "tool.weatherDesc": "current forecast",
+
+    // Pricing
+    "nav.pricing": "Pricing",
+    "pricing.title": "Plans & pricing",
+    "pricing.subtitle": "Honest prepaid model: every message is paid from your own balance. Pro raises your daily limits for 30 days.",
+    "pricing.freeName": "Free",
+    "pricing.freeDesc": "Try the platform — real agents, real tools, daily limits.",
+    "pricing.proName": "Pro",
+    "pricing.proDesc": "Higher limits for professionals who work with agents daily.",
+    "pricing.entName": "Enterprise · AgentOS",
+    "pricing.entDesc": "AI C-suite (CEO/CFO/CMO/CLO/CTO) orchestration for organizations.",
+    "pricing.perMonth": "/ 30 days",
+    "pricing.chatPerDay": "messages per day",
+    "pricing.agentsMax": "agents max",
+    "pricing.perMessage": "per message from prepaid balance",
+    "pricing.currentPlan": "Your current plan",
+    "pricing.activeUntil": "Active until",
+    "pricing.upgradeBtn": "Switch to Pro",
+    "pricing.upgrading": "Processing…",
+    "pricing.upgraded": "Pro activated!",
+    "pricing.insufficient": "Balance too low. Top up your account first.",
+    "pricing.topupLink": "Top up balance",
+    "pricing.entCta": "Open AgentOS",
+    "pricing.free0": "0 so'm",
+    "pricing.balanceNote": "Chat messages are charged per message from your prepaid balance on every plan — the plan changes limits, not message price.",
+    "pricing.marketplaceNote": "Marketplace: creators earn 70% on every paid install — see the creator dashboard.",
 };
 
 export default en;

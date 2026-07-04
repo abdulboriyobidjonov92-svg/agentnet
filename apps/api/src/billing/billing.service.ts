@@ -35,6 +35,59 @@ export class BillingService {
     return intEnv('BILLING_PRICE_PER_MESSAGE_TIYIN', 50_000); // ~500 so'm
   }
 
+  /** Pro tarif 30 kunlik narxi (UZS tiyin). */
+  get proMonthTiyin(): number {
+    return intEnv('BILLING_PRO_MONTH_TIYIN', 2_500_000); // ~25 000 so'm
+  }
+
+  /**
+   * Pro'ga o'tish — prepaid balansdan 30 kunlik obuna narxi atomik yechiladi
+   * (chargeForMessage bilan bir xil naqsh: balans yetsagina UPDATE o'tadi).
+   * Faol obuna ustiga sotib olinsa muddat oxiridan davom etadi.
+   */
+  async upgradePro(user: User) {
+    const price = this.proMonthTiyin;
+
+    const updated = await this.prisma.user.updateMany({
+      where: { id: user.id, balanceTiyin: { gte: price } },
+      data: { balanceTiyin: { decrement: price } },
+    });
+    if (updated.count === 0) {
+      throw new HttpException(
+        {
+          message: `Balansingiz yetarli emas. Pro tarif narxi: ${Math.round(price / 100)} so'm/oy. Hisobingizni to'ldiring.`,
+          reason: 'insufficient_balance',
+          proMonthSom: Math.round(price / 100),
+        },
+        HttpStatus.PAYMENT_REQUIRED,
+      );
+    }
+
+    const now = new Date();
+    const base = user.proUntil && user.proUntil > now ? user.proUntil : now;
+    const until = new Date(base.getTime() + 30 * 24 * 3600 * 1000);
+
+    const fresh = await this.prisma.user.update({
+      where: { id: user.id },
+      data: { plan: 'pro', proUntil: until },
+      select: { balanceTiyin: true, proUntil: true },
+    });
+    await this.prisma.creditLedger.create({
+      data: {
+        userId: user.id,
+        kind: 'subscription',
+        amount: -price,
+        balanceAfter: fresh.balanceTiyin,
+        meta: { plan: 'pro', until: until.toISOString() },
+      },
+    });
+    return {
+      plan: 'pro',
+      proUntil: fresh.proUntil,
+      balanceSom: Math.round(fresh.balanceTiyin / 100),
+    };
+  }
+
   async getBalance(user: User) {
     const ledger = await this.prisma.creditLedger.findMany({
       where: { userId: user.id },

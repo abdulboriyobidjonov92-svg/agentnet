@@ -3,6 +3,7 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { ClerkGuard } from '../auth/clerk.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { BillingService } from './billing.service';
+import { UsageService } from '../usage/usage.service';
 import type { User } from '@prisma/client';
 
 class TopupDto {
@@ -16,13 +17,36 @@ class RefundDto {
 @ApiTags('billing')
 @Controller('billing')
 export class BillingController {
-  constructor(private readonly billing: BillingService) {}
+  constructor(
+    private readonly billing: BillingService,
+    private readonly usage: UsageService,
+  ) {}
 
   @Get('me')
   @ApiBearerAuth()
   @UseGuards(ClerkGuard)
   getBalance(@CurrentUser() user: User) {
     return this.billing.getBalance(user);
+  }
+
+  /** Pricing sahifasi uchun tariflar katalogi — env'dagi haqiqiy narx/limitlar. */
+  @Get('plans')
+  @ApiBearerAuth()
+  @UseGuards(ClerkGuard)
+  plans() {
+    return {
+      pricePerMessageSom: Math.round(this.billing.pricePerMessageTiyin / 100),
+      proMonthSom: Math.round(this.billing.proMonthTiyin / 100),
+      limits: this.usage.limitsCatalog(),
+    };
+  }
+
+  /** Prepaid balansdan 30 kunlik Pro obuna sotib olish. Balans yetmasa 402. */
+  @Post('upgrade-pro')
+  @ApiBearerAuth()
+  @UseGuards(ClerkGuard)
+  upgradePro(@CurrentUser() user: User) {
+    return this.billing.upgradePro(user);
   }
 
   /**

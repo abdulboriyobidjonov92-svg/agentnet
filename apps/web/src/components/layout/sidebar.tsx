@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Bot, Store, Settings, LogOut, Sparkles, Plus, CircleUserRound, Target, Users, Zap, Building2, Globe, Plug, Camera, CalendarClock, Ship, Landmark, ChevronDown } from "lucide-react";
+import { LayoutDashboard, Bot, Store, Settings, LogOut, Sparkles, Plus, CircleUserRound, Target, Users, Zap, Building2, Globe, Plug, Camera, CalendarClock, Ship, Landmark, ChevronDown, Gem } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { clearClientSession } from "@/lib/session";
@@ -54,6 +54,7 @@ export function Sidebar({ email, name, onNavigate }: { email?: string; name?: st
       label: t("nav.groupSystem"),
       items: [
         { href: "/marketplace", label: t("nav.marketplace"), icon: Store },
+        { href: "/pricing", label: t("nav.pricing"), icon: Gem },
         { href: "/settings", label: t("nav.settings"), icon: Settings },
       ],
     },
@@ -139,7 +140,26 @@ export function Sidebar({ email, name, onNavigate }: { email?: string; name?: st
                         <Icon className={cn("h-[18px] w-[18px] shrink-0", (active || enterprise) && "text-primary")} />
                         {label}
                         {enterprise && (
-                          <span className="ml-auto rounded-full bg-primary/15 px-1.5 py-0.5 text-[11px] font-bold uppercase text-primary">
+                          <span
+                            role="link"
+                            tabIndex={0}
+                            title={t("pricing.title")}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              onNavigate?.();
+                              router.push("/pricing");
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onNavigate?.();
+                                router.push("/pricing");
+                              }
+                            }}
+                            className="ml-auto rounded-full bg-primary/15 px-1.5 py-0.5 text-[11px] font-bold uppercase text-primary transition hover:bg-primary/30"
+                          >
                             Pro
                           </span>
                         )}

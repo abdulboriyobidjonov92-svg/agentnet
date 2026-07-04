@@ -21,6 +21,8 @@ model User {
   role                   String    @default("MEMBER")
   // Tarif turi — monetizatsiya poydevori: "free" | "pro"
   plan                   String    @default("free")
+  // Pro obuna amal qilish muddati — o'tgach limitlar avtomatik free'ga qaytadi
+  proUntil               DateTime?
   // Prepaid balans (UZS tiyin) — real Claude chaqiruvlari shundan yechiladi.
   // Balans yetarli bo'lmasa LLM so'rovi hech qachon amalga oshmaydi — shu
   // orqali platforma egasi hech qachon o'z cho'ntagidan to'lamaydi.

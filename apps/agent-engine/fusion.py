@@ -20,7 +20,8 @@ EXPERT_ROLES: dict[str, dict[str, Any]] = {
     "doctor": {
         "label": {"en": "Doctor", "ru": "Врач", "uz": "Shifokor"},
         "hints": ["kasal", "davola", "diagnoz", "health", "medical", "болезн", "лечени", "simptom", "dori", "shifo",
-                  "hospital", "treatment", "больниц", "kasalxona", "doctor", "patient"],
+                  "hospital", "treatment", "больниц", "kasalxona", "doctor", "patient",
+                  "sog'liq", "sogliq", "sog'lig", "soglig", "salomat", "здоров", "vrach", "врач"],
         "fallback": {
             "en": "From the medical side: verify the clinical facts first (diagnoses, dates, treatment records). Any decision must not compromise ongoing treatment; get documentation from the treating physician before acting.",
             "ru": "С медицинской стороны: сначала проверьте клинические факты (диагнозы, даты, записи о лечении). Решение не должно навредить текущему лечению; запросите документы у лечащего врача.",
@@ -38,7 +39,8 @@ EXPERT_ROLES: dict[str, dict[str, Any]] = {
     },
     "accountant": {
         "label": {"en": "Accountant", "ru": "Бухгалтер", "uz": "Buxgalter"},
-        "hints": ["pul", "to'lov", "hisob", "money", "cost", "деньг", "оплат", "налог", "soliq", "xarajat", "budget", "byudjet"],
+        "hints": ["pul", "to'lov", "hisob", "money", "cost", "деньг", "оплат", "налог", "soliq", "xarajat", "budget", "byudjet",
+                  "solig'", "solig", "kredit", "credit", "кредит", "qarz", "foiz", "процент", "daromad", "income", "доход", "loan"],
         "fallback": {
             "en": "From the financial side: total the real costs (direct + hidden), check what is reimbursable, and flag any interest-bearing element for a halal alternative. Keep receipts for every payment.",
             "ru": "С финансовой стороны: посчитайте реальные затраты (прямые + скрытые), проверьте, что возмещается, и пометьте процентные элементы для халяльной альтернативы. Храните чеки.",
@@ -83,7 +85,8 @@ EXPERT_ROLES: dict[str, dict[str, Any]] = {
     },
     "engineer": {
         "label": {"en": "Engineer", "ru": "Инженер", "uz": "Muhandis"},
-        "hints": ["texnik", "tizim", "dastur", "system", "software", "техни", "qurilma", "avtomat"],
+        "hints": ["texnik", "tizim", "dastur", "system", "software", "техни", "qurilma", "avtomat",
+                  "qurilish", "qursam", "qurmoqchi", "строитель", "construction", "issiqxona", "теплиц", "greenhouse"],
         "fallback": {
             "en": "From the technical side: prototype the smallest working version first and measure it. Choose boring, proven tools over novel ones for anything critical.",
             "ru": "С технической стороны: сначала соберите минимальную работающую версию и измерьте её. Для критичного выбирайте проверенные инструменты.",
@@ -121,16 +124,16 @@ def suggest_roles(problem: str, max_roles: int = 3) -> list[str]:
         for slug, cfg in EXPERT_ROLES.items()
     ]
     hits = [s for s, n in sorted(scored, key=lambda x: -x[1]) if n > 0][:max_roles]
-    if len(hits) >= 2:
+    if len(hits) >= 3:
         return hits
-    # kamida 2 rol: eng ko'p uchraydigan universal juftlik
-    base = hits or []
+    # kamida 3 rol: topilganlarga universal rollarni to'ldiramiz
+    base = list(hits)
     for fallback_role in ("business_consultant", "lawyer", "accountant"):
         if fallback_role not in base:
             base.append(fallback_role)
-        if len(base) >= 2:
+        if len(base) >= 3:
             break
-    return base
+    return base[:max_roles]
 
 
 async def fuse(

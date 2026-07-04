@@ -70,6 +70,8 @@ services:
       # Prepaid billing — foydalanuvchi o'zi uchun to'laydi
       - key: BILLING_PRICE_PER_MESSAGE_TIYIN
         value: "50000"
+      - key: BILLING_PRO_MONTH_TIYIN
+        value: "2500000"
       - key: PAYME_MERCHANT_ID
         sync: false        # ixtiyoriy — bo'lmasa to'ldirish funksiyasi aniq xato beradi
       - key: PAYME_SECRET_KEY

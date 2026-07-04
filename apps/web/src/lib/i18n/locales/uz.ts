@@ -446,6 +446,32 @@ const uz: Dict = {
     "tool.currencyDesc": "jonli valyuta kurslari",
     "tool.weather": "Ob-havo",
     "tool.weatherDesc": "joriy prognoz",
+
+    // Pricing
+    "nav.pricing": "Tariflar",
+    "pricing.title": "Tariflar va narxlar",
+    "pricing.subtitle": "Halol prepaid model: har bir xabar o'z balansingizdan to'lanadi. Pro 30 kunga kunlik limitlarni oshiradi.",
+    "pricing.freeName": "Bepul",
+    "pricing.freeDesc": "Platformani sinang — haqiqiy agentlar, haqiqiy vositalar, kunlik limitlar.",
+    "pricing.proName": "Pro",
+    "pricing.proDesc": "Agentlar bilan har kuni ishlaydigan mutaxassislar uchun yuqori limitlar.",
+    "pricing.entName": "Enterprise · AgentOS",
+    "pricing.entDesc": "Tashkilotlar uchun AI C-suite (CEO/CFO/CMO/CLO/CTO) orkestratsiyasi.",
+    "pricing.perMonth": "/ 30 kun",
+    "pricing.chatPerDay": "kuniga xabar",
+    "pricing.agentsMax": "agent (maksimal)",
+    "pricing.perMessage": "har xabar prepaid balansdan",
+    "pricing.currentPlan": "Joriy tarifingiz",
+    "pricing.activeUntil": "Amal qilish muddati",
+    "pricing.upgradeBtn": "Pro'ga o'tish",
+    "pricing.upgrading": "Bajarilmoqda…",
+    "pricing.upgraded": "Pro faollashtirildi!",
+    "pricing.insufficient": "Balans yetarli emas. Avval hisobingizni to'ldiring.",
+    "pricing.topupLink": "Balansni to'ldirish",
+    "pricing.entCta": "AgentOS'ni ochish",
+    "pricing.free0": "0 so'm",
+    "pricing.balanceNote": "Chat xabarlari har qanday tarifda prepaid balansdan xabar boshiga yechiladi — tarif limitlarni o'zgartiradi, xabar narxini emas.",
+    "pricing.marketplaceNote": "Marketplace: kreatorlar har pulli o'rnatishdan 70% oladi — kreator paneliga qarang.",
 };
 
 export default uz;
