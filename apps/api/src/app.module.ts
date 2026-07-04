@@ -20,6 +20,7 @@ import { OperationsModule } from './operations/operations.module';
 import { GovtechModule } from './govtech/govtech.module';
 import { TradeModule } from './trade/trade.module';
 import { UsageModule } from './usage/usage.module';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { UsageModule } from './usage/usage.module';
     GovtechModule,
     TradeModule,
     UsageModule,
+    BillingModule,
   ],
 })
 export class AppModule {}

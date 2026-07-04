@@ -32,6 +32,29 @@ export async function POST(req: NextRequest) {
     console.warn("[chat/stream] usage limit tekshiruvi o'tkazib yuborildi (API javob bermadi)");
   }
 
+  // Pul himoyasi — LLM chaqiruvidan OLDIN foydalanuvchi balansidan yechamiz.
+  // Balans yetarli bo'lmasa 402 qaytadi va Claude API'ga so'rov UMUMAN ketmaydi —
+  // platforma egasi hech qachon bu xarajatni ko'tarmaydi.
+  const chargeRes = await fetch(`${apiUrl}/api/billing/charge-message`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.userId}`,
+    },
+  }).catch(() => null);
+
+  if (!chargeRes || chargeRes.status === 402) {
+    const info = chargeRes ? await chargeRes.json().catch(() => ({})) : {};
+    return new Response(
+      `data: ${JSON.stringify({
+        type: "insufficient_balance",
+        message: info.message ?? "Balansingiz yetarli emas. Hisobingizni to'ldiring.",
+        pricePerMessageSom: info.pricePerMessageSom,
+      })}\n\n` + `data: ${JSON.stringify({ type: "done", demo_mode: false })}\n\n`,
+      { status: 200, headers: { "Content-Type": "text/event-stream" } },
+    );
+  }
+
   let upstream: Response;
   try {
     upstream = await fetch(`${engineUrl}/agents/stream`, {
@@ -47,6 +70,12 @@ export async function POST(req: NextRequest) {
       }),
     });
   } catch (e: any) {
+    // Xizmat ko'rsatilmadi — to'langan pulni qaytaramiz
+    fetch(`${apiUrl}/api/billing/refund`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.userId}` },
+      body: JSON.stringify({ reason: "engine_unreachable" }),
+    }).catch(() => {});
     return new Response(
       `data: ${JSON.stringify({ type: "error", message: "Agent engine bilan aloqa yo'q" })}\n\n`,
       { status: 503, headers: { "Content-Type": "text/event-stream" } },
@@ -54,6 +83,11 @@ export async function POST(req: NextRequest) {
   }
 
   if (!upstream.ok || !upstream.body) {
+    fetch(`${apiUrl}/api/billing/refund`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.userId}` },
+      body: JSON.stringify({ reason: "engine_error" }),
+    }).catch(() => {});
     return new Response(
       `data: ${JSON.stringify({ type: "error", message: "Agent engine xatosi" })}\n\n`,
       { status: 500, headers: { "Content-Type": "text/event-stream" } },

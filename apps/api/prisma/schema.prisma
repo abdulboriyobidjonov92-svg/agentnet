@@ -20,8 +20,13 @@ model User {
   phone                  String?   @unique
   role                   String    @default("MEMBER")
   // Tarif turi — monetizatsiya poydevori: "free" | "pro"
-  // (kelajakda Stripe/Payme webhook shu maydonni yangilaydi)
   plan                   String    @default("free")
+  // Prepaid balans (UZS tiyin) — real Claude chaqiruvlari shundan yechiladi.
+  // Balans yetarli bo'lmasa LLM so'rovi hech qachon amalga oshmaydi — shu
+  // orqali platforma egasi hech qachon o'z cho'ntagidan to'lamaydi.
+  balanceTiyin           Int       @default(0)
+  creditLedger           CreditLedger[]
+  paymeTransactions      PaymeTransaction[]
   orgId                  String?
   org                    Org?      @relation(fields: [orgId], references: [id])
   isBusinessAccount      Boolean   @default(false)
@@ -536,4 +541,44 @@ model UsageCounter {
 
   @@unique([userId, day, kind])
   @@index([day])
+}
+
+// --- Prepaid billing (foydalanuvchi o'zi uchun to'laydi, platforma emas) ---
+
+// Balans o'zgarishlari — real buxgalteriya yozuvi (marketplace'dagi CreatorLedger
+// bilan bir xil naqsh). kind: topup | usage | refund | bonus
+model CreditLedger {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind         String
+  amount       Int      // UZS tiyin; kredit musbat, xarajat manfiy
+  balanceAfter Int      // yozuv vaqtidagi yakuniy balans (audit uchun)
+  meta         Json?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([kind])
+}
+
+// Payme Merchant API (JSON-RPC) tranzaksiyalari — haqiqiy to'lov protokoli.
+// Paycom bu yozuvni CheckPerformTransaction/CreateTransaction/PerformTransaction/
+// CancelTransaction chaqiruvlari bilan boshqaradi. state: 1=yaratildi (kutilmoqda),
+// 2=bajarildi (balans kreditlandi), -1=bekor qilindi (kutilayotgan),
+// -2=bekor qilindi (bajarilgandan keyin).
+model PaymeTransaction {
+  id            String    @id @default(cuid())
+  paycomId      String    @unique // Payme tomonidan yuboriladigan tranzaksiya id
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amountTiyin   Int
+  state         Int       @default(1)
+  reason        Int?      // bekor qilish sababi (Payme error code)
+  createTimeMs  BigInt
+  performTimeMs BigInt?
+  cancelTimeMs  BigInt?
+  createdAt     DateTime  @default(now())
+
+  @@index([userId])
+  @@index([state])
 }

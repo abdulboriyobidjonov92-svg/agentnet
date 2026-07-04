@@ -4,6 +4,7 @@ import { Menu, X, Sparkles } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { BalanceWidget } from "@/components/billing/balance-widget";
 
 export function DashboardShell({
   email,
@@ -53,6 +54,7 @@ export function DashboardShell({
           </div>
           <div className="hidden lg:block" />
           <div className="flex items-center gap-2">
+            <BalanceWidget />
             <ThemeToggle />
             <Button
               variant="outline"

@@ -135,6 +135,9 @@ export function ChatInterface({ agentId, agentDefinition }: ChatInterfaceProps) 
             } else if (event.type === "rate_limit") {
               fullContent = `⏳ ${event.message}`;
               halalFlag = "ALLOW";
+            } else if (event.type === "insufficient_balance") {
+              fullContent = `💳 ${event.message}`;
+              halalFlag = "ALLOW";
             } else if (event.type === "halal_block") {
               fullContent = `🚫 ${t("chat.blockedMsg")}\n\n_${event.reason}_`;
               halalFlag = "BLOCK";
