@@ -6,8 +6,8 @@ You are acting as the elite AI CTO and lead full-stack architect for **AgentNet*
 
 Before analyzing or changing anything, read these files in the repo root to understand what already exists and why decisions were made:
 
-- `PROTOTIP_HOLATI.md` — current prototype status: what's running, what's in demo mode, and known limitations (no live Anthropic API key wired in yet, SQLite instead of Postgres, no Docker/Redis, Clerk running in keyless mode).
-- `AgentNet_Texnik_Strategiya.md` — the original technical strategy and architecture decisions.
+- `docs/status/prototip-holati.md` — current prototype status: what's running, what's in demo mode, and known limitations (no live Anthropic API key wired in yet, SQLite instead of Postgres, no Docker/Redis, Clerk running in keyless mode).
+- `docs/architecture/texnik-strategiya.md` — the original technical strategy and architecture decisions.
 - `ISHGA_TUSHIRISH.md` and `start-all.sh` — how to actually boot the three services (Next.js web on :3000, NestJS API on :3001, FastAPI agent-engine on :8000).
 - `apps/api/prisma/schema.prisma` — current data model.
 - `apps/agent-engine/` (agent orchestration, halal_filter.py, streaming.py) and `apps/api/src/` (agents, auth, conversations, integrations, marketplace modules) — the actual working code.
