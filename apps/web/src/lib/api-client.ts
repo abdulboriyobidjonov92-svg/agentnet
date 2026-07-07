@@ -12,7 +12,7 @@ export function useApiClient() {
         ...options,
         headers: {
           "Content-Type": "application/json",
-          ...(session ? { Authorization: `Bearer ${session.userId}` } : {}),
+          ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
           ...options.headers,
         },
       });

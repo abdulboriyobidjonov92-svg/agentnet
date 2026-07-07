@@ -1,4 +1,5 @@
 import { Controller, Post, Body, Headers, HttpCode, BadRequestException } from '@nestjs/common';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { Webhook } from 'svix';
 import { ClerkSyncService, TwoFactorService } from './auth.service';
 
@@ -11,6 +12,7 @@ export class AuthController {
 
   /** Clerk webhook — foydalanuvchi yaratish/o'chirish eventlarini qabul qiladi */
   @Post('webhooks/clerk')
+  @SkipThrottle() // Clerk serverlaridan keladi (svix imzosi bilan tekshiriladi)
   @HttpCode(200)
   async clerkWebhook(
     @Headers('svix-id') svixId: string,
@@ -39,6 +41,7 @@ export class AuthController {
 
   /** Lokal dev login — Clerk'siz, email YOKI telefon bilan kirish/ro'yxatdan o'tish */
   @Post('dev-login')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } }) // login enumeratsiyasiga qarshi qattiqroq
   @HttpCode(200)
   async devLogin(@Body() body: { email?: string; phone?: string; name?: string }) {
     return this.clerkSync.devLogin(body);
@@ -52,6 +55,7 @@ export class AuthController {
 
   /** 2FA tasdiqlash va yoqish */
   @Post('2fa/verify')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } }) // TOTP-kodni taxminlashga qarshi
   async verify2fa(@Body() body: { userId: string; token: string }) {
     const ok = await this.twoFactor.verifyAndEnable(body.userId, body.token);
     return { success: ok };

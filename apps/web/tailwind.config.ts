@@ -50,6 +50,11 @@ const config: Config = {
         },
         // Yagona imzo urg'usi — faqat ingichka chiziq (Filament) sifatida ishlatiladi
         line: "hsl(var(--accent-line))",
+        // Bioluminessent venalar — Liquid Obsidian imzo juftligi
+        vein: {
+          cyan: "hsl(var(--vein-cyan))",
+          violet: "hsl(var(--vein-violet))",
+        },
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",

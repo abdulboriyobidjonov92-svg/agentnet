@@ -6,12 +6,13 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// SQLite native enum'ni qo'llab-quvvatlamaydi — String sifatida saqlanadi.
-// Qiymatlar: OWNER | ADMIN | MEMBER | VIEWER
+// Enum'lar String sifatida saqlanadi (kod string bilan solishtiradi —
+// migratsiyada buzilmasligi uchun shunday qoldirildi).
+// Rol qiymatlari: OWNER | ADMIN | MEMBER | VIEWER
 
 model User {
   id                     String    @id @default(cuid())
@@ -29,6 +30,7 @@ model User {
   balanceTiyin           Int       @default(0)
   creditLedger           CreditLedger[]
   paymeTransactions      PaymeTransaction[]
+  clickTransactions      ClickTransaction[]
   orgId                  String?
   org                    Org?      @relation(fields: [orgId], references: [id])
   isBusinessAccount      Boolean   @default(false)
@@ -65,12 +67,17 @@ model User {
   visionEvents           VisionEvent[]
   retailAlerts           RetailAlert[]
   retailSettings         RetailSettings?
+  reorderDrafts          ReorderDraft[]
+  competitorSources      CompetitorSource[]
+  competitorPriceChecks  CompetitorPriceCheck[]
   employees              Employee[]
   outboundMessages       OutboundMessage[]
   citizenRequests        CitizenRequest[]
   agentReviews           AgentReview[]
   agentInstalls          AgentInstall[]
   creatorLedger          CreatorLedger[]
+  payoutsAsCreator       Payout[]       @relation("PayoutCreator")
+  payoutsAsBuyer         Payout[]       @relation("PayoutBuyer")
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
   deletedAt              DateTime?
@@ -140,6 +147,9 @@ model Agent {
   // Marketplace'dan o'rnatilgan bo'lsa — manba (nashr etilgan) agent id.
   // Usage/reyting/daromad atributsiyasi shu orqali ishlaydi.
   sourceAgentId      String?
+  // Asl yaratuvchi (User.id) — sourceAgentId orqali JOIN qilmasdan doimiy
+  // atributsiya uchun (manba agent keyinchalik o'chirilsa ham saqlanadi).
+  originalCreatorId  String?
   userId             String
   user               User           @relation(fields: [userId], references: [id])
   orgId              String?
@@ -147,6 +157,13 @@ model Agent {
   conversations      Conversation[]
   isPublished        Boolean        @default(false)
   marketplacePrice   Int?           // UZS tiyin, null = bepul
+
+  // --- Y4: haqiqiy hisob-kitob (kalkulyator emas — bevosita balansdan yechiladi) ---
+  creationPriceTiyin Int            @default(0) // yaratishda BIR MARTA yechilgan narx (UZS tiyin)
+  monthlyPriceTiyin  Int            @default(0) // har oy avtomatik yechiladigan obuna narxi
+  frozen             Boolean        @default(false) // balans yetmagach — o'chirilmaydi, "muzlatiladi"
+  nextChargeAt       DateTime?      // keyingi oylik yechim sanasi (monthlyPriceTiyin>0 bo'lsagina)
+  chargeRetries      Int            @default(0) // ketma-ket muvaffaqiyatsiz oylik urinishlar soni
 
   // --- Marketplace bozor dinamikasi (agregat hisoblagichlar) ---
   installCount       Int            @default(0)
@@ -159,6 +176,7 @@ model Agent {
 
   reviews            AgentReview[]
   installs           AgentInstall[] @relation("SourceAgent")
+  payouts            Payout[]
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
@@ -241,6 +259,9 @@ model GoalTask {
 
 model AuditLog {
   id           String   @id @default(cuid())
+  // Monotonik ketma-ketlik — hash-zanjirning "oxirgi" yozuvini bir ma'noda
+  // aniqlaydi (createdAt millisekundda teng bo'lib qolishi mumkin, seq — hech qachon).
+  seq          Int      @unique @default(autoincrement())
   actorId      String
   actor        User     @relation(fields: [actorId], references: [id])
   action       String   // masalan: "auth.login", "agent.create", "halal_filter.block"
@@ -291,7 +312,8 @@ model ConnectorConfig {
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   connectorId String    // registry slug: "telegram-bot", "whatsapp-business", ...
   label       String    @default("default")
-  // Auth + sozlamalar (token, chat_id, shop domain...). Prod: KMS bilan shifrlanadi.
+  // Auth + sozlamalar (token, chat_id, shop domain...). At-rest AES-256-GCM
+  // bilan shifrlangan saqlanadi (CryptoService) — bu ustunda shifrlangan blob.
   config      Json?
   status      String    @default("connected") // connected | needs_credentials | error | disabled
   lastUsedAt  DateTime?
@@ -382,6 +404,71 @@ model RetailSettings {
   target     String? // chat_id / telefon / email
   autoNotify Boolean @default(true)
   updatedAt  DateTime @updatedAt
+}
+
+// Avtonom buyurtma qoralamasi — reorderPlan() tomonidan hisoblanadi, lekin
+// HECH QACHON o'zi yuborilmaydi. Egasi "Tasdiqlash"/"Bekor qilish" bilan bir
+// marta ko'rib chiqadi (ishonch qozonish MVP talabi). Bitta sku uchun bitta
+// faol (pending) yozuv — kun ichida qayta tasdiqlashga majburlamaslik uchun
+// qaror qabul qilingandan keyin bir kun davomida qayta ko'tarilmaydi.
+model ReorderDraft {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sku               String
+  name              String
+  urgency           String
+  stock             Int
+  dailyVelocity     Float
+  daysUntilStockout Float?
+  orderQty          Int
+  message           String
+  status            String    @default("pending") // pending | approved | rejected
+  decidedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([userId, sku])
+  @@index([userId])
+  @@index([status])
+}
+
+// Raqobatchi narx manbasi — foydalanuvchi qo'lda kiritgan narx yoki ochiq
+// e'lonlar sayti URL'i. Kunlik cron shu ro'yxatni aylanib chiqadi.
+model CompetitorSource {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sku         String
+  name        String   // masalan: "Qo'lda", "OLX", "Uzum Market"
+  url         String?  // null = qo'lda kiritilgan narx (manualPrice ishlatiladi)
+  manualPrice Int?     // UZS tiyin
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  checks      CompetitorPriceCheck[]
+
+  @@index([userId])
+  @@index([userId, sku])
+}
+
+// Har kunlik tekshiruv natijasi (log) — jonli emas, kunlik snapshot.
+model CompetitorPriceCheck {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceId    String
+  source      CompetitorSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  sku         String
+  price       Int?             // UZS tiyin; null = topilmadi
+  ok          Boolean          @default(true)
+  error       String?
+  checkedAt   DateTime         @default(now())
+
+  @@index([userId])
+  @@index([sourceId])
+  @@index([userId, sku])
 }
 
 // --- S5: Business Operations (AgentOS kengaytmasi) ---
@@ -532,6 +619,28 @@ model CreatorLedger {
   @@index([agentId])
 }
 
+// Y5: "yaratuvchi bonusi" — CreatorLedger'dagi 70/30 daromad ulushidan ALOHIDA:
+// yangi xaridor birinchi to'lovni amalga oshirganda creation_price'ning yarmi
+// original yaratuvchiga BIR MARTALIK bonus sifatida HAQIQIY balansiga tushadi.
+// @@unique([agentId, buyerId]) — bir buyer bitta manba agent uchun faqat BIR
+// marta bonus keltiradi (keyingi oylik to'lovlarda QAYTA berilmaydi).
+model Payout {
+  id                String   @id @default(cuid())
+  agentId           String   // manba (nashr etilgan) agent id
+  agent             Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  originalCreatorId String
+  originalCreator   User     @relation("PayoutCreator", fields: [originalCreatorId], references: [id], onDelete: Cascade)
+  buyerId           String
+  buyer             User     @relation("PayoutBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  bonusAmountTiyin  Int
+  paidAt            DateTime @default(now())
+  createdAt         DateTime @default(now())
+
+  @@unique([agentId, buyerId])
+  @@index([originalCreatorId])
+  @@index([buyerId])
+}
+
 // --- Foydalanish limitlari (rate limiting / xarajat himoyasi) ---
 // userId = foydalanuvchi id yoki "_global" (butun platforma bo'yicha kunlik LLM hisobi)
 model UsageCounter {
@@ -550,14 +659,19 @@ model UsageCounter {
 // Balans o'zgarishlari — real buxgalteriya yozuvi (marketplace'dagi CreatorLedger
 // bilan bir xil naqsh). kind: topup | usage | refund | bonus
 model CreditLedger {
-  id           String   @id @default(cuid())
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kind         String
-  amount       Int      // UZS tiyin; kredit musbat, xarajat manfiy
-  balanceAfter Int      // yozuv vaqtidagi yakuniy balans (audit uchun)
-  meta         Json?
-  createdAt    DateTime @default(now())
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind           String
+  amount         Int      // UZS tiyin; kredit musbat, xarajat manfiy
+  balanceAfter   Int      // yozuv vaqtidagi yakuniy balans (audit uchun)
+  meta           Json?
+  // Mijoz tomonidan generatsiya qilingan bir martalik kalit — pul bilan
+  // ishlaydigan amallar (agent yaratish/oylik yechim) bir xil so'rov ikki
+  // marta yuborilsa ham IKKINCHI marta yechilmasligi uchun (DB-darajasidagi
+  // himoya — parallel so'rovlarda ham ishlaydi).
+  idempotencyKey String?  @unique
+  createdAt      DateTime @default(now())
 
   @@index([userId])
   @@index([kind])
@@ -578,6 +692,28 @@ model PaymeTransaction {
   reason        Int?      // bekor qilish sababi (Payme error code)
   createTimeMs  BigInt
   performTimeMs BigInt?
+  cancelTimeMs  BigInt?
+  createdAt     DateTime  @default(now())
+
+  @@index([userId])
+  @@index([state])
+}
+
+// Click Merchant API (Prepare/Complete) tranzaksiyalari — real protokol
+// https://docs.click.uz. merchant_trans_id = userId (Payme'dagi account.user_id
+// bilan bir xil naqsh — bitta hisobga to'lov). state: 0=prepared (kutilmoqda),
+// 1=bajarildi (balans kreditlandi), -1=bekor qilindi (prepare bosqichida),
+// -2=bekor qilindi (bajarilgandan keyin).
+model ClickTransaction {
+  id            String    @id @default(cuid())
+  clickTransId  String    @unique // Click tomonidan yuboriladigan click_trans_id
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amountTiyin   Int
+  state         Int       @default(0)
+  errorCode     Int?
+  prepareTimeMs BigInt?
+  confirmTimeMs BigInt?
   cancelTimeMs  BigInt?
   createdAt     DateTime  @default(now())
 

@@ -37,9 +37,9 @@ export class MarketplaceController {
   publish(
     @CurrentUser() user: User,
     @Param('agentId') agentId: string,
-    @Body() body: { price?: number; description?: string },
+    @Body() body: { price?: number; description?: string; monthlyPrice?: number },
   ) {
-    return this.marketplace.publish(agentId, user, body.price, body.description);
+    return this.marketplace.publish(agentId, user, body.price, body.description, body.monthlyPrice);
   }
 
   @Delete(':agentId/publish')

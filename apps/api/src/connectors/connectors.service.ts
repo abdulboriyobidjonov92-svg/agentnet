@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../auth/auth.service';
+import { CryptoService } from '../crypto/crypto.service';
 import { CONNECTORS, connectorById } from './connectors.registry';
 import { missingFields, ConnectorResult } from './connector.types';
 import type { User } from '@prisma/client';
@@ -10,6 +11,7 @@ export class ConnectorsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditLogService,
+    private readonly crypto: CryptoService,
   ) {}
 
   /** Katalog + foydalanuvchining ulanish holati (sirlar qaytarilmaydi). */
@@ -53,10 +55,12 @@ export class ConnectorsService {
     const miss = missingFields(def, config ?? {});
     const status = miss.length ? 'needs_credentials' : 'connected';
 
+    // Sirlar (tokenlar, parollar) DB'da SHIFRLANGAN saqlanadi (at-rest).
+    const encrypted = this.crypto.encryptJson(config ?? {});
     const saved = await this.prisma.connectorConfig.upsert({
       where: { userId_connectorId_label: { userId: user.id, connectorId, label: 'default' } },
-      create: { userId: user.id, connectorId, label: 'default', config: config ?? {}, status },
-      update: { config: config ?? {}, status, lastError: null },
+      create: { userId: user.id, connectorId, label: 'default', config: encrypted, status },
+      update: { config: encrypted, status, lastError: null },
     });
 
     await this.audit.record({
@@ -85,8 +89,10 @@ export class ConnectorsService {
       where: { userId_connectorId_label: { userId: user.id, connectorId, label: 'default' } },
     });
 
+    // Yagona deshifrlash nuqtasi — barcha 15+ konnektor shu ctx.config'ni oladi
+    // (decryptJson eski plaintext yozuvlarni ham qo'llab-quvvatlaydi).
     const result = await def.execute(actionId, params ?? {}, {
-      config: (cfg?.config as Record<string, any>) ?? {},
+      config: this.crypto.decryptJson(cfg?.config),
       userId: user.id,
     });
 

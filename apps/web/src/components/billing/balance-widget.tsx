@@ -27,6 +27,7 @@ export function BalanceWidget() {
   const { t } = useT();
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("10000");
+  const [provider, setProvider] = useState<"payme" | "click">("payme");
 
   const { data } = useQuery({
     queryKey: ["billing-me"],
@@ -35,7 +36,7 @@ export function BalanceWidget() {
   });
 
   const topup = useMutation({
-    mutationFn: (amountSom: number) => api.post<{ payUrl: string }>("/billing/topup", { amountSom }),
+    mutationFn: (amountSom: number) => api.post<{ payUrl: string }>("/billing/topup", { amountSom, provider }),
     onSuccess: (res) => {
       window.open(res.payUrl, "_blank");
       setOpen(false);
@@ -87,6 +88,32 @@ export function BalanceWidget() {
                 onChange={(e) => setAmount(e.target.value)}
               />
             </div>
+
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium">{t("billing.payMethod")}</p>
+              <div className="flex gap-3">
+                <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-xl border p-3 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                  <input
+                    type="radio"
+                    name="pay-provider"
+                    value="payme"
+                    checked={provider === "payme"}
+                    onChange={() => setProvider("payme")}
+                  />
+                  Payme
+                </label>
+                <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-xl border p-3 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                  <input
+                    type="radio"
+                    name="pay-provider"
+                    value="click"
+                    checked={provider === "click"}
+                    onChange={() => setProvider("click")}
+                  />
+                  Click
+                </label>
+              </div>
+            </div>
           </div>
 
           <DialogFooter>
@@ -95,7 +122,7 @@ export function BalanceWidget() {
               disabled={topup.isPending || Number(amount) < 1000}
             >
               {topup.isPending ? <Loader2 className="animate-spin" /> : <Wallet />}
-              {t("billing.payViaPayme")}
+              {provider === "click" ? t("billing.payViaClick") : t("billing.payViaPayme")}
             </Button>
           </DialogFooter>
         </DialogContent>

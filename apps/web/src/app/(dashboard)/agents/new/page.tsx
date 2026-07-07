@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiClient } from "@/lib/api-client";
 import { AgentForm } from "@/components/agents/agent-form";
+import { AgentComposer } from "@/components/agents/agent-composer";
 import { Fireworks } from "@/components/three/fireworks";
 import { ArrowLeft, Boxes } from "lucide-react";
 import Link from "next/link";
@@ -22,9 +23,12 @@ export default function NewAgentPage() {
   const { t } = useT();
   const [tools, setTools] = useState<string[]>([]);
   const [burst, setBurst] = useState(0);
+  // Bir marta generatsiya qilinadi — tugma ikki marta bosilsa ham (yoki
+  // tarmoq qayta urinishi) yaratish narxi IKKINCHI marta yechilmasligi uchun.
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => api.post<any>("/agents", data),
+    mutationFn: (data: any) => api.post<any>("/agents", { ...data, idempotencyKey }),
     onSuccess: (agent) => {
       qc.invalidateQueries({ queryKey: ["agents"] });
       // Muvaffaqiyat fireworks, keyin agent sahifasiga o'tish
@@ -44,6 +48,16 @@ export default function NewAgentPage() {
           <h1 className="text-2xl font-bold tracking-tight">{t("form.createTitle")}</h1>
           <p className="text-sm text-muted-foreground">{t("form.createSub")}</p>
         </div>
+      </div>
+
+      {/* Y9: bir-klik agent — tabiiy til → tayyor agent taklifi + narx */}
+      <AgentComposer />
+
+      {/* Ajratgich — pastda qo'lda (no-code) sozlash imkoni saqlanadi */}
+      <div className="flex items-center gap-4 py-1">
+        <div className="h-px flex-1 bg-border" />
+        <span className="text-xs uppercase tracking-wide text-muted-foreground">{t("compose.orManual")}</span>
+        <div className="h-px flex-1 bg-border" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_0.8fr]">

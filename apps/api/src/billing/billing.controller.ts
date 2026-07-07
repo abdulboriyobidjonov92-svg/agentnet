@@ -1,13 +1,17 @@
 import { Controller, Get, Post, Body, Headers, UseGuards } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { ClerkGuard } from '../auth/clerk.guard';
+import { InternalTokenGuard } from '../auth/internal-token.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { BillingService } from './billing.service';
+import { PaymeService } from './payme.service';
 import { UsageService } from '../usage/usage.service';
 import type { User } from '@prisma/client';
 
 class TopupDto {
   amountSom: number;
+  provider?: 'payme' | 'click';
 }
 
 class RefundDto {
@@ -20,6 +24,7 @@ export class BillingController {
   constructor(
     private readonly billing: BillingService,
     private readonly usage: UsageService,
+    private readonly payme: PaymeService,
   ) {}
 
   @Get('me')
@@ -54,25 +59,33 @@ export class BillingController {
    * Balans yetarli bo'lmasa 402 tashlaydi — Claude API'ga so'rov ketmaydi.
    */
   @Post('charge-message')
+  @SkipThrottle() // Next.js BFF'dan (bitta IP) chaqiriladi + har-user balans o'zi cheklaydi
   @ApiBearerAuth()
   @UseGuards(ClerkGuard)
   chargeMessage(@CurrentUser() user: User) {
     return this.billing.chargeForMessage(user);
   }
 
-  /** Xizmat bajarilmasa (engine xatosi/mavjud emas) — yechilgan pulni qaytaradi. */
+  /**
+   * Xizmat bajarilmasa (engine xatosi/mavjud emas) — yechilgan pulni qaytaradi.
+   * FAQAT ichki chaqiruv (Next.js BFF): balansni OSHIRADI, shuning uchun
+   * InternalTokenGuard bilan himoyalangan — brauzer/foydalanuvchi to'g'ridan-to'g'ri
+   * chaqirib bepul kredit ola olmaydi. ClerkGuard qaysi foydalanuvchi ekanini
+   * (BFF uzatadigan bearer token orqali) aniqlaydi.
+   */
   @Post('refund')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
+  @UseGuards(ClerkGuard, InternalTokenGuard)
   refund(@CurrentUser() user: User, @Body() dto: RefundDto) {
     return this.billing.refund(user, dto.reason);
   }
 
+  /** Balansni to'ldirish — foydalanuvchi checkout'da Payme yoki Click'ni tanlaydi. */
   @Post('topup')
   @ApiBearerAuth()
   @UseGuards(ClerkGuard)
   topup(@CurrentUser() user: User, @Body() dto: TopupDto) {
-    return this.billing.createTopupReceipt(user, dto.amountSom);
+    return this.billing.createTopupReceipt(user, dto.amountSom, dto.provider);
   }
 
   /**
@@ -80,10 +93,11 @@ export class BillingController {
    * autentifikatsiyasi emas, X-Auth Basic bilan merchant-darajali tekshiruv).
    */
   @Post('payme/webhook')
+  @SkipThrottle() // Paycom serverlaridan keladi — to'lov ishonchliligini throttle buzmasin
   async paymeWebhook(@Headers('authorization') auth: string, @Body() body: any) {
     try {
-      this.billing.verifyMerchantAuth(auth);
-      return await this.billing.handleMerchantRpc(body);
+      this.payme.verifyMerchantAuth(auth);
+      return await this.payme.handleMerchantRpc(body);
     } catch (e: any) {
       // paymeError() {jsonrpc, error} shaklida — to'g'ridan-to'g'ri qaytariladi
       if (e?.error) return { jsonrpc: '2.0', id: body?.id, ...e };

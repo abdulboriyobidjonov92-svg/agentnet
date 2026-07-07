@@ -1,13 +1,17 @@
 "use client";
+// NAV RAIL — Liquid Obsidian navigatsiyasi. Og'ir panel emas: qorong'uda
+// suzayotgan shisha qirra. Aktiv yo'l — chapdagi tirik vena chizig'i.
+
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Bot, Store, Settings, LogOut, Sparkles, Plus, CircleUserRound, Target, Users, Zap, Building2, Globe, Plug, Camera, CalendarClock, Ship, Landmark, ChevronDown, Gem } from "lucide-react";
+import { LayoutDashboard, Bot, Store, Settings, LogOut, Plus, CircleUserRound, Target, Users, Zap, Building2, Globe, Plug, Camera, CalendarClock, Ship, Landmark, ChevronDown, Gem, LayoutTemplate } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { clearClientSession } from "@/lib/session";
 import { useT } from "@/lib/i18n/client";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { Magnetic } from "@/components/neuro/magnetic";
 
 const COLLAPSE_KEY = "agentnet_nav_collapsed";
 
@@ -24,6 +28,7 @@ export function Sidebar({ email, name, onNavigate }: { email?: string; name?: st
       items: [
         { href: "/dashboard", label: t("nav.dashboard"), icon: LayoutDashboard },
         { href: "/agents", label: t("nav.agents"), icon: Bot },
+        { href: "/templates", label: t("nav.templates"), icon: LayoutTemplate },
         { href: "/twin", label: t("nav.twin"), icon: CircleUserRound },
         { href: "/goals", label: t("nav.goals"), icon: Target },
       ],
@@ -87,23 +92,34 @@ export function Sidebar({ email, name, onNavigate }: { email?: string; name?: st
   const initial = (name || email || "?").charAt(0).toUpperCase();
 
   return (
-    <aside className="flex h-screen w-64 shrink-0 flex-col border-r bg-card">
-      <div className="flex h-16 items-center gap-2.5 px-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary">
-          <Sparkles className="h-5 w-5 text-primary-foreground" />
-        </div>
-        <span className="text-lg font-bold tracking-tight">AgentNet</span>
+    <aside className="glass-dark flex h-screen w-60 shrink-0 flex-col border-r border-white/[0.06]">
+      {/* Brend — mono, tirik nuqta bilan */}
+      <div className="flex h-16 items-center gap-3 px-5">
+        <span
+          className="heartbeat inline-block h-2 w-2 rounded-full"
+          style={{
+            background: "linear-gradient(135deg, hsl(var(--vein-cyan)), hsl(var(--vein-violet)))",
+            boxShadow: "0 0 12px hsl(var(--vein-cyan) / 0.6)",
+          }}
+        />
+        <span className="font-mono text-xs font-semibold uppercase tracking-[0.3em] text-foreground/90">
+          AgentNet
+        </span>
       </div>
 
-      <div className="px-3 pb-2 pt-1">
-        <Button asChild className="w-full">
-          <Link onClick={onNavigate} href="/agents/new">
-            <Plus /> {t("nav.newAgent")}
+      <div className="px-3 pb-3 pt-1">
+        <Magnetic className="w-full">
+          <Link
+            onClick={onNavigate}
+            href="/agents/new"
+            className="mercury flex h-10 w-full items-center justify-center gap-2 rounded-2xl text-sm font-semibold"
+          >
+            <Plus className="h-4 w-4" /> {t("nav.newAgent")}
           </Link>
-        </Button>
+        </Magnetic>
       </div>
 
-      <nav className="scroll-thin flex-1 space-y-3 overflow-y-auto px-3 py-3">
+      <nav className="scroll-thin flex-1 space-y-4 overflow-y-auto px-3 py-3">
         {GROUPS.map((group) => {
           const hasActive = group.items.some(
             ({ href }) => pathname === href || pathname.startsWith(href + "/"),
@@ -115,13 +131,13 @@ export function Sidebar({ email, name, onNavigate }: { email?: string; name?: st
               <button
                 onClick={() => toggleGroup(group.id)}
                 aria-expanded={isOpen}
-                className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground transition hover:text-foreground"
+                className="label-mono flex w-full items-center justify-between rounded-lg px-3 py-1.5 transition hover:text-foreground"
               >
                 {group.label}
-                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !isOpen && "-rotate-90")} />
+                <ChevronDown className={cn("h-3 w-3 transition-transform", !isOpen && "-rotate-90")} />
               </button>
               {isOpen && (
-                <div className="mt-0.5 space-y-1">
+                <div className="mt-1 space-y-0.5">
                   {group.items.map(({ href, label, icon: Icon, enterprise }) => {
                     const active = pathname === href || pathname.startsWith(href + "/");
                     return (
@@ -130,14 +146,31 @@ export function Sidebar({ email, name, onNavigate }: { email?: string; name?: st
                         href={href}
                         onClick={onNavigate}
                         className={cn(
-                          "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition glow-ring",
+                          "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition",
                           active
-                            ? "bg-accent text-accent-foreground shadow-glow"
-                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                          enterprise && !active && "border border-primary/20 bg-primary/[0.04]",
+                            ? "bg-white/[0.05] text-foreground"
+                            : "text-muted-foreground hover:bg-white/[0.03] hover:text-foreground",
                         )}
                       >
-                        <Icon className={cn("h-[18px] w-[18px] shrink-0", (active || enterprise) && "text-primary")} />
+                        {/* Tirik vena — aktiv yo'l belgisi */}
+                        <span
+                          aria-hidden
+                          className={cn(
+                            "absolute left-0 top-1/2 h-5 w-px -translate-y-1/2 rounded-full transition-opacity",
+                            active ? "opacity-100" : "opacity-0 group-hover:opacity-40",
+                          )}
+                          style={{
+                            background:
+                              "linear-gradient(to bottom, hsl(var(--vein-cyan)), hsl(var(--vein-violet)))",
+                            boxShadow: active ? "0 0 8px hsl(var(--vein-cyan) / 0.55)" : undefined,
+                          }}
+                        />
+                        <Icon
+                          className={cn(
+                            "h-[17px] w-[17px] shrink-0 transition",
+                            active ? "text-foreground" : "text-muted-foreground/70 group-hover:text-foreground/80",
+                          )}
+                        />
                         {label}
                         {enterprise && (
                           <span
@@ -158,7 +191,7 @@ export function Sidebar({ email, name, onNavigate }: { email?: string; name?: st
                                 router.push("/pricing");
                               }
                             }}
-                            className="ml-auto rounded-full bg-primary/15 px-1.5 py-0.5 text-[11px] font-bold uppercase text-primary transition hover:bg-primary/30"
+                            className="vein-text ml-auto font-mono text-[10px] font-bold uppercase tracking-widest transition hover:opacity-80"
                           >
                             Pro
                           </span>
@@ -173,10 +206,10 @@ export function Sidebar({ email, name, onNavigate }: { email?: string; name?: st
         })}
       </nav>
 
-      <div className="space-y-2 border-t p-3">
+      <div className="space-y-2 border-t border-white/[0.06] p-3">
         <LanguageSwitcher />
         <div className="flex items-center gap-3 rounded-xl px-2 py-1">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+          <div className="liquid-glass flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-foreground/90">
             {initial}
           </div>
           <div className="min-w-0 flex-1">

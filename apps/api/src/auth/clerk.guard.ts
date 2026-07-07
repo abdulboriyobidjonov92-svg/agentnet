@@ -5,12 +5,17 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { verifyToken } from './token.util';
 
 /**
  * Lokal auth guard (Clerk'siz).
- * Frontend `Authorization: Bearer <userId>` yuboradi — bu userId SQLite'dagi
- * foydalanuvchi id'si. Guard shu foydalanuvchini topib, so'rovga biriktiradi.
- * Tashqi auth xizmatiga bog'liqlik yo'q — prototip uchun ishonchli.
+ * Frontend `Authorization: Bearer <token>` yuboradi — bu token server tomonda
+ * imzolangan JWT (login paytida beriladi). Guard imzoni tekshiradi, ichidan
+ * foydalanuvchi id'sini (sub) oladi va shu foydalanuvchini so'rovga biriktiradi.
+ *
+ * MUHIM: token endi shunchaki userId EMAS — imzosiz userId qabul qilinmaydi.
+ * Shu tufayli boshqa foydalanuvchining id'sini qo'yib uning hisobiga kirib
+ * bo'lmaydi (avvalgi zaiflik shu yerda hal qilingan).
  */
 @Injectable()
 export class ClerkGuard implements CanActivate {
@@ -18,10 +23,13 @@ export class ClerkGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    const userId = this.extractToken(request);
-    if (!userId) throw new UnauthorizedException('Token talab qilinadi');
+    const token = this.extractToken(request);
+    if (!token) throw new UnauthorizedException('Token talab qilinadi');
 
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const payload = verifyToken(token);
+    if (!payload) throw new UnauthorizedException("Token yaroqsiz yoki muddati o'tgan");
+
+    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
     if (!user) throw new UnauthorizedException('Foydalanuvchi topilmadi');
 
     request.dbUser = user;

@@ -1,7 +1,7 @@
 "use client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiClient } from "@/lib/api-client";
-import { Bot, Plus, Trash2, Settings, MessageSquare } from "lucide-react";
+import { Bot, Plus, Trash2, Settings, MessageSquare, Snowflake, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useT } from "@/lib/i18n/client";
@@ -30,6 +30,14 @@ export default function AgentsPage() {
     onError: () => {
       qc.invalidateQueries({ queryKey: ["agents"] });
       toast({ variant: "destructive", title: t("common.error") });
+    },
+  });
+
+  const reactivateMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/agents/${id}/reactivate`, {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["agents"] }),
+    onError: (e: any) => {
+      toast({ variant: "destructive", title: t("agents.frozenReactivateFailed"), description: e.message });
     },
   });
 
@@ -119,12 +127,28 @@ export default function AgentsPage() {
                 {agent.isPublished && (
                   <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">{t("nav.marketplace")}</span>
                 )}
+                {agent.frozen && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2 py-0.5 text-xs font-medium text-sky-500">
+                    <Snowflake className="h-3 w-3" /> {t("agents.frozen")}
+                  </span>
+                )}
               </div>
-              <Button asChild variant="subtle" className="mt-4 w-full">
-                <Link href={`/agents/${agent.id}`}>
-                  <MessageSquare /> {t("agents.chat")}
-                </Link>
-              </Button>
+              {agent.frozen ? (
+                <Button
+                  variant="outline"
+                  className="mt-4 w-full"
+                  onClick={() => reactivateMutation.mutate(agent.id)}
+                  disabled={reactivateMutation.isPending}
+                >
+                  <Wallet /> {t("agents.reactivate")}
+                </Button>
+              ) : (
+                <Button asChild variant="subtle" className="mt-4 w-full">
+                  <Link href={`/agents/${agent.id}`}>
+                    <MessageSquare /> {t("agents.chat")}
+                  </Link>
+                </Button>
+              )}
             </div>
           ))}
         </div>

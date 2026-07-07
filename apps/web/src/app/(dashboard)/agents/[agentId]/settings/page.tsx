@@ -29,8 +29,10 @@ export default function AgentSettingsPage({ params }: { params: Promise<{ agentI
     },
   });
 
+  // Shablonga aylantirish — narx YUBORILMAYDI: backend agentning o'zining
+  // allaqachon to'langan creation/monthly narxini saqlab qoladi (Y4).
   const publishMutation = useMutation({
-    mutationFn: () => api.post<any>(`/marketplace/${agentId}/publish`, { price: 0 }),
+    mutationFn: () => api.post<any>(`/marketplace/${agentId}/publish`, {}),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["agent", agentId] }),
   });
 
@@ -66,14 +68,14 @@ export default function AgentSettingsPage({ params }: { params: Promise<{ agentI
 
       <div className="rounded-2xl border bg-card p-6 shadow-soft">
         <h2 className="mb-1 font-semibold">{t("nav.marketplace")}</h2>
-        <p className="mb-4 text-sm text-muted-foreground">{t("market.subtitle")}</p>
+        <p className="mb-4 text-sm text-muted-foreground">{t("market.convertToTemplateDesc")}</p>
         {agent?.isPublished ? (
           <Button variant="outline" onClick={() => unpublishMutation.mutate()} disabled={unpublishMutation.isPending}>
             <EyeOff /> {t("market.installed")} ✓
           </Button>
         ) : (
           <Button onClick={() => publishMutation.mutate()} disabled={publishMutation.isPending}>
-            <Globe /> {t("market.builtin")}
+            <Globe /> {t("market.convertToTemplate")}
           </Button>
         )}
       </div>

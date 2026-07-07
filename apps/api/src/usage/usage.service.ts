@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import type { User } from '@prisma/client';
+import type { Prisma, User } from '@prisma/client';
 
 /**
  * Foydalanish limitlari va xarajat himoyasi.
@@ -91,11 +91,25 @@ export class UsageService {
     return row?.count ?? 0;
   }
 
-  private async bump(userId: string, kind: string, day: string): Promise<void> {
-    await this.prisma.usageCounter.upsert({
+  /**
+   * Atomik oshirish — yangi (oshirilgandan keyingi) qiymatni qaytaradi.
+   * Postgres'da bu `INSERT ... ON CONFLICT DO UPDATE ... RETURNING` ga aylanadi:
+   * `count = count + 1` bitta atomik operatsiya, poyga (race) yo'q.
+   */
+  private async bumpReturning(userId: string, kind: string, day: string): Promise<number> {
+    const row = await this.prisma.usageCounter.upsert({
       where: { userId_day_kind: { userId, day, kind } },
       create: { userId, day, kind, count: 1 },
       update: { count: { increment: 1 } },
+    });
+    return row.count;
+  }
+
+  /** Kompensatsiya: limitdan oshib ketgan (rad etilgan) so'rov uchun hisobni qaytaradi. */
+  private async decrement(userId: string, kind: string, day: string): Promise<void> {
+    await this.prisma.usageCounter.updateMany({
+      where: { userId, day, kind },
+      data: { count: { decrement: 1 } },
     });
   }
 
@@ -107,11 +121,18 @@ export class UsageService {
     const day = this.today();
     const limits = this.planLimits(this.effectivePlan(user));
 
+    // Naqsh: ATOMIK oshir → natijani tekshir → oshib ketgan bo'lsa qaytar.
+    // Avvalgi "o'qi-keyin-oshir" da ikki parallel so'rov bir xil qiymatni o'qib,
+    // ikkalasi ham limitdan o'tib ketardi (limit chetlab o'tiladi, pul yo'qoladi).
+    // Endi har so'rov O'ZINING oshirilgandan keyingi qiymatini tekshiradi —
+    // aynan bittasi o'tadi, poyga yo'q.
+
     // 1) Global himoya — platforma kunlik LLM chegarasi
-    const globalCount = await this.read(GLOBAL_KEY, 'llm', day);
-    if (globalCount >= this.globalCap) {
+    const globalAfter = await this.bumpReturning(GLOBAL_KEY, 'llm', day);
+    if (globalAfter > this.globalCap) {
+      await this.decrement(GLOBAL_KEY, 'llm', day); // slotni bo'shatamiz
       this.logger.error(
-        `GLOBAL LLM cap reached: ${globalCount}/${this.globalCap} (${day}) — barcha so'rovlar to'xtatildi`,
+        `GLOBAL LLM cap reached: ${this.globalCap}/${this.globalCap} (${day}) — barcha so'rovlar to'xtatildi`,
       );
       throw new HttpException(
         {
@@ -122,15 +143,12 @@ export class UsageService {
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
-    if (globalCount + 1 >= this.globalAlertAt) {
-      this.logger.warn(
-        `GLOBAL LLM usage ${globalCount + 1}/${this.globalCap} (${day}) — ogohlantirish chegarasidan o'tdi`,
-      );
-    }
-
     // 2) Per-user kunlik chat limiti
-    const userCount = await this.read(user.id, 'chat', day);
-    if (userCount >= limits.chatPerDay) {
+    const userAfter = await this.bumpReturning(user.id, 'chat', day);
+    if (userAfter > limits.chatPerDay) {
+      // Bu so'rov rad etildi — ikkala hisobni ham qaytaramiz
+      await this.decrement(user.id, 'chat', day);
+      await this.decrement(GLOBAL_KEY, 'llm', day);
       throw new HttpException(
         {
           message: `Kunlik xabar limitiga yetdingiz (${limits.chatPerDay}/kun). Ertaga yangilanadi.`,
@@ -142,17 +160,29 @@ export class UsageService {
       );
     }
 
-    // 3) Ikkala hisoblagichni oshiramiz (so'rov ruxsat etildi)
-    await this.bump(user.id, 'chat', day);
-    await this.bump(GLOBAL_KEY, 'llm', day);
+    // So'rov qabul qilindi — global ogohlantirish chegarasini faqat shu yerda
+    // tekshiramiz (rad etilgan so'rov global slotni band qilmagani uchun).
+    if (globalAfter >= this.globalAlertAt) {
+      this.logger.warn(
+        `GLOBAL LLM usage ${globalAfter}/${this.globalCap} (${day}) — ogohlantirish chegarasidan o'tdi`,
+      );
+    }
 
-    return { remaining: limits.chatPerDay - userCount - 1, plan: user.plan };
+    return { remaining: Math.max(0, limits.chatPerDay - userAfter), plan: user.plan };
   }
 
-  /** Agent yaratishdan oldin tarif chegarasini tekshiradi. */
-  async assertCanCreateAgent(user: User): Promise<void> {
+  /**
+   * Agent yaratishdan oldin tarif chegarasini tekshiradi.
+   * `client` — ixtiyoriy tranzaksiya-klienti: agent yaratish bilan bitta
+   * atomik tranzaksiyada (advisory lock ostida) chaqirilsa, "tekshir-keyin-yarat"
+   * poygasi yo'qoladi (parallel so'rovlar chegaradan oshib keta olmaydi).
+   */
+  async assertCanCreateAgent(
+    user: User,
+    client: Prisma.TransactionClient = this.prisma,
+  ): Promise<void> {
     const limits = this.planLimits(this.effectivePlan(user));
-    const count = await this.prisma.agent.count({ where: { userId: user.id } });
+    const count = await client.agent.count({ where: { userId: user.id } });
     if (count >= limits.agentsMax) {
       throw new ForbiddenException({
         message: `Agent yaratish chegarasiga yetdingiz (${limits.agentsMax} ta). Ko'proq uchun tarifni yangilang.`,

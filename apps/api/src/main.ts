@@ -6,7 +6,19 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.enableCors({ origin: process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000' });
+  // CORS — dev'da har qanday localhost porti (3000 real app, 3100 preview, ...),
+  // prod'da faqat aniq belgilangan origin. Login fetch shu ro'yxatdan o'tadi.
+  const explicitOrigin = process.env.NEXT_PUBLIC_APP_URL;
+  app.enableCors({
+    origin: (origin, callback) => {
+      // Server-to-server yoki curl (origin yo'q) — ruxsat
+      if (!origin) return callback(null, true);
+      const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+      if (isLocalhost || origin === explicitOrigin) return callback(null, true);
+      return callback(new Error(`CORS: ${origin} ruxsat etilmagan`), false);
+    },
+    credentials: true,
+  });
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 

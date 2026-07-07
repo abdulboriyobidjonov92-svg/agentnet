@@ -44,11 +44,11 @@ export default async function HomePage() {
         </div>
       </header>
 
-      {/* ===== Hero — ultra-cinematic sahna: MacBook + iPhone + iPad, hologram
-           agentlar; markaziy shar YO'Q (reference kompozitsiyasi) ===== */}
+      {/* ===== Hero — ultra-cinematic sahna: MacBook + iPhone + iPad,
+           markazda obsidian shar, hologram agentlar (reference rasmlar) ===== */}
       <section className="hero-cinematic relative overflow-hidden">
-        {/* Halal belgisi — yuqori chap */}
-        <div className="absolute left-4 top-4 z-20 sm:left-8 sm:top-6">
+        {/* Halal belgisi — sahna chapida, laptop yonida (reference) */}
+        <div className="absolute left-[3%] top-[52%] z-20 hidden animate-float-slow md:block lg:left-[6%]">
           <HalalBadge />
         </div>
 
@@ -83,7 +83,7 @@ export default async function HomePage() {
         </div>
 
         {/* 3D sahna — qurilmalar + hologramlar (lazy, reduced-motion fallback) */}
-        <CinematicHero className="relative z-10 mx-auto h-[380px] w-full max-w-6xl sm:h-[480px] lg:h-[560px]" />
+        <CinematicHero className="relative z-10 mx-auto h-[440px] w-full max-w-6xl sm:h-[500px] lg:h-[580px]" />
 
         {/* Stats — sahna ostida */}
         <div className="relative z-10 mx-auto grid max-w-3xl grid-cols-3 border-t border-white/10 px-4 pb-10 pt-6 sm:px-6">

@@ -22,13 +22,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html
       lang={locale}
       suppressHydrationWarning
+      data-scroll-behavior="smooth"
       className={`${GeistSans.variable} ${GeistMono.variable}`}
     >
       <head>
-        {/* Deep space (dark) — asosiy rejim; foydalanuvchi tanlagan bo'lsa light */}
+        {/* Liquid Obsidian — yagona rejim: chuqur qora. Light bekor qilindi. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('agentnet_theme');if(t!=='light'){document.documentElement.classList.add('dark')}}catch(e){document.documentElement.classList.add('dark')}`,
+            __html: `document.documentElement.classList.add('dark')`,
           }}
         />
       </head>

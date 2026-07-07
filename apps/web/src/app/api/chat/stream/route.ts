@@ -8,6 +8,14 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const engineUrl = process.env.AGENT_ENGINE_URL ?? "http://localhost:8000";
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+  // Ichki (server-to-server) kalit — /billing/refund balansni OSHIRADI, shuning
+  // uchun InternalTokenGuard bilan himoyalangan; faqat shu BFF chaqira oladi.
+  const internalToken = process.env.INTERNAL_API_TOKEN ?? "agentnet-internal-dev";
+
+  // Imzolangan token — barcha API (usage/billing) chaqiruvlari uchun. Token
+  // bo'lmasa foydalanuvchi qayta kirishi kerak (eski, imzosiz sessiya).
+  if (!session.token) return new Response("Unauthorized", { status: 401 });
+  const authHeader = `Bearer ${session.token}`;
 
   // Rate limit / xarajat himoyasi — LLM'ga o'tishdan OLDIN kunlik+global limitni
   // NestJS'da tekshiramiz va hisoblaymiz. 429 bo'lsa oqim boshlanmaydi.
@@ -16,7 +24,7 @@ export async function POST(req: NextRequest) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${session.userId}`,
+        Authorization: authHeader,
       },
     });
     if (limitRes.status === 429) {
@@ -39,7 +47,7 @@ export async function POST(req: NextRequest) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${session.userId}`,
+      Authorization: authHeader,
     },
   }).catch(() => null);
 
@@ -73,7 +81,7 @@ export async function POST(req: NextRequest) {
     // Xizmat ko'rsatilmadi — to'langan pulni qaytaramiz
     fetch(`${apiUrl}/api/billing/refund`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.userId}` },
+      headers: { "Content-Type": "application/json", Authorization: authHeader, "x-internal-token": internalToken },
       body: JSON.stringify({ reason: "engine_unreachable" }),
     }).catch(() => {});
     return new Response(
@@ -85,7 +93,7 @@ export async function POST(req: NextRequest) {
   if (!upstream.ok || !upstream.body) {
     fetch(`${apiUrl}/api/billing/refund`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.userId}` },
+      headers: { "Content-Type": "application/json", Authorization: authHeader, "x-internal-token": internalToken },
       body: JSON.stringify({ reason: "engine_error" }),
     }).catch(() => {});
     return new Response(

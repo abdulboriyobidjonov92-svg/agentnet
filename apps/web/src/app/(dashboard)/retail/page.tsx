@@ -3,10 +3,27 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiClient } from "@/lib/api-client";
 import { useT } from "@/lib/i18n/client";
-import { Camera, ShoppingCart, Package, BellRing, Loader2, Send, AlertTriangle } from "lucide-react";
+import { Camera, ShoppingCart, Package, BellRing, Loader2, Send, AlertTriangle, TrendingDown, Check, X, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ErrorState } from "@/components/ui/error-state";
+
+type ProductForecast = {
+  sku: string;
+  name: string;
+  stock: number;
+  dailyVelocity: number;
+  daysUntilStockout: number | null;
+  stockoutDate: string | null;
+  urgency: "critical" | "warning" | "ok" | "stale";
+};
+
+const URGENCY_STYLE: Record<ProductForecast["urgency"], string> = {
+  critical: "bg-destructive/15 text-destructive",
+  warning: "bg-amber-500/15 text-amber-500",
+  ok: "bg-emerald-500/15 text-emerald-500",
+  stale: "bg-secondary text-muted-foreground",
+};
 
 /**
  * S4: Retail Intelligence — kamera+inventar fuziyasi UI.
@@ -21,14 +38,24 @@ export default function RetailPage() {
   const [visionSku, setVisionSku] = useState("");
   const [channel, setChannel] = useState("telegram");
   const [target, setTarget] = useState("");
+  const [compSku, setCompSku] = useState("");
+  const [compName, setCompName] = useState("");
+  const [compUrl, setCompUrl] = useState("");
+  const [compPrice, setCompPrice] = useState("");
 
   const { data: products, isError: productsError, refetch: refetchProducts } = useQuery({ queryKey: ["retail-products"], queryFn: () => api.get<any[]>("/retail/products") });
   const { data: alerts } = useQuery({ queryKey: ["retail-alerts"], queryFn: () => api.get<any[]>("/retail/alerts"), refetchInterval: 5000 });
   const { data: settings } = useQuery({ queryKey: ["retail-settings"], queryFn: () => api.get<any>("/retail/settings") });
+  const { data: forecast } = useQuery({ queryKey: ["retail-forecast"], queryFn: () => api.get<{ products: ProductForecast[] }>("/retail/forecast") });
+  const { data: reorderPlan, refetch: refetchReorderPlan } = useQuery({ queryKey: ["retail-reorder-plan"], queryFn: () => api.get<{ drafts: any[] }>("/retail/reorder-plan") });
+  const { data: compSources } = useQuery({ queryKey: ["retail-competitors"], queryFn: () => api.get<any[]>("/retail/competitors") });
+  const { data: compChecks } = useQuery({ queryKey: ["retail-competitor-checks"], queryFn: () => api.get<any[]>("/retail/competitors/checks") });
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["retail-products"] });
     qc.invalidateQueries({ queryKey: ["retail-alerts"] });
+    qc.invalidateQueries({ queryKey: ["retail-forecast"] });
+    qc.invalidateQueries({ queryKey: ["retail-reorder-plan"] });
   };
 
   const seedMutation = useMutation({ mutationFn: () => api.post("/retail/seed-demo", {}), onSuccess: invalidate });
@@ -45,11 +72,121 @@ export default function RetailPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["retail-settings"] }),
   });
 
+  const approveMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/retail/reorder-plan/${id}/confirm`, {}),
+    onSuccess: () => refetchReorderPlan(),
+  });
+  const rejectMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/retail/reorder-plan/${id}/cancel`, {}),
+    onSuccess: () => refetchReorderPlan(),
+  });
+
+  const addCompMutation = useMutation({
+    mutationFn: () =>
+      api.post("/retail/competitors", {
+        sku: compSku,
+        name: compName,
+        url: compUrl || undefined,
+        manualPrice: compPrice ? Number(compPrice) : undefined,
+      }),
+    onSuccess: () => {
+      setCompName("");
+      setCompUrl("");
+      setCompPrice("");
+      qc.invalidateQueries({ queryKey: ["retail-competitors"] });
+    },
+  });
+  const checkNowMutation = useMutation({
+    mutationFn: () => api.post("/retail/competitors/check-now", {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["retail-competitor-checks"] });
+      qc.invalidateQueries({ queryKey: ["retail-alerts"] });
+    },
+  });
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">{t("retail.title")}</h1>
         <p className="mt-1 max-w-2xl text-muted-foreground">{t("retail.subtitle")}</p>
+      </div>
+
+      {/* Bashorat: har tovar necha kunda tugaydi */}
+      <div className="rounded-2xl border bg-card p-5 shadow-soft">
+        <h2 className="mb-3 inline-flex items-center gap-2 font-semibold"><TrendingDown className="h-4 w-4 text-primary" /> {t("retail.forecast")}</h2>
+        {!forecast?.products?.length ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">{t("retail.forecast.empty")}</p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {forecast.products.map((f) => (
+              <div key={f.sku} className="rounded-xl border p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{f.name}</p>
+                    <p className="font-mono text-xs text-muted-foreground">{f.sku}</p>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${URGENCY_STYLE[f.urgency]}`}>
+                    {t(`retail.forecast.status.${f.urgency}`)}
+                  </span>
+                </div>
+                <div className="mt-3 flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{t("retail.forecast.stock")}: <span className="font-semibold text-foreground">{f.stock}</span></span>
+                  <span className="text-muted-foreground">
+                    {t("retail.forecast.days")}: <span className="font-semibold text-foreground">{f.daysUntilStockout ?? "—"}</span>
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Avtonom buyurtma qoralamalari — egasi tasdiqlamaguncha yuborilmaydi */}
+      <div className="rounded-2xl border bg-card p-5 shadow-soft">
+        <h2 className="mb-3 inline-flex items-center gap-2 font-semibold"><Package className="h-4 w-4 text-primary" /> {t("retail.reorder")}</h2>
+        {!reorderPlan?.drafts?.length ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">{t("retail.reorder.empty")}</p>
+        ) : (
+          <div className="space-y-3">
+            {reorderPlan.drafts.map((d: any) => (
+              <div key={d.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold">{d.name}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${URGENCY_STYLE[d.urgency as ProductForecast["urgency"]]}`}>
+                      {t(`retail.forecast.status.${d.urgency}`)}
+                    </span>
+                    <span className="rounded-full bg-secondary px-2 py-0.5 text-xs">{d.orderQty} {t("retail.reorder.qty")}</span>
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">{d.message}</p>
+                </div>
+                {d.status === "pending" ? (
+                  <div className="flex shrink-0 gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => approveMutation.mutate(d.id)}
+                      disabled={approveMutation.isPending || rejectMutation.isPending}
+                    >
+                      <Check className="mr-1 h-3.5 w-3.5" /> {t("retail.reorder.approve")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => rejectMutation.mutate(d.id)}
+                      disabled={approveMutation.isPending || rejectMutation.isPending}
+                    >
+                      <X className="mr-1 h-3.5 w-3.5" /> {t("retail.reorder.reject")}
+                    </Button>
+                  </div>
+                ) : (
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${d.status === "approved" ? "bg-emerald-500/15 text-emerald-500" : "bg-secondary text-muted-foreground"}`}>
+                    {d.status === "approved" ? t("retail.reorder.approved") : t("retail.reorder.rejected")}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -175,6 +312,69 @@ export default function RetailPage() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Raqobatchi narx monitoringi — kunlik cron + qo'lda tekshirish */}
+      <div className="rounded-2xl border bg-card p-5 shadow-soft">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="inline-flex items-center gap-2 font-semibold"><Store className="h-4 w-4 text-primary" /> {t("retail.competitors")}</h2>
+          <Button variant="outline" size="sm" onClick={() => checkNowMutation.mutate()} disabled={checkNowMutation.isPending}>
+            {checkNowMutation.isPending ? "…" : t("retail.competitors.checkNow")}
+          </Button>
+        </div>
+
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row">
+          <select value={compSku} onChange={(e) => setCompSku(e.target.value)} className="rounded-xl border bg-background px-3 py-2 text-sm outline-none">
+            <option value="">SKU…</option>
+            {products?.map((p) => <option key={p.sku} value={p.sku}>{p.sku} — {p.name}</option>)}
+          </select>
+          <Input value={compName} onChange={(e) => setCompName(e.target.value)} placeholder={t("retail.competitors.name")} className="sm:w-40" />
+          <Input value={compUrl} onChange={(e) => setCompUrl(e.target.value)} placeholder={t("retail.competitors.url")} className="flex-1" />
+          <Input value={compPrice} onChange={(e) => setCompPrice(e.target.value)} placeholder={t("retail.competitors.manualPrice")} type="number" className="sm:w-40" />
+          <Button
+            onClick={() => addCompMutation.mutate()}
+            disabled={addCompMutation.isPending || !compSku || !compName || (!compUrl && !compPrice)}
+          >
+            {t("retail.competitors.add")}
+          </Button>
+        </div>
+
+        {!compSources?.length ? (
+          <p className="py-4 text-center text-sm text-muted-foreground">{t("retail.competitors.empty")}</p>
+        ) : (
+          <table className="mb-4 w-full text-sm">
+            <tbody>
+              {compSources.map((s) => (
+                <tr key={s.id} className="border-t">
+                  <td className="py-2 font-mono text-xs text-muted-foreground">{s.sku}</td>
+                  <td className="py-2 font-medium">{s.name}</td>
+                  <td className="py-2 text-right text-xs text-muted-foreground">
+                    {s.url ?? (s.manualPrice ? `${Math.round(s.manualPrice / 100)} so'm` : "—")}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        <div className="border-t pt-3">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">{t("retail.competitors.checks")}</p>
+          {!compChecks?.length ? (
+            <p className="py-2 text-center text-sm text-muted-foreground">{t("retail.competitors.checks.empty")}</p>
+          ) : (
+            <div className="space-y-1.5">
+              {compChecks.slice(0, 8).map((c: any) => (
+                <div key={c.id} className="flex items-center justify-between text-xs">
+                  <span className="font-mono text-muted-foreground">{c.sku}</span>
+                  <span className={c.ok ? "text-foreground" : "text-destructive"}>
+                    {c.ok ? `${c.price != null ? Math.round(c.price / 100) + " so'm" : "—"}` : c.error}
+                  </span>
+                  <span className="text-muted-foreground">{new Date(c.checkedAt).toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

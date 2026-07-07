@@ -162,6 +162,114 @@ export function RetailOwnerHologram({ position = [1.7, 1.2, -1.1] as [number, nu
   );
 }
 
+/** Yuk mashinasi — reference'dagi pastki-o'ng logistika fura (oltin-cyan) */
+export function CargoTruckHologram({ position = [3.6, 0.5, 0.9] as [number, number, number] }) {
+  const bodyMat = useMemo(() => holoMaterial(CYAN, 0.26), []);
+  const wireMat = useMemo(() => {
+    const m = holoMaterial(CYAN, 0.12);
+    m.wireframe = true;
+    return m;
+  }, []);
+  const goldMat = useMemo(() => holoMaterial(GOLD, 0.4), []);
+
+  return (
+    <HoloFloat position={position} speed={0.7} materials={[bodyMat, wireMat, goldMat]}>
+      <group rotation={[0, -0.5, 0]} scale={0.85}>
+        {/* Treyler */}
+        <mesh position={[-0.35, 0.34, 0]} material={bodyMat}>
+          <boxGeometry args={[1.15, 0.5, 0.45]} />
+        </mesh>
+        <mesh position={[-0.35, 0.34, 0]} material={wireMat}>
+          <boxGeometry args={[1.18, 0.53, 0.48]} />
+        </mesh>
+        {/* Kabina */}
+        <mesh position={[0.45, 0.26, 0]} material={goldMat}>
+          <boxGeometry args={[0.38, 0.34, 0.42]} />
+        </mesh>
+        {/* G'ildiraklar */}
+        {[-0.75, -0.15, 0.45].map((x) => (
+          <mesh key={x} position={[x, 0.09, 0.2]} rotation={[Math.PI / 2, 0, 0]} material={bodyMat}>
+            <torusGeometry args={[0.09, 0.03, 8, 18]} />
+          </mesh>
+        ))}
+        {/* Faralar nuri */}
+        <mesh position={[0.75, 0.2, 0]} rotation={[0, 0, -Math.PI / 2]} material={wireMat}>
+          <coneGeometry args={[0.14, 0.5, 12, 1, true]} />
+        </mesh>
+      </group>
+    </HoloFloat>
+  );
+}
+
+/** Kamera — reference'dagi yuqori kuzatuv/retail kamerasi */
+export function CameraHologram({ position = [1.4, 3.3, -1.8] as [number, number, number] }) {
+  const bodyMat = useMemo(() => holoMaterial(CYAN, 0.3), []);
+  const wireMat = useMemo(() => {
+    const m = holoMaterial(CYAN, 0.13);
+    m.wireframe = true;
+    return m;
+  }, []);
+  const lensMat = useMemo(() => holoMaterial("#9adfef", 0.55), []);
+
+  return (
+    <HoloFloat position={position} speed={1.1} materials={[bodyMat, wireMat, lensMat]}>
+      <group rotation={[0, -0.4, 0]} scale={0.8}>
+        <mesh material={bodyMat}>
+          <boxGeometry args={[0.5, 0.3, 0.26]} />
+        </mesh>
+        <mesh material={wireMat}>
+          <boxGeometry args={[0.53, 0.33, 0.29]} />
+        </mesh>
+        {/* Obyektiv */}
+        <mesh position={[0.32, 0, 0]} rotation={[0, 0, -Math.PI / 2]} material={bodyMat}>
+          <cylinderGeometry args={[0.11, 0.13, 0.16, 16]} />
+        </mesh>
+        <mesh position={[0.41, 0, 0]} rotation={[0, Math.PI / 2, 0]} material={lensMat}>
+          <circleGeometry args={[0.09, 16]} />
+        </mesh>
+      </group>
+    </HoloFloat>
+  );
+}
+
+/** Statistika paneli — reference'dagi o'ng tomondagi bar-chart + belgi */
+export function ChartPanelHologram({ position = [4.3, 1.6, -1.6] as [number, number, number] }) {
+  const frameMat = useMemo(() => holoMaterial(EMERALD, 0.2), []);
+  const barMat = useMemo(() => holoMaterial(EMERALD, 0.5), []);
+  const checkMat = useMemo(() => holoMaterial("#7CFC9B", 0.6), []);
+  const bars = [0.16, 0.3, 0.22, 0.42, 0.34, 0.52];
+
+  return (
+    <HoloFloat position={position} speed={0.9} materials={[frameMat, barMat, checkMat]}>
+      <group rotation={[0, -0.55, 0]}>
+        {/* Panel romi */}
+        <mesh material={frameMat}>
+          <planeGeometry args={[1.0, 0.66]} />
+        </mesh>
+        {/* Barlar */}
+        {bars.map((h, i) => (
+          <mesh key={i} position={[-0.36 + i * 0.145, -0.28 + h / 2, 0.01]} material={barMat}>
+            <planeGeometry args={[0.09, h]} />
+          </mesh>
+        ))}
+        {/* Tasdiq belgisi — pastki panel */}
+        <group position={[0, -0.55, 0]}>
+          <mesh material={frameMat}>
+            <planeGeometry args={[0.5, 0.3]} />
+          </mesh>
+          <Line
+            points={[[-0.1, -0.02, 0.01], [-0.02, -0.09, 0.01], [0.12, 0.08, 0.01]]}
+            color="#7CFC9B"
+            lineWidth={2.5}
+            transparent
+            opacity={0.85}
+          />
+        </group>
+      </group>
+    </HoloFloat>
+  );
+}
+
 export function LogisticsDrone({ position = [3.4, 2.3, -0.8] as [number, number, number] }) {
   const bodyMat = useMemo(() => holoMaterial(CYAN, 0.34), []);
   const goldMat = useMemo(() => holoMaterial(GOLD, 0.5), []);

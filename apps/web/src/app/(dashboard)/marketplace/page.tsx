@@ -150,6 +150,27 @@ export default function MarketplacePage() {
               ))}
             </div>
           )}
+
+          {/* Y5: yaratuvchi bonusi — har yangi xaridorning birinchi to'lovida bir martalik, HAQIQIY balansga */}
+          {!!creator.creatorBonus?.totalTiyin && (
+            <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">{t("market.creatorBonus")}</p>
+                <p className="text-lg font-bold text-primary">{creator.creatorBonus.totalSom.toLocaleString()} so'm</p>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{creator.creatorBonus.note}</p>
+              {!!creator.creatorBonus.payouts?.length && (
+                <div className="mt-2 max-h-32 overflow-auto text-xs">
+                  {creator.creatorBonus.payouts.map((p: any) => (
+                    <div key={p.id} className="flex justify-between py-0.5">
+                      <span className="text-muted-foreground">{new Date(p.paidAt).toLocaleDateString()}</span>
+                      <span className="text-emerald-500">+{(p.bonusAmountTiyin / 100).toLocaleString()} so'm</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <p className="mt-2 text-xs text-muted-foreground">{creator.payout_note}</p>
         </div>
       )}

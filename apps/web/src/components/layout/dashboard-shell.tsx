@@ -1,10 +1,19 @@
 "use client";
+// SHELL — Liquid Obsidian qobig'i. Barcha dashboard sahifalari mutlaq qora
+// bo'shliq (SceneCanvas tumani) ustida suzadi; pastda Waveform "tinglaydi".
+
 import { useState } from "react";
-import { Menu, X, Sparkles } from "lucide-react";
+import dynamic from "next/dynamic";
+import { Menu, X } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { BalanceWidget } from "@/components/billing/balance-widget";
+import { Waveform } from "@/components/neuro/waveform";
+
+// Tuman — faqat klientda; SSR paytida sof qora bo'shliq qoladi
+const SceneCanvas = dynamic(() => import("@/components/neuro/scene-canvas"), {
+  ssr: false,
+});
 
 export function DashboardShell({
   email,
@@ -18,16 +27,21 @@ export function DashboardShell({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* Desktop sidebar */}
-      <div className="hidden lg:block">
+    <div className="relative flex h-screen bg-black">
+      <SceneCanvas />
+
+      {/* Desktop rail */}
+      <div className="relative z-10 hidden lg:block">
         <Sidebar email={email} name={name} />
       </div>
 
-      {/* Mobile drawer */}
+      {/* Mobil drawer */}
       {open && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => setOpen(false)} />
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setOpen(false)}
+          />
           <div className="absolute left-0 top-0 h-full">
             <Sidebar email={email} name={name} onNavigate={() => setOpen(false)} />
           </div>
@@ -43,19 +57,19 @@ export function DashboardShell({
         </div>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* Top bar */}
-        <header className="flex h-14 shrink-0 items-center justify-between border-b glass px-4 sm:px-6">
-          <div className="flex items-center gap-2 font-bold lg:hidden">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
-              <Sparkles className="h-4 w-4 text-primary-foreground" />
-            </div>
+      <div className="relative z-10 flex min-w-0 flex-1 flex-col">
+        {/* Yuqori chiziq — minimal, shaffof shisha */}
+        <header className="glass-dark flex h-14 shrink-0 items-center justify-between border-b border-white/[0.06] px-4 sm:px-6">
+          <div className="label-mono flex items-center gap-3 lg:hidden">
+            <span
+              className="heartbeat inline-block h-1.5 w-1.5 rounded-full"
+              style={{ background: "hsl(var(--vein-cyan))", boxShadow: "0 0 10px hsl(var(--vein-cyan) / 0.6)" }}
+            />
             AgentNet
           </div>
           <div className="hidden lg:block" />
           <div className="flex items-center gap-2">
             <BalanceWidget />
-            <ThemeToggle />
             <Button
               variant="outline"
               size="icon-sm"
@@ -68,9 +82,14 @@ export function DashboardShell({
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto scroll-thin">
-          <div className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">{children}</div>
+        <main className="scroll-thin flex-1 overflow-auto">
+          <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">{children}</div>
         </main>
+
+        {/* AI tinglayapti — doim harakatdagi chiziq */}
+        <div className="pointer-events-none relative z-10 -mt-12 shrink-0">
+          <Waveform />
+        </div>
       </div>
     </div>
   );

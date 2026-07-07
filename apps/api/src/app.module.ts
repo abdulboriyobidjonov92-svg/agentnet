@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { CryptoModule } from './crypto/crypto.module';
 import { AgentsModule } from './agents/agents.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { UsersModule } from './users/users.module';
@@ -21,6 +23,7 @@ import { GovtechModule } from './govtech/govtech.module';
 import { TradeModule } from './trade/trade.module';
 import { UsageModule } from './usage/usage.module';
 import { BillingModule } from './billing/billing.module';
+import { TemplatesModule } from './templates/templates.module';
 
 @Module({
   imports: [
@@ -28,6 +31,7 @@ import { BillingModule } from './billing/billing.module';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     ScheduleModule.forRoot(),
     PrismaModule,
+    CryptoModule,
     AuthModule,
     UsersModule,
     AgentsModule,
@@ -46,6 +50,14 @@ import { BillingModule } from './billing/billing.module';
     TradeModule,
     UsageModule,
     BillingModule,
+    TemplatesModule,
+  ],
+  providers: [
+    // Global rate-limiting: har IP uchun 60s ichida 100 so'rov (ThrottlerModule
+    // config'i). Ilgari modul import qilingan-u, guard ro'yxatdan o'tmagandi —
+    // ya'ni limit AMALDA ishlamas edi. Server-to-server BFF endpointlari va
+    // webhooklar controller darajasida @SkipThrottle bilan chiqarib tashlangan.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule {}

@@ -6,6 +6,9 @@ export interface Session {
   email: string;
   phone?: string;
   name?: string;
+  // Server tomonda imzolangan token — API'ga `Authorization: Bearer <token>`
+  // sifatida yuboriladi. Guard shu tokenni tekshiradi.
+  token?: string;
 }
 
 const COOKIE = "agentnet_user";

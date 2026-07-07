@@ -70,6 +70,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         email: data.email,
         phone: data.phone ?? undefined,
         name: payload.name,
+        token: data.token,
       });
       // Yangi hisob → adaptiv onboarding; mavjud hisob → dashboard
       router.push(isSignUp || isNew ? "/onboarding" : "/dashboard");

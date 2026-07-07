@@ -3,293 +3,385 @@
 @tailwind utilities;
 
 /* ==========================================================================
-   AgentNet dizayn tizimi v3 — "Obsidian" (minimalist premium)
-   Yagona urg'u: arctic ko'k — FAQAT ingichka chiziq (Filament) sifatida,
-   hech qachon to'ldirish yoki nur emas. Chuqurlik glow bilan emas, qatlam
-   (elevation) + realistik soya bilan. Bitta oila: Geist. Bitta 3D lahza.
-   Eski neon/cyan/emerald yo'nalishi bekor qilindi.
-   Utility nomlari saqlanadi (markup buzilmasin), amalga oshirilishi yangi.
+   AgentNet dizayn tizimi v4 — "LIQUID OBSIDIAN" (Neuro-Liquid OS)
+
+   Qonunlar:
+   1) Fon — mutlaq qora (#000000). Global yorug'lik yo'q: yagona yorug'lik
+      manbai — foydalanuvchi kursori (spotlight) va tirik venalar.
+   2) Material — "Dark Matter Glass": blur(40px) saturate(180%),
+      rgba(10,10,10,0.6) to'ldirish, 1px rgba(255,255,255,0.08) qirra.
+   3) Raqam emas — holat. Statistika o'rniga tirik vizual signallar
+      (porlash kuchi, oqim tezligi, puls chastotasi).
+   4) Hech narsa qotib turmaydi — interfeys 60bpm da "nafas oladi".
+
+   Light rejim bekor qilindi: bu OS faqat tunda yashaydi.
+   Utility nomlari saqlanadi (eski markup buzilmasin), mazmuni yangi.
    ========================================================================== */
 
 @layer base {
-  :root {
-    /* Light — "porcelain" (iliq oq) */
-    --background: 40 20% 97%;
-    --surface-1: 0 0% 100%;
-    --surface-2: 40 16% 98%;
-    --surface-3: 40 12% 95%;
-    --card: 0 0% 100%;
-    --card-foreground: 230 18% 11%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 230 18% 11%;
-    --foreground: 230 18% 11%;
-    --muted: 40 14% 94%;
-    --muted-foreground: 230 8% 42%;
-    --secondary: 40 14% 95%;
-    --secondary-foreground: 230 16% 16%;
-    --accent: 40 14% 95%;
-    --accent-foreground: 230 16% 18%;
-    /* Asosiy amal — rang bilan emas, yorug'lik (luminance) bilan */
-    --primary: 230 18% 11%;
-    --primary-foreground: 40 22% 98%;
-    /* Yagona imzo urg'usi — Filament (arctic ko'k), faqat chiziq */
-    --accent-line: 200 72% 38%;
-    --ring: 200 72% 40%;
-    --destructive: 356 64% 46%;
-    --destructive-foreground: 0 0% 100%;
-    --ok: 150 42% 36%;
-    --warn: 38 70% 42%;
-    --danger: 356 64% 48%;
-    --border: 40 12% 88%;
-    --input: 40 12% 86%;
-    --radius: 0.75rem;
-
-    /* Eskirgan nomlar — neytrallashtirildi (lingering markup buzilmasin) */
-    --accent-gold: 230 8% 45%;
-    --accent-gold-foreground: 40 20% 98%;
-    --neon-cyan: 230 10% 40%;
-    --neon-emerald: 230 8% 44%;
-    --neon-violet: 230 8% 44%;
-    --neon-blue: 230 10% 42%;
-    --glass-brd: 230 14% 60%;
-
-    /* Motion — Apple-plausible */
-    --ease-premium: cubic-bezier(0.32, 0.72, 0, 1);
-    --dur-1: 120ms;
-    --dur-2: 220ms;
-    --dur-3: 380ms;
-  }
-
+  :root,
   .dark {
-    /* Obsidian — sovuq-neytral, deyarli qora */
-    --background: 230 8% 5%;
-    --surface-1: 230 7% 7%;
-    --surface-2: 228 7% 9%;
-    --surface-3: 228 7% 12%;
-    --card: 230 7% 7%;
-    --card-foreground: 220 14% 92%;
-    --popover: 228 8% 8%;
-    --popover-foreground: 220 14% 92%;
-    --foreground: 220 14% 92%;
-    --muted: 228 6% 12%;
-    --muted-foreground: 220 8% 56%;
-    --secondary: 228 7% 11%;
-    --secondary-foreground: 220 14% 90%;
-    --accent: 228 7% 12%;
-    --accent-foreground: 220 14% 90%;
-    /* Asosiy amal — near-white (kontrast orqali kuch) */
-    --primary: 220 22% 96%;
-    --primary-foreground: 230 10% 7%;
-    /* Filament — arctic ko'k (past to'yinganlik) */
-    --accent-line: 198 66% 60%;
-    --ring: 198 66% 60%;
-    --destructive: 356 62% 56%;
-    --destructive-foreground: 0 0% 100%;
-    --ok: 150 38% 52%;
-    --warn: 40 58% 56%;
-    --danger: 356 62% 58%;
-    --border: 228 8% 15%;
-    --input: 228 8% 15%;
+    /* --- Bo'shliq (The Void) --- */
+    --background: 0 0% 0%;
+    --surface-1: 0 0% 4%;
+    --surface-2: 0 0% 6%;
+    --surface-3: 0 0% 9%;
+    --card: 0 0% 4%;
+    --card-foreground: 222 28% 93%;
+    --popover: 0 0% 4%;
+    --popover-foreground: 222 28% 93%;
+    --foreground: 222 28% 93%;
+    --muted: 0 0% 7%;
+    --muted-foreground: 222 10% 58%;
+    --secondary: 0 0% 6%;
+    --secondary-foreground: 222 20% 90%;
+    --accent: 0 0% 8%;
+    --accent-foreground: 222 20% 92%;
 
-    --accent-gold: 220 12% 72%;
-    --accent-gold-foreground: 230 10% 8%;
-    --neon-cyan: 220 12% 78%;
-    --neon-emerald: 220 10% 72%;
-    --neon-violet: 220 10% 72%;
-    --neon-blue: 220 12% 78%;
-    --glass-brd: 220 20% 80%;
+    /* Asosiy amal — simob (mercury): rang emas, yorug'lik */
+    --primary: 214 32% 96%;
+    --primary-foreground: 0 0% 3%;
+
+    /* --- Bioluminessent venalar — yagona rang juftligi --- */
+    --vein-cyan: 188 100% 62%;
+    --vein-violet: 260 100% 70%;
+    --accent-line: 188 90% 58%;
+    --ring: 188 90% 58%;
+
+    --destructive: 356 70% 56%;
+    --destructive-foreground: 0 0% 100%;
+    --ok: 160 55% 48%;
+    --warn: 40 70% 56%;
+    --danger: 356 70% 58%;
+    --border: 0 0% 13%;
+    --input: 0 0% 13%;
+    --radius: 1rem;
+
+    /* Eskirgan nomlar — venalar tizimiga yo'naltirildi (markup buzilmasin) */
+    --accent-gold: 214 20% 78%;
+    --accent-gold-foreground: 0 0% 4%;
+    --neon-cyan: 188 100% 62%;
+    --neon-emerald: 160 70% 55%;
+    --neon-violet: 260 100% 70%;
+    --neon-blue: 210 100% 66%;
+    --glass-brd: 0 0% 100%;
+
+    /* Hero qatlami tokenlari — oltin CTA reference rasmlardan */
+    --bg-deep: 0 0% 0%;
+    --accent-cyan: 188 100% 62%;
+    --accent-emerald: 160 70% 55%;
+    --cta-gold: 42 88% 58%;
+    --hologram-alpha: 0.55;
+
+    /* --- Harakat fizikasi --- */
+    --ease-premium: cubic-bezier(0.32, 0.72, 0, 1);
+    --ease-liquid: cubic-bezier(0.23, 1, 0.32, 1);
+    --dur-1: 140ms;
+    --dur-2: 260ms;
+    --dur-3: 480ms;
+    --heartbeat: 1000ms; /* 60bpm — tizim yuragi */
   }
 }
 
 @layer base {
   * { @apply border-border; }
+
   html {
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     scroll-behavior: smooth;
+    color-scheme: dark;
   }
+
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "cv01", "ss01", "cv11";
     letter-spacing: -0.011em;
   }
+
   h1, h2, h3, h4, h5 {
     font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-    letter-spacing: -0.022em;
+    letter-spacing: -0.025em;
   }
-  ::selection { background: hsl(var(--accent-line) / 0.22); }
 
-  /* Universal, nozik mikro-interaksiya — bitta tizim, hamma joyda */
+  ::selection { background: hsl(var(--vein-cyan) / 0.25); }
+
+  /* Universal mikro-interaksiya — suyuq, bir tizim */
   button, [role="button"], a, summary {
     transition:
-      color var(--dur-2) var(--ease-premium),
-      background-color var(--dur-2) var(--ease-premium),
-      border-color var(--dur-2) var(--ease-premium),
-      box-shadow var(--dur-2) var(--ease-premium),
-      transform var(--dur-1) var(--ease-premium),
-      opacity var(--dur-2) var(--ease-premium);
+      color var(--dur-2) var(--ease-liquid),
+      background-color var(--dur-2) var(--ease-liquid),
+      border-color var(--dur-2) var(--ease-liquid),
+      box-shadow var(--dur-2) var(--ease-liquid),
+      transform var(--dur-1) var(--ease-liquid),
+      opacity var(--dur-2) var(--ease-liquid);
   }
   button:active:not(:disabled), [role="button"]:active {
-    transform: translateY(0.5px) scale(0.99);
+    transform: translateY(0.5px) scale(0.985);
   }
 
-  /* Fokus — Filament: 1px hairline, nur emas */
+  /* Fokus — vena chizig'i, nur emas */
   :where(input, textarea, select):focus-visible {
     outline: none;
-    border-color: hsl(var(--accent-line) / 0.75);
-    box-shadow: 0 0 0 1px hsl(var(--accent-line) / 0.55);
+    border-color: hsl(var(--vein-cyan) / 0.6);
+    box-shadow: 0 0 0 1px hsl(var(--vein-cyan) / 0.45);
   }
   :where(button, a, [role="button"]):focus-visible {
     outline: none;
-    box-shadow: 0 0 0 1px hsl(var(--accent-line) / 0.7);
+    box-shadow: 0 0 0 1px hsl(var(--vein-cyan) / 0.6);
   }
 }
 
 @layer utilities {
-  /* ---- Teksturalar (nozik) ---- */
+  /* =================================================================
+     MATERIAL: Dark Matter Glass (Glassmorphism 3.0)
+     ================================================================= */
+  .liquid-glass {
+    background: rgba(10, 10, 10, 0.6);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  /* Og'ir qatlam — modal/overlay uchun */
+  .liquid-glass-deep {
+    background: rgba(6, 6, 6, 0.78);
+    backdrop-filter: blur(52px) saturate(180%);
+    -webkit-backdrop-filter: blur(52px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+  }
+  /* Eski nomlar — endi Dark Matter (engilroq blur: katta maydonlar uchun) */
+  .glass {
+    background: rgba(10, 10, 10, 0.6);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+  }
+  .glass-dark {
+    background: rgba(4, 4, 4, 0.65);
+    backdrop-filter: blur(24px) saturate(150%);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+  }
+  .glass-panel {
+    background: rgba(10, 10, 10, 0.6);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.05),
+      0 24px 80px rgba(0, 0, 0, 0.55);
+  }
+  .hairline { border: 1px solid rgba(255, 255, 255, 0.08); }
+
+  /* =================================================================
+     MATERIAL: Mercury (suyuq metall) — asosiy amallar uchun
+     ================================================================= */
+  .mercury {
+    position: relative;
+    background: linear-gradient(180deg, #f7f9fc 0%, #d3d9e3 48%, #aab3c2 100%);
+    color: #06070a;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      inset 0 -6px 12px rgba(20, 26, 38, 0.25),
+      0 8px 32px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+  }
+  .mercury::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.55) 50%, transparent 65%);
+    transform: translateX(-120%);
+    transition: transform 700ms var(--ease-liquid);
+    pointer-events: none;
+  }
+  .mercury:hover::after { transform: translateX(120%); }
+  .mercury:hover {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      inset 0 -6px 14px rgba(20, 26, 38, 0.3),
+      0 12px 44px rgba(0, 0, 0, 0.7),
+      0 0 32px hsl(var(--vein-cyan) / 0.12);
+  }
+  /* Oltin CTA — landing hero uchun (reference: oltin tugma) */
+  .cta-gold {
+    background: linear-gradient(180deg, hsl(46 92% 64%) 0%, hsl(var(--cta-gold)) 55%, hsl(38 82% 46%) 100%);
+    color: hsl(35 60% 10%);
+    box-shadow:
+      0 4px 24px hsl(var(--cta-gold) / 0.35),
+      inset 0 1px 0 hsl(48 90% 76% / 0.65);
+  }
+  .cta-gold:hover {
+    box-shadow:
+      0 6px 34px hsl(var(--cta-gold) / 0.5),
+      inset 0 1px 0 hsl(48 90% 80% / 0.75);
+  }
+
+  /* =================================================================
+     TIPOGRAFIKA
+     ================================================================= */
+  .label-mono {
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    font-size: 0.6875rem;
+    line-height: 1.3;
+    text-transform: uppercase;
+    letter-spacing: 0.24em;
+    color: hsl(var(--muted-foreground));
+  }
+  .type-display { font-size: clamp(2.25rem, 5vw, 3.5rem); line-height: 1.05; letter-spacing: -0.03em; font-weight: 600; }
+  .type-h1 { font-size: clamp(1.75rem, 3.4vw, 2.5rem); line-height: 1.1; letter-spacing: -0.026em; font-weight: 600; }
+  .type-h2 { font-size: clamp(1.375rem, 2.4vw, 1.75rem); line-height: 1.2; letter-spacing: -0.02em; font-weight: 600; }
+  .type-body { font-size: 1rem; line-height: 1.6; }
+  .type-caption { font-size: 0.75rem; line-height: 1.45; letter-spacing: 0.02em; }
+  .nums { font-family: var(--font-geist-mono), ui-monospace, monospace; font-feature-settings: "tnum" 1; letter-spacing: -0.01em; }
+
+  /* Vena gradienti bilan matn — kamdan-kam, imzo joylarda */
+  .vein-text,
+  .text-gradient-animated {
+    background: linear-gradient(100deg, hsl(var(--vein-cyan)), hsl(var(--vein-violet)));
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: transparent;
+  }
+  .text-gradient {
+    background: linear-gradient(180deg, hsl(var(--foreground)), hsl(var(--foreground) / 0.55));
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: transparent;
+  }
+  .hologram-text { color: hsl(var(--vein-cyan)); text-shadow: 0 0 14px hsl(var(--vein-cyan) / 0.55); }
+  .text-line { color: hsl(var(--accent-line)); }
+
+  /* Rang yordamchilari (eski nomlar) */
+  .text-gold { color: hsl(var(--accent-gold)); }
+  .bg-gold { background-color: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+  .border-gold { border-color: rgba(255, 255, 255, 0.14); }
+  .text-neon { color: hsl(var(--vein-cyan)); }
+  .text-emeraldx { color: hsl(var(--neon-emerald)); }
+  .text-violetx { color: hsl(var(--vein-violet)); }
+
+  /* =================================================================
+     YORUG'LIK: soyalar chuqur, porlash faqat venadan
+     ================================================================= */
+  .shadow-soft { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.4); }
+  .shadow-lift { box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), 0 16px 48px rgba(0, 0, 0, 0.6); }
+  .shadow-glow {
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.5),
+      0 24px 80px rgba(0, 0, 0, 0.65),
+      0 0 48px hsl(var(--vein-cyan) / 0.05);
+  }
+  .shadow-gold-glow, .shadow-emerald-glow, .shadow-violet-glow {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), 0 24px 80px rgba(0, 0, 0, 0.65);
+  }
+  .glow-ring:hover { border-color: rgba(255, 255, 255, 0.16); }
+
+  /* Vena qirrasi — tirik element belgisi */
+  .vein-edge {
+    box-shadow:
+      inset 0 0 0 1px hsl(var(--vein-cyan) / 0.22),
+      0 0 24px hsl(var(--vein-cyan) / 0.08);
+  }
+  .edge-cyan { box-shadow: inset 0 0 0 1px hsl(var(--vein-cyan) / 0.35); }
+  .edge-emerald { box-shadow: inset 0 0 0 1px hsl(var(--neon-emerald) / 0.35); }
+
+  /* =================================================================
+     TEKSTURA va ATMOSFERA
+     ================================================================= */
   .bg-dot-grid {
-    background-image: radial-gradient(hsl(var(--foreground) / 0.045) 1px, transparent 1px);
-    background-size: 24px 24px;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    background-size: 28px 28px;
   }
   .bg-grid-lines {
     background-image:
-      linear-gradient(hsl(var(--foreground) / 0.035) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--foreground) / 0.035) 1px, transparent 1px);
-    background-size: 48px 48px;
+      linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+  .aurora { position: relative; overflow: hidden; }
+  .aurora::before {
+    content: ""; position: absolute; inset: 0; z-index: 0;
+    background:
+      radial-gradient(70% 50% at 30% 0%, hsl(var(--vein-cyan) / 0.05), transparent 65%),
+      radial-gradient(60% 50% at 80% 100%, hsl(var(--vein-violet) / 0.045), transparent 65%);
+  }
+  .hero-cinematic {
+    background:
+      radial-gradient(120% 90% at 50% 0%, hsl(var(--vein-cyan) / 0.05), transparent 55%),
+      radial-gradient(90% 70% at 85% 85%, hsl(var(--vein-violet) / 0.045), transparent 60%),
+      #000000;
+    color: hsl(214 32% 96%);
+  }
+  .hero-floor-reflection {
+    background: linear-gradient(to bottom, hsl(var(--vein-cyan) / 0.09), transparent 70%);
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent);
   }
 
-  /* ---- Rang yordamchilari (neytrallashtirildi) ---- */
-  .text-gold { color: hsl(var(--muted-foreground)); }
-  .bg-gold { background-color: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
-  .border-gold { border-color: hsl(var(--border)); }
-  .text-neon, .text-emeraldx, .text-violetx { color: hsl(var(--foreground)); }
-  /* Yagona urg'u chizig'i rangi (kamdan-kam, faqat chiziq/edge) */
-  .text-line { color: hsl(var(--accent-line)); }
-
-  /* ---- Realistik qatlamli soyalar (glow yo'q) ---- */
-  .shadow-soft {
-    box-shadow:
-      0 1px 2px hsl(0 0% 0% / 0.18),
-      0 1px 1px hsl(0 0% 0% / 0.12);
-  }
-  .shadow-lift {
-    box-shadow:
-      0 1px 2px hsl(0 0% 0% / 0.20),
-      0 8px 24px hsl(0 0% 0% / 0.28);
-  }
-  .shadow-glow,
-  .shadow-gold-glow,
-  .shadow-emerald-glow,
-  .shadow-violet-glow {
-    box-shadow:
-      0 1px 2px hsl(0 0% 0% / 0.22),
-      0 12px 40px hsl(0 0% 0% / 0.34);
-  }
-
-  /* ---- Suyuq shisha (frosted) — nozik, hairline chegara ---- */
-  .glass {
-    background: hsl(var(--surface-1) / 0.72);
-    backdrop-filter: blur(20px) saturate(1.1);
-    -webkit-backdrop-filter: blur(20px) saturate(1.1);
-    border: 1px solid hsl(var(--foreground) / 0.08);
-  }
-  .glass-dark {
-    background: hsl(var(--background) / 0.6);
-    backdrop-filter: blur(20px) saturate(1.05);
-    -webkit-backdrop-filter: blur(20px) saturate(1.05);
-  }
-  .glass-panel {
-    background: hsl(var(--surface-1) / 0.7);
-    backdrop-filter: blur(24px) saturate(1.1);
-    -webkit-backdrop-filter: blur(24px) saturate(1.1);
-    border: 1px solid hsl(var(--foreground) / 0.08);
-    box-shadow:
-      inset 0 1px 0 hsl(var(--foreground) / 0.05),
-      0 12px 40px hsl(0 0% 0% / 0.30);
-  }
-  .hairline { border: 1px solid hsl(var(--foreground) / 0.08); }
-
-  /* ---- IMZO: Filament — urg'u faqat 1px chiziq, chizilib keladi ---- */
+  /* =================================================================
+     IMZO CHIZIQLAR (filament / spine) — vena sifatida
+     ================================================================= */
   .filament { position: relative; }
   .filament::after {
     content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
-    background: hsl(var(--accent-line));
+    background: linear-gradient(90deg, hsl(var(--vein-cyan)), hsl(var(--vein-violet)));
     transform: scaleX(0); transform-origin: left center;
-    transition: transform var(--dur-2) var(--ease-premium);
+    transition: transform var(--dur-2) var(--ease-liquid);
   }
   .filament[data-on="true"]::after,
   .filament:focus-within::after { transform: scaleX(1); }
 
-  /* Layout "umurtqasi" — sahifada bir marta grid'ni sindiruvchi ingichka chiziq */
   .spine { position: relative; }
   .spine::before {
     content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 1px;
     background: linear-gradient(
       to bottom,
-      hsl(var(--accent-line) / 0),
-      hsl(var(--accent-line) / 0.55) 22%,
-      hsl(var(--accent-line) / 0.55) 78%,
-      hsl(var(--accent-line) / 0)
+      hsl(var(--vein-cyan) / 0),
+      hsl(var(--vein-cyan) / 0.5) 22%,
+      hsl(var(--vein-violet) / 0.5) 78%,
+      hsl(var(--vein-violet) / 0)
     );
   }
 
-  /* Chizilib kirish (mount) — imzo motion */
-  .draw-x { transform-origin: left center; animation: drawX var(--dur-3) var(--ease-premium) both; }
-  .draw-y { transform-origin: top center; animation: drawY var(--dur-3) var(--ease-premium) both; }
-
-  /* ---- Gradient matn — monoxrom (near-white → muted), rangsiz ---- */
-  .text-gradient,
-  .text-gradient-animated {
-    background: linear-gradient(180deg, hsl(var(--foreground)), hsl(var(--foreground) / 0.62));
-    -webkit-background-clip: text; background-clip: text;
-    -webkit-text-fill-color: transparent; color: transparent;
-    animation: none;
-  }
-
-  /* ---- Nozik hover ko'tarilish ---- */
-  .tilt-hover { transition: transform var(--dur-2) var(--ease-premium), box-shadow var(--dur-2) var(--ease-premium); }
-  .tilt-hover:hover { transform: translateY(-2px); }
-  .card-3d { transition: transform var(--dur-2) var(--ease-premium); }
-  .card-3d:hover { transform: translateY(-2px); }
-  .glow-ring { position: relative; }
-  .glow-ring:hover { border-color: hsl(var(--foreground) / 0.16); }
-
-  /* ---- Aurora — endi rangsiz, juda nozik chuqurlik vignetkasi ---- */
-  .aurora { position: relative; overflow: hidden; }
-  .aurora::before {
-    content: ""; position: absolute; inset: 0;
-    background: radial-gradient(80% 60% at 50% 0%, hsl(var(--foreground) / 0.04), transparent 70%);
-    z-index: 0;
-  }
-
-  /* ---- Animatsiyalar (nozik) ---- */
-  .animate-in-up { animation: inUp var(--dur-3) var(--ease-premium) both; }
+  /* =================================================================
+     HAYOT: hech narsa qotib turmaydi
+     ================================================================= */
+  .animate-in-up { animation: inUp var(--dur-3) var(--ease-liquid) both; }
   .animate-float { animation: float 8s ease-in-out infinite; }
-  .animate-float-slow { animation: float 12s ease-in-out infinite; }
+  .animate-float-slow { animation: float 13s ease-in-out infinite; }
   .animate-glow-pulse { animation: softPulse 3.5s ease-in-out infinite; }
-  .animate-breathe { animation: softPulse 6s ease-in-out infinite; }
+  .animate-breathe { animation: breathe 6s ease-in-out infinite; }
+  .heartbeat { animation: heartbeat var(--heartbeat) ease-in-out infinite; }
+  .drift { animation: drift 14s ease-in-out infinite; }
   .animate-shimmer { position: relative; overflow: hidden; }
   .animate-shimmer::after {
     content: ""; position: absolute; inset: 0;
-    background: linear-gradient(105deg, transparent 40%, hsl(var(--foreground) / 0.06) 50%, transparent 60%);
+    background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.06) 50%, transparent 60%);
     transform: translateX(-100%); animation: shimmer 2.6s infinite;
   }
+  .vein-flow {
+    background-size: 200% 100%;
+    animation: veinFlow 5s linear infinite;
+  }
+  .draw-x { transform-origin: left center; animation: drawX var(--dur-3) var(--ease-liquid) both; }
+  .draw-y { transform-origin: top center; animation: drawY var(--dur-3) var(--ease-liquid) both; }
   .delay-100 { animation-delay: 0.1s; }
   .delay-200 { animation-delay: 0.2s; }
   .delay-300 { animation-delay: 0.3s; }
   .delay-500 { animation-delay: 0.5s; }
 
-  .reveal { opacity: 0; transform: translateY(16px); transition: opacity var(--dur-3) var(--ease-premium), transform var(--dur-3) var(--ease-premium); }
+  .reveal { opacity: 0; transform: translateY(16px); transition: opacity var(--dur-3) var(--ease-liquid), transform var(--dur-3) var(--ease-liquid); }
   .reveal.revealed { opacity: 1; transform: translateY(0); }
 
-  .scroll-thin::-webkit-scrollbar { width: 9px; height: 9px; }
-  .scroll-thin::-webkit-scrollbar-thumb { background: hsl(var(--foreground) / 0.14); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+  .tilt-hover { transition: transform var(--dur-2) var(--ease-liquid), box-shadow var(--dur-2) var(--ease-liquid); }
+  .tilt-hover:hover { transform: translateY(-2px); }
+  .card-3d { transition: transform var(--dur-2) var(--ease-liquid); }
+  .card-3d:hover { transform: translateY(-2px); }
+
+  /* =================================================================
+     MEXANIKA
+     ================================================================= */
+  .scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scroll-thin::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
   .scroll-thin::-webkit-scrollbar-track { background: transparent; }
 
-  /* Raqamlar uchun — luxury data cue */
-  .nums { font-family: var(--font-geist-mono), ui-monospace, monospace; font-feature-settings: "tnum" 1; letter-spacing: -0.01em; }
-
-  /* 44x44px teginish maydoni — vizual o'lcham kichik qoladi, hit-area kengayadi */
   .hit-target { position: relative; }
   .hit-target::after {
     content: "";
@@ -300,87 +392,22 @@
     transform: translate(-50%, -50%);
   }
 
-  /* ---- Markdown (chat) — typography plagini o'rnatilmagan, minimal stil shu yerda ---- */
+  /* Markdown (chat) */
   .prose :where(p, ul, ol, pre, blockquote, h1, h2, h3, h4):not(:first-child) { margin-top: 0.6em; }
   .prose ul { list-style: disc; padding-left: 1.25em; }
   .prose ol { list-style: decimal; padding-left: 1.25em; }
   .prose li + li { margin-top: 0.25em; }
-  .prose a { color: hsl(var(--accent-line)); text-decoration: underline; text-underline-offset: 2px; }
+  .prose a { color: hsl(var(--vein-cyan)); text-decoration: underline; text-underline-offset: 2px; }
   .prose h1, .prose h2, .prose h3, .prose h4 { font-weight: 600; }
   .prose code { font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 0.9em; background: hsl(var(--muted)); padding: 0.1em 0.35em; border-radius: 0.3em; }
   .prose pre { background: hsl(var(--muted)); padding: 0.75em 1em; border-radius: 0.6em; overflow-x: auto; }
   .prose pre code { background: transparent; padding: 0; }
   .prose blockquote { border-left: 2px solid hsl(var(--border)); padding-left: 0.75em; color: hsl(var(--muted-foreground)); }
-}
 
-@keyframes inUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
-@keyframes shimmer { 100% { transform: translateX(100%); } }
-@keyframes softPulse { 0%,100% { opacity: 0.85; } 50% { opacity: 1; } }
-@keyframes drawX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-@keyframes drawY { from { transform: scaleY(0); } to { transform: scaleY(1); } }
-
-@media (prefers-reduced-motion: reduce) {
-  *, ::before, ::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
-  .filament::after { transform: scaleX(1); }
-}
-
-/* ==========================================================================
-   Cinematic hero qatlami — faqat kirish sahnasi uchun (Obsidian tizimiga
-   qo'shimcha, mavjud utility'larni o'zgartirmaydi). Reference: qorong'i
-   sahna, MacBook+iPhone+iPad, hologram aktyorlar, oltin CTA.
-   ========================================================================== */
-@layer base {
-  :root {
-    /* Hero sahna tokenlari (rasm palitrasidan) */
-    --bg-deep: 230 12% 3%;
-    --accent-cyan: 190 95% 62%;
-    --accent-emerald: 158 72% 52%;
-    --cta-gold: 42 88% 58%;
-    --hologram-alpha: 0.55;
-  }
-}
-
-@layer utilities {
-  /* Typografiya shkalasi — Geist geometric sans (display -> caption) */
-  .type-display { font-size: clamp(2.25rem, 5vw, 3.5rem); line-height: 1.06; letter-spacing: -0.028em; font-weight: 700; }
-  .type-h1 { font-size: clamp(1.75rem, 3.4vw, 2.5rem); line-height: 1.12; letter-spacing: -0.024em; font-weight: 700; }
-  .type-h2 { font-size: clamp(1.375rem, 2.4vw, 1.75rem); line-height: 1.2; letter-spacing: -0.02em; font-weight: 600; }
-  .type-body { font-size: 1rem; line-height: 1.6; }
-  .type-caption { font-size: 0.75rem; line-height: 1.45; letter-spacing: 0.02em; }
-
-  /* Hero sahna foni — chuqur qora + yumshoq vignette */
-  .hero-cinematic {
-    background:
-      radial-gradient(120% 90% at 50% 0%, hsl(var(--accent-cyan) / 0.06), transparent 55%),
-      radial-gradient(90% 70% at 85% 85%, hsl(var(--accent-emerald) / 0.05), transparent 60%),
-      hsl(var(--bg-deep));
-    color: hsl(220 22% 96%);
-  }
-  /* Qurilmalar ostidagi aks — reference'dagi yaltiroq pol */
-  .hero-floor-reflection {
-    background: linear-gradient(to bottom, hsl(var(--accent-cyan) / 0.10), transparent 70%);
-    mask-image: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
-  }
-  .cta-gold {
-    background: linear-gradient(180deg, hsl(var(--cta-gold)) 0%, hsl(42 80% 48%) 100%);
-    color: hsl(35 60% 10%);
-    box-shadow: 0 4px 24px hsl(var(--cta-gold) / 0.35), inset 0 1px 0 hsl(48 90% 75% / 0.6);
-  }
-  .cta-gold:hover { box-shadow: 0 6px 32px hsl(var(--cta-gold) / 0.5), inset 0 1px 0 hsl(48 90% 78% / 0.7); }
-  .edge-cyan { box-shadow: inset 0 0 0 1px hsl(var(--accent-cyan) / 0.35); }
-  .edge-emerald { box-shadow: inset 0 0 0 1px hsl(var(--accent-emerald) / 0.35); }
-  .hologram-text { color: hsl(var(--accent-cyan)); text-shadow: 0 0 12px hsl(var(--accent-cyan) / 0.6); }
-}
-
-/* ==========================================================================
-   AgentOS "Living Interface" demo qatlami (/agentos-demo) — scoped .aos-*
-   Glassmorphism 2.0: blur(24px) saturate(180%) + 1px gradient border.
-   ========================================================================== */
-@layer utilities {
+  /* AgentOS demo qatlami (scoped) — Dark Matter'ga moslashtirildi */
   .aos-glass {
     position: relative;
-    background: hsl(var(--aos-accent, 220 15% 75%) / 0.05);
+    background: rgba(10, 10, 10, 0.55);
     backdrop-filter: blur(24px) saturate(180%);
     -webkit-backdrop-filter: blur(24px) saturate(180%);
     border: 1px solid transparent;
@@ -392,15 +419,52 @@
     inset: 0;
     border-radius: inherit;
     padding: 1px;
-    background: linear-gradient(160deg, rgba(255,255,255,0.28), rgba(255,255,255,0.04) 45%, transparent);
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.04) 45%, transparent);
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     pointer-events: none;
   }
   .aos-neon {
-    box-shadow: 0 0 24px hsl(var(--aos-accent, 190 95% 62%) / 0.25), 0 0 64px hsl(var(--aos-accent, 190 95% 62%) / 0.08);
+    box-shadow: 0 0 24px hsl(var(--aos-accent, var(--vein-cyan)) / 0.25), 0 0 64px hsl(var(--aos-accent, var(--vein-cyan)) / 0.08);
   }
   .aos-noscroll { scrollbar-width: none; -ms-overflow-style: none; }
   .aos-noscroll::-webkit-scrollbar { display: none; }
+}
+
+@keyframes inUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+@keyframes softPulse { 0%, 100% { opacity: 0.85; } 50% { opacity: 1; } }
+@keyframes drawX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes drawY { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+/* Nafas — sekin, chuqur (idle holat) */
+@keyframes breathe {
+  0%, 100% { transform: scale(1); opacity: 0.92; }
+  50% { transform: scale(1.015); opacity: 1; }
+}
+/* Yurak urishi — 60bpm: qisqa zarb, uzun pauza */
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  8% { transform: scale(1.03); }
+  16% { transform: scale(1); }
+  24% { transform: scale(1.018); }
+  34% { transform: scale(1); }
+}
+/* Suzish — idle'da layout ozgina siljiydi */
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(3px, -4px); }
+  50% { transform: translate(-2px, 3px); }
+  75% { transform: translate(-4px, -2px); }
+}
+@keyframes veinFlow { from { background-position: 0% 0; } to { background-position: 200% 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .filament::after { transform: scaleX(1); }
 }

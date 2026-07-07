@@ -1,5 +1,5 @@
 import {
-  IsString, IsBoolean, IsArray, IsOptional, IsIn,
+  IsString, IsBoolean, IsArray, IsOptional, IsIn, IsInt, Min, Max,
   MinLength, MaxLength, ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -40,4 +40,17 @@ export class CreateAgentDto {
   @ApiProperty({ required: false })
   @IsOptional() @IsString() @MaxLength(300)
   description?: string;
+
+  // Y4: haqiqiy hisob-kitob — narx complexity'dan SERVERDA qayta hisoblanadi
+  // (mijozdan kelgan summaga ishonilmaydi). Composer'dan kelmasa — eng arzon
+  // (1) darajaga tushadi.
+  @ApiProperty({ required: false, minimum: 1, maximum: 5 })
+  @IsOptional() @IsInt() @Min(1) @Max(5)
+  complexity?: number;
+
+  // Pul bilan ishlaydigan so'rov — bir xil so'rov ikki marta yuborilsa ham
+  // ikkinchi marta yechilmasligi uchun mijoz tomonidan generatsiya qilinadi.
+  @ApiProperty({ required: false })
+  @IsOptional() @IsString() @MaxLength(100)
+  idempotencyKey?: string;
 }

@@ -4,20 +4,25 @@ import { useFrame } from "@react-three/fiber";
 import { Sparkles } from "@react-three/drei";
 import * as THREE from "three";
 import { SceneCanvas, useLowPower } from "@/components/three/scene-canvas";
-import { DoctorHologram, RetailOwnerHologram, LogisticsDrone } from "./HologramActors";
+import {
+  DoctorHologram,
+  RetailOwnerHologram,
+  LogisticsDrone,
+  CargoTruckHologram,
+  CameraHologram,
+  ChartPanelHologram,
+} from "./HologramActors";
 
 /**
- * HeroCanvas — kirish sahnasining 3D atmosfera qatlami: hologram aktyorlar
- * (Doctor / Retail Owner / Logistics Drone), zarrachalar, pol va rim-lightlar.
- * Markaziy shar YO'Q (reference talabi).
+ * HeroCanvas — kirish sahnasining 3D atmosfera qatlami (reference rasmlar):
+ * markazda OBSIDIAN SHAR (tizim "joni"), atrofida hologram aktyorlar
+ * (Doctor / Retail / Drone / Fura / Kamera / Statistika), zarrachalar, pol.
  *
  * ARXITEKTURA QARORI: qurilma ekranlari (MacBook/iPhone/iPad) DOM qatlamida
- * chiziladi (DeviceRow / FallbackHero) — matn har doim keskin va o'qiladi,
- * i18n ishonchli ishlaydi. Canvas DOM orqasida atmosfera beradi. drei Html
- * transform rejimiga tayanmaymiz (brauzerlararo mo'rt). 3D qurilma meshlar
- * DeviceMock.tsx'da saqlanadi — kelajakdagi chuqur 3D versiya uchun.
- * Perf: dpr 1–1.5, past quvvatda kam zarracha, reduced-motion'da bu komponent
- * umuman mount bo'lmaydi.
+ * chiziladi (FallbackHero) — matn har doim keskin va o'qiladi, i18n va
+ * havolalar ishonchli ishlaydi. Canvas DOM orqasida atmosfera beradi.
+ * Perf: dpr 1–1.5, past quvvatda kam zarracha va kam aktyor,
+ * reduced-motion'da bu komponent umuman mount bo'lmaydi.
  */
 
 function CameraDrift() {
@@ -30,6 +35,39 @@ function CameraDrift() {
     camera.lookAt(target.current);
   });
   return null;
+}
+
+/** Obsidian shar — reference 3-rasmdagi markaziy qora "jon" sferasi.
+ *  Mat qora yuza rim-lightlardan qirrada cyan/emerald nur oladi. */
+function ObsidianOrb({ position = [0, 3.0, -2.6] as [number, number, number] }) {
+  const group = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime;
+    if (!group.current) return;
+    group.current.position.y = position[1] + Math.sin(t * 0.5) * 0.08;
+    group.current.rotation.y = t * 0.06;
+  });
+  return (
+    <group ref={group} position={position}>
+      {/* Tana — mat oniks */}
+      <mesh>
+        <sphereGeometry args={[1.5, 64, 48]} />
+        <meshStandardMaterial color="#0b0d12" metalness={0.68} roughness={0.38} />
+      </mesh>
+      {/* Orqa halo — sharni zulmatdan ajratib turadigan xira nur */}
+      <mesh position={[0, 0, -0.4]}>
+        <sphereGeometry args={[1.64, 32, 24]} />
+        <meshBasicMaterial
+          color="#1ba9c9"
+          transparent
+          opacity={0.07}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          side={THREE.BackSide}
+        />
+      </mesh>
+    </group>
+  );
 }
 
 function Floor() {
@@ -51,6 +89,8 @@ function Lights() {
       <pointLight position={[0, 5, -6]} intensity={14} color="#e8b04a" />
       {/* Ekranlardan chiqayotgan yorug'lik */}
       <pointLight position={[0, 1.4, 1.6]} intensity={8} color="#7ecfe8" />
+      {/* Shar qirrasini chizadigan yo'nalishli nur (decay yo'q — doim ko'rinadi) */}
+      <directionalLight position={[-3, 6, 2]} intensity={1.6} color="#8fd8ea" />
     </>
   );
 }
@@ -63,11 +103,21 @@ export default function HeroCanvas({ className }: { className?: string }) {
       <Lights />
       <Floor />
 
-      {/* Hologram aktyorlar — DOM qurilma ekranlari ustidan ko'tariladi
+      {/* Markaziy obsidian shar — reference 3 */}
+      <ObsidianOrb />
+
+      {/* Hologram aktyorlar — DOM qurilma ekranlari atrofida
           (x-pozitsiyalar DeviceRow joylashuviga mos: chap/markaz-o'ng/o'ng) */}
       <DoctorHologram position={[-2.6, 1.15, -0.7]} />
-      <RetailOwnerHologram position={[1.9, 1.2, -1.2]} />
-      <LogisticsDrone position={[3.6, 2.4, -0.9]} />
+      <RetailOwnerHologram position={[2.2, 1.2, -1.2]} />
+      <LogisticsDrone position={[-1.2, 3.1, -1.4]} />
+      {!low && (
+        <>
+          <CargoTruckHologram position={[3.7, 0.35, 0.9]} />
+          <CameraHologram position={[1.5, 3.4, -1.8]} />
+          <ChartPanelHologram position={[4.4, 1.7, -1.6]} />
+        </>
+      )}
 
       {/* Fon zarrachalari — chuqur kosmik chang */}
       <Sparkles

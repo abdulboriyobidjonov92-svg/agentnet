@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
+import agent_composer
 import agentos as agentos_engine
 import automation_planner
 import business_ops
@@ -20,6 +21,7 @@ import goal_engine
 import govtech as govtech_engine
 import knowledge_sync
 import life_twin
+import retail_forecast
 import retail_intel
 import supermode as supermode_engine
 import trade as trade_engine
@@ -75,7 +77,7 @@ async def lifespan(app: FastAPI):
     registry.register("web.automate",             make_sync_wrapper(web_automate))
     registry.register("connector.invoke",         make_sync_wrapper(connector_invoke))
 
-    print("✅ AgentNet Agent Engine ishga tushdi")
+    print("AgentNet Agent Engine ishga tushdi")
     print(f"   Ro'yxatdagi toollar: {registry.available()}")
     yield
     print("Agent Engine to'xtatildi")
@@ -118,6 +120,13 @@ class HalalCheckRequest(BaseModel):
 class RoleDetectRequest(BaseModel):
     text: str
     language: str = "en"  # en | ru | uz
+
+
+class ComposeAgentRequest(BaseModel):
+    # Y9: tabiiy tildagi tavsif → bitta tayyor agent taklifi
+    description: str
+    language: str = "en"  # en | ru | uz
+    profession: str = ""  # ixtiyoriy kontekst (foydalanuvchi profilidan)
 
 
 class TwinFactIn(BaseModel):
@@ -218,6 +227,12 @@ class ComplianceCheckRequest(BaseModel):
 
 class RetailAssessRequest(BaseModel):
     evidence: dict[str, Any]
+    language: str = "uz"
+
+
+class RetailForecastRequest(BaseModel):
+    forecasts: list[dict[str, Any]] = []
+    summary: dict[str, Any] = {}
     language: str = "uz"
 
 
@@ -371,6 +386,23 @@ async def role_domain(slug: str, language: str = "en"):
 
 
 # ----------------------------------------------------------------
+# Y9: Bir-klik agent yaratish — tabiiy til → tayyor agent taklifi
+# ----------------------------------------------------------------
+
+
+@app.post("/agents/compose")
+async def agents_compose(req: ComposeAgentRequest):
+    """Foydalanuvchi tabiiy tilda nima kerakligini yozadi → bitta tayyor,
+    moslashtirilgan agent taklifi (nom, system-prompt, tool'lar, murakkablik).
+
+    Kirish avval Halal Filter'dan o'tadi — bir-klik oqim ham filtr qatlamini
+    chetlab o'tmaydi. Agent YARATILMAYDI; NestJS narxni qo'shib taklifni qaytaradi.
+    """
+    await _guard(req.description, "agent-composer", req.profession)
+    return await agent_composer.compose(req.description, req.language, req.profession)
+
+
+# ----------------------------------------------------------------
 # WOW 1: Life Twin — raqamli egizak
 # ----------------------------------------------------------------
 
@@ -521,6 +553,12 @@ async def compliance_check_output(req: ComplianceCheckRequest):
 @app.post("/retail/assess")
 async def retail_assess(req: RetailAssessRequest):
     return await retail_intel.assess(req.evidence, req.language)
+
+
+@app.post("/retail/forecast")
+async def retail_forecast_endpoint(req: RetailForecastRequest):
+    """Hisoblangan bashorat JSON'idan qisqa, ustuvor xulosa (agent #1)."""
+    return await retail_forecast.analyze(req.forecasts, req.summary, req.language)
 
 
 # --- S5: Business Operations ---

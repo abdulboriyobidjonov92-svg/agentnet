@@ -7,6 +7,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { AgentsService } from './agents.service';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
+import { ComposeAgentDto } from './dto/compose-agent.dto';
 import type { User } from '@prisma/client';
 
 class RunAgentDto {
@@ -20,6 +21,12 @@ class RunAgentDto {
 @Controller('agents')
 export class AgentsController {
   constructor(private readonly agents: AgentsService) {}
+
+  /** Y9: bir-klik agent — tabiiy til tavsifidan tayyor agent taklifi + narx (yaratmaydi). */
+  @Post('compose')
+  compose(@CurrentUser() user: User, @Body() dto: ComposeAgentDto) {
+    return this.agents.compose(user, dto.description, dto.language);
+  }
 
   @Post()
   create(@CurrentUser() user: User, @Body() dto: CreateAgentDto) {
@@ -50,5 +57,11 @@ export class AgentsController {
   @Post(':id/run')
   run(@CurrentUser() user: User, @Param('id') id: string, @Body() body: RunAgentDto) {
     return this.agents.run(id, user, body.message, body.conversationId);
+  }
+
+  /** Balans to'ldirilgandan keyin — muzlatilgan agentni qayta faollashtirish. */
+  @Post(':id/reactivate')
+  reactivate(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.agents.reactivate(id, user);
   }
 }

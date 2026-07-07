@@ -18,6 +18,8 @@ import { authenticator } from 'otplib';
 import * as QRCode from 'qrcode';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { CryptoService } from '../crypto/crypto.service';
+import { signToken } from './token.util';
 
 // SQLite enum'ni qo'llab-quvvatlamaydi — role String sifatida saqlanadi.
 export type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
@@ -49,6 +51,10 @@ interface ClerkWebhookEvent {
 // Audit Log — hash-chained, o'zgartirib bo'lmas jurnal
 // ----------------------------------------------------------------
 
+// Butun audit-zanjiri uchun yagona advisory-lock kaliti (ixtiyoriy bigint).
+// Barcha audit yozuvlari shu kalit ustida seriyalashadi — zanjir chiziqli qoladi.
+const AUDIT_CHAIN_LOCK = 4771n;
+
 @Injectable()
 export class AuditLogService {
   private readonly logger = new Logger(AuditLogService.name);
@@ -64,22 +70,31 @@ export class AuditLogService {
   }): Promise<void> {
     // Audit-log hech qachon asosiy oqimni bloklamasligi kerak.
     try {
-      const last = await this.prisma.auditLog.findFirst({
-        orderBy: { createdAt: 'desc' },
-      });
-      const prevHash = last?.entryHash ?? 'GENESIS';
-      const entryHash = this.computeHash(prevHash, params);
+      // Hash-zanjir ketma-ket bo'lishi SHART: "oxirgi hash'ni o'qi → yangi yozuv"
+      // atomik bo'lmasa, ikki parallel yozuv bir xil prevHash oladi va zanjir
+      // ikkiga bo'linadi (buzilish-sezish kafolati yo'qoladi). Butun zanjir uchun
+      // bitta transaksiya-doirasidagi advisory lock — audit yozuvlari o'zaro
+      // seriyalashadi, boshqa jadvallarga esa ta'sir qilmaydi.
+      await this.prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(${AUDIT_CHAIN_LOCK})`;
 
-      await this.prisma.auditLog.create({
-        data: {
-          actorId: params.actorId,
-          action: params.action,
-          resourceType: params.resourceType,
-          resourceId: params.resourceId ?? null,
-          metadata: (params.metadata ?? {}) as object,
-          prevHash,
-          entryHash,
-        },
+        const last = await tx.auditLog.findFirst({
+          orderBy: { seq: 'desc' }, // monotonik — millisekund-teng holatida ham aniq
+        });
+        const prevHash = last?.entryHash ?? 'GENESIS';
+        const entryHash = this.computeHash(prevHash, params);
+
+        await tx.auditLog.create({
+          data: {
+            actorId: params.actorId,
+            action: params.action,
+            resourceType: params.resourceType,
+            resourceId: params.resourceId ?? null,
+            metadata: (params.metadata ?? {}) as object,
+            prevHash,
+            entryHash,
+          },
+        });
       });
       this.logger.log(`AUDIT: ${params.actorId} -> ${params.action}`);
     } catch (e) {
@@ -104,6 +119,7 @@ export class TwoFactorService {
   constructor(
     private readonly auditLog: AuditLogService,
     private readonly prisma: PrismaService,
+    private readonly crypto: CryptoService,
   ) {}
 
   async generateSecret(userId: string, email: string) {
@@ -111,9 +127,11 @@ export class TwoFactorService {
     const otpUrl = authenticator.keyuri(email, 'AgentNet (Baraka AI)', secret);
     const qrCodeDataUrl = await QRCode.toDataURL(otpUrl);
 
+    // TOTP siri DB'da SHIFRLANGAN saqlanadi (at-rest). QR/secret foydalanuvchiga
+    // faqat shu javobda ochiq ko'rsatiladi (bir martalik sozlash uchun).
     await this.prisma.user.update({
       where: { id: userId },
-      data: { twoFactorSecretPending: secret },
+      data: { twoFactorSecretPending: this.crypto.encrypt(secret) },
     });
 
     return { secret, qrCodeDataUrl };
@@ -127,7 +145,9 @@ export class TwoFactorService {
 
     const isValid = authenticator.verify({
       token,
-      secret: user.twoFactorSecretPending,
+      // Saqlangan pending SHIFRLANGAN — tekshirish uchun deshifrlaymiz
+      // (decryptString eski plaintext'ni ham qo'llab-quvvatlaydi).
+      secret: this.crypto.decryptString(user.twoFactorSecretPending) ?? '',
     });
 
     if (!isValid) return false;
@@ -135,6 +155,7 @@ export class TwoFactorService {
     await this.prisma.user.update({
       where: { id: userId },
       data: {
+        // pending allaqachon shifrlangan — shifrlangan holicha secret'ga ko'chiramiz
         twoFactorSecret: user.twoFactorSecretPending,
         twoFactorSecretPending: null,
         twoFactorEnabled: true,
@@ -154,7 +175,11 @@ export class TwoFactorService {
   async verifyLogin(userId: string, token: string): Promise<boolean> {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     if (!user.twoFactorEnabled || !user.twoFactorSecret) return true;
-    return authenticator.verify({ token, secret: user.twoFactorSecret });
+    // Saqlangan secret SHIFRLANGAN — tekshirish uchun deshifrlaymiz.
+    return authenticator.verify({
+      token,
+      secret: this.crypto.decryptString(user.twoFactorSecret) ?? '',
+    });
   }
 }
 
@@ -209,6 +234,20 @@ export class ClerkSyncService {
   async devLogin(input: { email?: string; phone?: string; name?: string }) {
     const name = input.name ?? '';
 
+    // Har bir muvaffaqiyatli login imzolangan token bilan qaytadi — guard
+    // shu tokenni tekshiradi (userId'ning o'zi endi kirish uchun yetarli emas).
+    const issue = (
+      u: { id: string; email: string; phone: string | null; role: string },
+      isNewUser: boolean,
+    ) => ({
+      userId: u.id,
+      email: u.email,
+      phone: u.phone,
+      role: u.role,
+      isNewUser,
+      token: signToken({ sub: u.id, email: u.email }),
+    });
+
     // --- Telefon bilan kirish ---
     if (input.phone) {
       const phone = this.normalizePhone(input.phone);
@@ -217,13 +256,7 @@ export class ClerkSyncService {
       }
       const existing = await this.prisma.user.findUnique({ where: { phone } });
       if (existing) {
-        return {
-          userId: existing.id,
-          email: existing.email,
-          phone: existing.phone,
-          role: existing.role,
-          isNewUser: false,
-        };
+        return issue(existing, false);
       }
       const user = await this.prisma.user.create({
         data: {
@@ -241,7 +274,7 @@ export class ClerkSyncService {
         resourceId: user.id,
         metadata: { name, method: 'phone' },
       });
-      return { userId: user.id, email: user.email, phone: user.phone, role: user.role, isNewUser: true };
+      return issue(user, true);
     }
 
     // --- Email bilan kirish ---
@@ -251,7 +284,7 @@ export class ClerkSyncService {
     }
     const existing = await this.prisma.user.findUnique({ where: { email: clean } });
     if (existing) {
-      return { userId: existing.id, email: existing.email, phone: existing.phone, role: existing.role, isNewUser: false };
+      return issue(existing, false);
     }
     const user = await this.prisma.user.create({
       data: {
@@ -267,7 +300,7 @@ export class ClerkSyncService {
       resourceId: user.id,
       metadata: { name, method: 'email' },
     });
-    return { userId: user.id, email: user.email, phone: user.phone, role: user.role, isNewUser: true };
+    return issue(user, true);
   }
 
   private devClerkId(): string {

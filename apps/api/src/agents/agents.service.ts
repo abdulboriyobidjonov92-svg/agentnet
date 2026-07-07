@@ -1,4 +1,12 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  ServiceUnavailableException,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service';
@@ -6,7 +14,27 @@ import { AuditLogService } from '../auth/auth.service';
 import { UsageService } from '../usage/usage.service';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
-import type { User } from '@prisma/client';
+import { priceForAgent, usdUzsRate } from './agent-pricing';
+import { AgentBillingService } from './agent-billing.service';
+import { Prisma, type User } from '@prisma/client';
+
+// Agent-yaratish advisory-lock nommaydoni (foydalanuvchi bo'yicha kalit bilan
+// birga ishlatiladi — bir foydalanuvchining parallel yaratishlari seriyalashadi).
+const AGENT_CREATE_LOCK_NS = 4772;
+
+/** $transaction ichidan tashqariga balans yetmasligini signal qilish uchun. */
+class InsufficientBalanceError extends Error {
+  constructor(public readonly creationPriceSom: number) {
+    super('insufficient_balance');
+  }
+}
+
+/** Oy qo'shish — kalendar oyi asosida (28/30/31 kunlik farqlarni to'g'ri hisoblaydi). */
+export function addMonths(date: Date, n: number): Date {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + n);
+  return d;
+}
 
 @Injectable()
 export class AgentsService {
@@ -15,26 +43,191 @@ export class AgentsService {
     private readonly http: HttpService,
     private readonly audit: AuditLogService,
     private readonly usage: UsageService,
+    private readonly agentBilling: AgentBillingService,
   ) {}
 
-  async create(user: User, dto: CreateAgentDto) {
-    // Tarif chegarasi — free foydalanuvchi cheksiz agent yarata olmaydi
-    await this.usage.assertCanCreateAgent(user);
-    const agent = await this.prisma.agent.create({
-      data: {
-        name: dto.name,
-        systemPrompt: dto.systemPrompt,
-        model: dto.model ?? 'claude-sonnet-4-6',
-        halalFilterEnabled: dto.halalFilterEnabled ?? true,
-        memoryEnabled: dto.memoryEnabled ?? true,
-        toolsConfig: (dto.toolsConfig ?? []) as object,
-        vertical: dto.vertical ?? null,
-        description: dto.description ?? null,
-        userId: user.id,
-      },
+  /**
+   * `priceOverride` — FAQAT ichki, ishonchli chaqiruvchilar uchun (masalan
+   * TemplatesService.install() — kuratorlik qilingan shablon katalogi narxi
+   * bilan). HTTP orqali (CreateAgentDto) hech qachon kelmaydi — shu bilan
+   * foydalanuvchi o'z narxini pastlatib qo'ya olmaydi.
+   */
+  async create(
+    user: User,
+    dto: CreateAgentDto,
+    priceOverride?: { creationUsd: number; monthlyUsd: number },
+  ) {
+    // Pul bilan ishlaydigan amal — bir xil so'rov ikki marta yuborilsa
+    // (masalan ikki marta bosilsa) IKKINCHI marta yechilmasligi shart.
+    // Idempotency-kalit orqali oldindan tekshiramiz: agar shu kalit bilan
+    // avval muvaffaqiyatli yaratilgan agent bo'lsa — o'shani qaytaramiz.
+    if (dto.idempotencyKey) {
+      const existing = await this.findByIdempotencyKey(dto.idempotencyKey);
+      if (existing) return existing;
+    }
+
+    // Narx SERVERDA qayta hisoblanadi (mijozdan kelgan summaga ishonilmaydi).
+    const fxRate = usdUzsRate();
+    const price = priceOverride
+      ? {
+          creationSom: Math.round(priceOverride.creationUsd * fxRate),
+          monthlySom: Math.round(priceOverride.monthlyUsd * fxRate),
+        }
+      : (() => {
+          const p = priceForAgent(dto.complexity ?? 1, (dto.toolsConfig ?? []).length, fxRate);
+          return { creationSom: p.creationSom, monthlySom: p.monthlySom };
+        })();
+    const creationPriceTiyin = price.creationSom * 100;
+    const monthlyPriceTiyin = price.monthlySom * 100;
+
+    let agent;
+    try {
+      agent = await this.prisma.$transaction(async (tx) => {
+        // Tarif chegarasi — "tekshir-keyin-yarat" ATOMIK bo'lishi shart. Aks holda
+        // ikki parallel so'rov ikkalasi ham count'ni chegaradan past ko'rib, limit+1
+        // agent yaratadi. Foydalanuvchi bo'yicha advisory lock — aynan shu
+        // foydalanuvchining parallel yaratishlari seriyalashadi (boshqalar bloklanmaydi).
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(${AGENT_CREATE_LOCK_NS}::int, hashtext(${user.id}))`;
+        await this.usage.assertCanCreateAgent(user, tx);
+
+        if (creationPriceTiyin > 0) {
+          const updated = await tx.user.updateMany({
+            where: { id: user.id, balanceTiyin: { gte: creationPriceTiyin } },
+            data: { balanceTiyin: { decrement: creationPriceTiyin } },
+          });
+          if (updated.count === 0) throw new InsufficientBalanceError(price.creationSom);
+        }
+
+        const now = new Date();
+        const created = await tx.agent.create({
+          data: {
+            name: dto.name,
+            systemPrompt: dto.systemPrompt,
+            model: dto.model ?? 'claude-sonnet-4-6',
+            halalFilterEnabled: dto.halalFilterEnabled ?? true,
+            memoryEnabled: dto.memoryEnabled ?? true,
+            toolsConfig: (dto.toolsConfig ?? []) as object,
+            vertical: dto.vertical ?? null,
+            description: dto.description ?? null,
+            userId: user.id,
+            creationPriceTiyin,
+            monthlyPriceTiyin,
+            nextChargeAt: monthlyPriceTiyin > 0 ? addMonths(now, 1) : null,
+          },
+        });
+
+        if (creationPriceTiyin > 0 || dto.idempotencyKey) {
+          const fresh = await tx.user.findUniqueOrThrow({ where: { id: user.id }, select: { balanceTiyin: true } });
+          await tx.creditLedger.create({
+            data: {
+              userId: user.id,
+              kind: 'agent_creation',
+              amount: -creationPriceTiyin,
+              balanceAfter: fresh.balanceTiyin,
+              meta: { agentId: created.id, creationPriceSom: price.creationSom, monthlyPriceSom: price.monthlySom },
+              idempotencyKey: dto.idempotencyKey ?? undefined,
+            },
+          });
+        }
+
+        return created;
+      });
+    } catch (e: any) {
+      if (e instanceof InsufficientBalanceError) {
+        throw new HttpException(
+          {
+            message: `Balansingiz yetarli emas. Agent yaratish narxi: ${e.creationPriceSom.toLocaleString('ru-RU')} so'm. Hisobingizni to'ldiring.`,
+            reason: 'insufficient_balance',
+            creationPriceSom: e.creationPriceSom,
+          },
+          HttpStatus.PAYMENT_REQUIRED,
+        );
+      }
+      // Parallel so'rov bir xil idempotency-kalit bilan g'olib keldi — o'sha natijani qaytaramiz
+      if (dto.idempotencyKey && e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        const winner = await this.findByIdempotencyKey(dto.idempotencyKey);
+        if (winner) return winner;
+      }
+      throw e;
+    }
+
+    await this.audit.record({
+      actorId: user.id,
+      action: 'agent.create',
+      resourceType: 'agent',
+      resourceId: agent.id,
+      metadata: { creationPriceTiyin, monthlyPriceTiyin },
     });
-    await this.audit.record({ actorId: user.id, action: 'agent.create', resourceType: 'agent', resourceId: agent.id });
     return agent;
+  }
+
+  private async findByIdempotencyKey(idempotencyKey: string) {
+    const ledger = await this.prisma.creditLedger.findUnique({ where: { idempotencyKey } });
+    const agentId = (ledger?.meta as any)?.agentId;
+    if (!agentId) return null;
+    return this.prisma.agent.findUnique({ where: { id: agentId } });
+  }
+
+  /**
+   * Y9: bir-klik agent — tabiiy til tavsifidan bitta tayyor agent TAKLIFI
+   * (nom, system-prompt, tool'lar) + narx. Agent YARATILMAYDI; foydalanuvchi
+   * ko'rib, tasdiqlagach mavjud create() orqali yaratiladi. Texnik sozlash yo'q.
+   */
+  async compose(user: User, description: string, language?: string) {
+    const engineUrl = process.env.AGENT_ENGINE_URL ?? 'http://localhost:8000';
+    const lang = language ?? user.preferredLanguage ?? 'en';
+
+    let data: any;
+    try {
+      const res = await firstValueFrom(
+        this.http.post(`${engineUrl}/agents/compose`, {
+          description,
+          language: lang,
+          profession: user.professionTitle ?? '',
+        }),
+      );
+      data = res.data;
+    } catch (e: any) {
+      // Halal Filter bloki engine'da 422 qaytaradi — tushunarli xato beramiz
+      if (e?.response?.status === 422) {
+        throw new BadRequestException(
+          e.response.data?.detail ?? { message: "So'rovni qayta ifodalab ko'ring." },
+        );
+      }
+      throw new ServiceUnavailableException(
+        "Agent kompozitori hozir mavjud emas. Birozdan keyin qayta urinib ko'ring.",
+      );
+    }
+
+    const tools: Array<{ tool_id: string; config: Record<string, unknown> }> = data.tools ?? [];
+    const price = priceForAgent(data.complexity ?? 3, tools.length, usdUzsRate());
+
+    // POST /api/agents (CreateAgentDto) bilan mos "taklif" — tasdiqlangach shu yuboriladi.
+    const proposal = {
+      name: data.name,
+      systemPrompt: data.system_prompt,
+      model: data.model ?? 'claude-sonnet-4-6',
+      toolsConfig: tools,
+      ...(data.vertical ? { vertical: data.vertical } : {}),
+      ...(data.reasoning ? { description: String(data.reasoning).slice(0, 300) } : {}),
+      halalFilterEnabled: true,
+      memoryEnabled: true,
+    };
+
+    return {
+      proposal,
+      meta: {
+        domain: data.domain,
+        vertical: data.vertical ?? null,
+        complexity: price.complexity,
+        reasoning: data.reasoning ?? '',
+        method: data.method, // "llm" | "heuristic"
+        matched: data.matched ?? null, // "custom_llm" | "domain_template" | null
+        toolIds: tools.map((t) => t.tool_id),
+        language: lang,
+      },
+      price,
+    };
   }
 
   async findAll(user: User) {
@@ -76,8 +269,40 @@ export class AgentsService {
     await this.audit.record({ actorId: user.id, action: 'agent.delete', resourceType: 'agent', resourceId: id });
   }
 
+  /**
+   * Balans to'ldirilgandan keyin — muzlatilgan agentni qayta faollashtirish.
+   * Darhol qarzdor oylik siklni yechishga urinadi; muvaffaqiyatli bo'lsa
+   * frozen=false bo'ladi, aks holda aniq 402 xato (hali ham yetarli emas).
+   */
+  async reactivate(id: string, user: User) {
+    const agent = await this.findOne(id, user);
+    if (!agent.frozen) return agent;
+
+    await this.agentBilling.chargeOne({ ...agent, user });
+    const fresh = await this.prisma.agent.findUniqueOrThrow({ where: { id } });
+    if (fresh.frozen) {
+      throw new HttpException(
+        {
+          message: `Balansingiz hali ham yetarli emas. Oylik narx: ${Math.round(fresh.monthlyPriceTiyin / 100).toLocaleString('ru-RU')} so'm. Hisobingizni to'ldiring.`,
+          reason: 'insufficient_balance',
+        },
+        HttpStatus.PAYMENT_REQUIRED,
+      );
+    }
+    return fresh;
+  }
+
   async run(id: string, user: User, message: string, conversationId?: string) {
     const agent = await this.findOne(id, user);
+    if (agent.frozen) {
+      throw new HttpException(
+        {
+          message: `"${agent.name}" agenti muzlatilgan — oylik to'lov o'tmadi. Hisobingizni to'ldirib, agentni qayta faollashtiring.`,
+          reason: 'agent_frozen',
+        },
+        HttpStatus.PAYMENT_REQUIRED,
+      );
+    }
     // LLM chaqiruvidan oldin kunlik/global limitni tekshiramiz
     await this.usage.consumeChat(user);
     const engineUrl = process.env.AGENT_ENGINE_URL ?? 'http://localhost:8000';
