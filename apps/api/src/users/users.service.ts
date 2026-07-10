@@ -28,8 +28,9 @@ export class UsersService {
     return safe;
   }
 
-  async updateProfile(userId: string, dto: { isBusinessAccount?: boolean; role?: Role }) {
-    return this.prisma.user.update({ where: { id: userId }, data: dto });
+  async updateProfile(userId: string, dto: { isBusinessAccount?: boolean; role?: Role; name?: string }) {
+    const data = { ...dto, ...(dto.name !== undefined ? { name: dto.name.trim() || null } : {}) };
+    return this.prisma.user.update({ where: { id: userId }, data });
   }
 
   async updateValues(userId: string, dto: { tradition?: string; statements?: string[] }) {

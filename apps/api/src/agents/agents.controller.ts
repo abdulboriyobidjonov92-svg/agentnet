@@ -64,4 +64,10 @@ export class AgentsController {
   reactivate(@CurrentUser() user: User, @Param('id') id: string) {
     return this.agents.reactivate(id, user);
   }
+
+  /** Ishonch-jurnali — bu agent bo'yicha qilingan har bir harakat va sabab. */
+  @Get(':id/trust-log')
+  trustLog(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.agents.trustLog(id, user);
+  }
 }

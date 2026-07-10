@@ -1,6 +1,9 @@
-import { Controller, Post, Body, Headers, UnauthorizedException } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { Controller, Post, Body, Headers, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ClerkGuard } from '../auth/clerk.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
 import { TelegramService } from './telegram.service';
+import type { User } from '@prisma/client';
 
 @ApiTags('telegram')
 @Controller('telegram')
@@ -20,5 +23,13 @@ export class TelegramController {
     }
     await this.telegram.handleUpdate(update);
     return { ok: true };
+  }
+
+  /** Foydalanuvchi hisobini Telegram bilan bog'lash uchun bir martalik havola. */
+  @Post('link-code')
+  @ApiBearerAuth()
+  @UseGuards(ClerkGuard)
+  linkCode(@CurrentUser() user: User) {
+    return this.telegram.generateLinkCode(user);
   }
 }

@@ -5,7 +5,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Bot, Store, Settings, LogOut, Plus, CircleUserRound, Target, Users, Zap, Building2, Globe, Plug, Camera, CalendarClock, Ship, Landmark, ChevronDown, Gem, LayoutTemplate } from "lucide-react";
+import { LayoutDashboard, Bot, Store, Settings, LogOut, Plus, CircleUserRound, Target, Sparkles, Building2, Globe, Plug, Camera, CalendarClock, Ship, Landmark, ChevronDown, Gem, LayoutTemplate } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { clearClientSession } from "@/lib/session";
@@ -20,7 +20,7 @@ export function Sidebar({ email, name, onNavigate }: { email?: string; name?: st
   const router = useRouter();
   const { t } = useT();
 
-  // 15 band -> 4 mantiqiy guruh; yig'ilish holati localStorage'da saqlanadi
+  // 14 band -> 4 mantiqiy guruh; yig'ilish holati localStorage'da saqlanadi
   const GROUPS = [
     {
       id: "main",
@@ -37,8 +37,7 @@ export function Sidebar({ email, name, onNavigate }: { email?: string; name?: st
       id: "power",
       label: t("nav.groupPower"),
       items: [
-        { href: "/fusion", label: t("nav.fusion"), icon: Users },
-        { href: "/supermode", label: t("nav.supermode"), icon: Zap },
+        { href: "/fusion", label: t("nav.fusion"), icon: Sparkles },
         { href: "/automation", label: t("nav.automation"), icon: Globe },
         { href: "/connectors", label: t("nav.connectors"), icon: Plug },
       ],

@@ -4,6 +4,8 @@ import {
   ForbiddenException,
   BadRequestException,
   ServiceUnavailableException,
+  BadGatewayException,
+  UnprocessableEntityException,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
@@ -194,9 +196,10 @@ export class AgentsService {
           e.response.data?.detail ?? { message: "So'rovni qayta ifodalab ko'ring." },
         );
       }
-      throw new ServiceUnavailableException(
-        "Agent kompozitori hozir mavjud emas. Birozdan keyin qayta urinib ko'ring.",
-      );
+      throw new ServiceUnavailableException({
+        message: "Agent kompozitori hozir mavjud emas. Birozdan keyin qayta urinib ko'ring.",
+        reason: 'engine_unavailable',
+      });
     }
 
     const tools: Array<{ tool_id: string; config: Record<string, unknown> }> = data.tools ?? [];
@@ -242,6 +245,21 @@ export class AgentsService {
     if (!agent) throw new NotFoundException('Agent topilmadi');
     if (agent.userId !== user.id) throw new ForbiddenException();
     return agent;
+  }
+
+  /**
+   * Ishonch-jurnali — shu agent bo'yicha AuditLog'dagi barcha yozuvlar.
+   * Faqat egasi ko'ra oladi (findOne bilan bir xil tekshiruv). Xom xash-zanjir
+   * ko'rsatilmaydi — faqat foydalanuvchiga tegishli harakat+kontekst.
+   */
+  async trustLog(id: string, user: User) {
+    await this.findOne(id, user);
+    const entries = await this.prisma.auditLog.findMany({
+      where: { resourceType: 'agent', resourceId: id },
+      orderBy: { createdAt: 'asc' },
+      select: { action: true, metadata: true, createdAt: true },
+    });
+    return entries;
   }
 
   async update(id: string, user: User, dto: UpdateAgentDto) {
@@ -307,21 +325,30 @@ export class AgentsService {
     await this.usage.consumeChat(user);
     const engineUrl = process.env.AGENT_ENGINE_URL ?? 'http://localhost:8000';
 
-    const { data } = await firstValueFrom(
-      this.http.post(`${engineUrl}/agents/run`, {
-        agent_definition: {
-          agent_id: agent.id,
-          name: agent.name,
-          system_prompt: agent.systemPrompt,
-          model: agent.model,
-          tools: agent.toolsConfig,
-          halal_filter_enabled: agent.halalFilterEnabled,
-          memory_enabled: agent.memoryEnabled,
-        },
-        user_id: user.id,
-        message,
-      }),
-    );
+    let data: any;
+    try {
+      ({ data } = await firstValueFrom(
+        this.http.post(`${engineUrl}/agents/run`, {
+          agent_definition: {
+            agent_id: agent.id,
+            name: agent.name,
+            system_prompt: agent.systemPrompt,
+            model: agent.model,
+            tools: agent.toolsConfig,
+            halal_filter_enabled: agent.halalFilterEnabled,
+            memory_enabled: agent.memoryEnabled,
+          },
+          user_id: user.id,
+          message,
+        }),
+      ));
+    } catch (e: any) {
+      const detail = e?.response?.data?.detail;
+      if (e?.response?.status === 422 && detail?.blocked) {
+        throw new UnprocessableEntityException({ blocked: true, reason: detail.reason });
+      }
+      throw new BadGatewayException({ message: "Agent engine bilan aloqa yo'q", reason: 'engine_unavailable' });
+    }
 
     // Conversation ga yozish
     const convId = conversationId ?? (await this.prisma.conversation.create({

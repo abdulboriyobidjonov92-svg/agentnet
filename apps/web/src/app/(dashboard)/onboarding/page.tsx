@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import { useApiClient } from "@/lib/api-client";
+import { useApiClient, apiErrorMessage, blockedMessage } from "@/lib/api-client";
 import { useT } from "@/lib/i18n/client";
 import {
   Sparkles, Loader2, ArrowRight, Check, Bot, ShieldAlert,
@@ -50,14 +50,14 @@ export default function OnboardingPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [installing, setInstalling] = useState(false);
   const [error, setError] = useState("");
-  const [blocked, setBlocked] = useState(false);
+  const [blockedReason, setBlockedReason] = useState<string | null>(null);
   const [profile, setProfile] = useState<DetectedProfile | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
   const analyze = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setBlocked(false);
+    setBlockedReason(null);
     setAnalyzing(true);
     try {
       const res = await api.post<{ profile: DetectedProfile }>("/users/me/onboarding", {
@@ -70,8 +70,8 @@ export default function OnboardingPage() {
       queryClient.invalidateQueries({ queryKey: ["me"] });
     } catch (err: any) {
       // 422 → halal filter bloklagan
-      if (err.payload?.blocked) setBlocked(true);
-      else setError(err.message || "Error");
+      if (err.payload?.blocked) setBlockedReason(err.payload?.reason ?? null);
+      else setError(apiErrorMessage(err, t));
     } finally {
       setAnalyzing(false);
     }
@@ -102,7 +102,7 @@ export default function OnboardingPage() {
       queryClient.invalidateQueries({ queryKey: ["agents"] });
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.message || "Error");
+      setError(apiErrorMessage(err, t));
       setInstalling(false);
     }
   };
@@ -120,9 +120,10 @@ export default function OnboardingPage() {
             <p className="mx-auto max-w-lg text-sm text-muted-foreground">{t("onb.subtitle")}</p>
           </div>
 
-          {blocked && (
+          {blockedReason !== null && (
             <div className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              <ShieldAlert className="h-4 w-4 shrink-0" /> {t("onb.blocked")}
+              <ShieldAlert className="h-4 w-4 shrink-0" />{" "}
+              {blockedMessage(blockedReason, t, { plain: "onb.blocked", withReason: "onb.blockedReason" })}
             </div>
           )}
           {error && (
@@ -215,7 +216,7 @@ export default function OnboardingPage() {
             <button
               onClick={() => {
                 setProfile(null);
-                setBlocked(false);
+                setBlockedReason(null);
                 setError("");
               }}
               className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"

@@ -1,8 +1,9 @@
 "use client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiClient } from "@/lib/api-client";
-import { Bot, Download, Search, Check, BadgeCheck, Star, TrendingUp, Wallet, Loader2 } from "lucide-react";
+import { Bot, Download, Search, Check, BadgeCheck, Star, TrendingUp, Wallet, Loader2, LayoutTemplate } from "lucide-react";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useT } from "@/lib/i18n/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,9 +87,13 @@ export default function MarketplacePage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{t("market.title")}</h1>
-          <p className="mt-1 inline-flex items-center gap-1.5 text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">{t("market.subtitle")}</p>
+          <p className="mt-1 flex items-center gap-1.5 text-muted-foreground">
             <TrendingUp className="h-4 w-4 text-primary" /> {t("market.leaderboard")}
           </p>
+          <Link href="/templates" className="mt-1 flex items-center gap-1.5 text-xs text-primary hover:underline">
+            <LayoutTemplate className="h-3.5 w-3.5" /> {t("market.wantOfficial")}
+          </Link>
         </div>
         <Button variant="outline" onClick={() => setShowCreator((v) => !v)}>
           <Wallet className="text-primary" /> {t("market.creator")}
@@ -189,11 +194,11 @@ export default function MarketplacePage() {
       {isError ? (
         <ErrorState onRetry={() => refetch()} />
       ) : !agents?.length ? (
-        <p className="py-10 text-center text-sm text-muted-foreground">
-          {t("market.community")}: — (nashr etilgan agentlar shu yerda reyting bilan chiqadi)
-        </p>
+        <p className="py-10 text-center text-sm text-muted-foreground">{t("market.empty")}</p>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{t("market.community")}</h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {agents.map((agent: any) => (
             <div key={agent.id} className="flex flex-col rounded-2xl border bg-card p-5 shadow-soft transition hover:shadow-lift">
               <div className="mb-3 flex items-start gap-3">
@@ -276,6 +281,7 @@ export default function MarketplacePage() {
               )}
             </div>
           ))}
+          </div>
         </div>
       )}
     </div>

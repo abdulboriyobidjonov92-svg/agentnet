@@ -3,7 +3,7 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useApiClient } from "@/lib/api-client";
+import { useApiClient, apiErrorMessage } from "@/lib/api-client";
 import { AgentForm } from "@/components/agents/agent-form";
 import { AgentComposer } from "@/components/agents/agent-composer";
 import { Fireworks } from "@/components/three/fireworks";
@@ -65,7 +65,7 @@ export default function NewAgentPage() {
         <AgentForm
           onSubmit={createMutation.mutateAsync}
           isLoading={createMutation.isPending}
-          error={createMutation.error?.message}
+          error={createMutation.error ? apiErrorMessage(createMutation.error, t) : undefined}
           onToolsChange={setTools}
         />
 

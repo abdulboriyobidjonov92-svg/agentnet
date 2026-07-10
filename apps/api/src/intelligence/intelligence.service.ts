@@ -39,10 +39,15 @@ export class IntelligenceService {
   }
 
   async fusionRoles(user: User) {
-    const { data } = await firstValueFrom(
-      this.http.get(`${this.engineUrl}/fusion/roles`, { params: { language: user.preferredLanguage ?? 'en' } }),
-    );
-    return data;
+    try {
+      const { data } = await firstValueFrom(
+        this.http.get(`${this.engineUrl}/fusion/roles`, { params: { language: user.preferredLanguage ?? 'en' } }),
+      );
+      return data;
+    } catch (e: any) {
+      this.logger.error(`Engine xatosi (/fusion/roles): ${e.message}`);
+      throw new BadGatewayException({ message: "Agent engine bilan aloqa yo'q", reason: 'engine_unavailable' });
+    }
   }
 
   // ---- Ethical Decision Engine ----
@@ -107,7 +112,7 @@ export class IntelligenceService {
         throw new UnprocessableEntityException({ blocked: true, reason: detail.reason });
       }
       this.logger.error(`Engine xatosi (${path}): ${e.message}`);
-      throw new BadGatewayException("Agent engine bilan aloqa yo'q");
+      throw new BadGatewayException({ message: "Agent engine bilan aloqa yo'q", reason: 'engine_unavailable' });
     }
   }
 }

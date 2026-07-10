@@ -19,6 +19,7 @@ model User {
   clerkId                String    @unique
   email                  String    @unique
   phone                  String?   @unique
+  name                   String?
   role                   String    @default("MEMBER")
   // Tarif turi — monetizatsiya poydevori: "free" | "pro"
   plan                   String    @default("free")

@@ -8,7 +8,7 @@ import { useT } from "@/lib/i18n/client";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
 import { toast } from "@/components/ui/toast";
-import { Search, TrendingUp, Zap, Check, Loader2, Wrench } from "lucide-react";
+import { Search, TrendingUp, Zap, Check, Loader2, Wrench, Store } from "lucide-react";
 import { TemplatePreviewStrip } from "@/components/templates/template-preview-strip";
 
 interface TemplateCard {
@@ -28,13 +28,13 @@ export default function TemplatesPage() {
   const api = useApiClient();
   const qc = useQueryClient();
   const router = useRouter();
-  const { t } = useT();
+  const { t, locale } = useT();
   const [q, setQ] = useState("");
   const [installing, setInstalling] = useState<string | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["templates"],
-    queryFn: () => api.get<TemplateCard[]>("/templates"),
+    queryKey: ["templates", locale],
+    queryFn: () => api.get<TemplateCard[]>(`/templates?language=${locale}`),
   });
 
   const install = useMutation({
@@ -63,6 +63,9 @@ export default function TemplatesPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">{t("templates.title")}</h1>
         <p className="mt-1 text-muted-foreground">{t("templates.subtitle")}</p>
+        <Link href="/marketplace" className="mt-1 inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
+          <Store className="h-3.5 w-3.5" /> {t("templates.wantCommunity")}
+        </Link>
       </div>
 
       <div className="relative max-w-xl">

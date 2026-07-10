@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useApiClient } from "@/lib/api-client";
+import { useApiClient, apiErrorMessage } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { Sparkles, Wand2, Check, RotateCcw, Loader2, ShieldCheck, PackageCheck } from "lucide-react";
@@ -62,7 +62,7 @@ export function AgentComposer() {
   const api = useApiClient();
   const qc = useQueryClient();
   const router = useRouter();
-  const { t } = useT();
+  const { t, locale } = useT();
   const [desc, setDesc] = useState("");
   const [result, setResult] = useState<ComposeResult | null>(null);
   const [suggestion, setSuggestion] = useState<TemplateMatch | null>(null);
@@ -76,7 +76,7 @@ export function AgentComposer() {
   // Custom composer'ga yuborishdan OLDIN — mos tayyor shablon bormi?
   const matchTemplate = useMutation({
     mutationFn: (description: string) =>
-      api.get<TemplateMatch[]>(`/templates/match?q=${encodeURIComponent(description)}`),
+      api.get<TemplateMatch[]>(`/templates/match?q=${encodeURIComponent(description)}&language=${locale}`),
   });
 
   const installTemplate = useMutation({
@@ -134,7 +134,7 @@ export function AgentComposer() {
           suggestion={suggestion}
           installing={installTemplate.isPending}
           generating={compose.isPending}
-          error={(installTemplate.error as { message?: string })?.message}
+          error={installTemplate.error ? apiErrorMessage(installTemplate.error, t) : undefined}
           onBuy={() => installTemplate.mutate(suggestion.id)}
           onCustom={() => {
             setSuggestion(null);
@@ -170,7 +170,7 @@ export function AgentComposer() {
 
           {compose.isError && (
             <p className="mt-3 text-sm text-destructive">
-              {(compose.error as { message?: string })?.message ?? t("compose.error")}
+              {apiErrorMessage(compose.error, t)}
             </p>
           )}
 
@@ -194,7 +194,7 @@ export function AgentComposer() {
         <ProposalCard
           result={result}
           creating={create.isPending}
-          error={(create.error as { message?: string })?.message}
+          error={create.error ? apiErrorMessage(create.error, t) : undefined}
           onCreate={() => create.mutate(result)}
           onRestart={() => {
             setResult(null);

@@ -2,7 +2,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useApiClient } from "@/lib/api-client";
+import { useApiClient, apiErrorMessage, blockedMessage } from "@/lib/api-client";
 import { useT } from "@/lib/i18n/client";
 import {
   CircleUserRound, Plus, Trash2, Loader2, Sparkles, ShieldAlert,
@@ -61,7 +61,7 @@ export default function TwinPage() {
   const [asking, setAsking] = useState(false);
   const [result, setResult] = useState<WhatIfResult | null>(null);
   const [error, setError] = useState("");
-  const [blocked, setBlocked] = useState(false);
+  const [blockedReason, setBlockedReason] = useState<string | null>(null);
 
   const { data: facts, isError: factsError, refetch: refetchFacts } = useQuery({
     queryKey: ["twin-facts"],
@@ -90,14 +90,14 @@ export default function TwinPage() {
     e.preventDefault();
     setAsking(true);
     setError("");
-    setBlocked(false);
+    setBlockedReason(null);
     setResult(null);
     try {
       const res = await api.post<WhatIfResult>("/twin/whatif", { question: question.trim() });
       setResult(res);
     } catch (err: any) {
-      if (err.payload?.blocked) setBlocked(true);
-      else setError(err.message || "Error");
+      if (err.payload?.blocked) setBlockedReason(err.payload?.reason ?? null);
+      else setError(apiErrorMessage(err, t));
     } finally {
       setAsking(false);
     }
@@ -208,9 +208,9 @@ export default function TwinPage() {
               placeholder={t("twin.whatifPh")}
               className="resize-none"
             />
-            {blocked && (
+            {blockedReason !== null && (
               <p className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                <ShieldAlert className="h-4 w-4" /> {t("filter.blocked")}
+                <ShieldAlert className="h-4 w-4" /> {blockedMessage(blockedReason, t)}
               </p>
             )}
             {error && <p className="text-sm text-destructive">{error}</p>}

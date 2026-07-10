@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useApiClient } from "@/lib/api-client";
+import { useApiClient, apiErrorMessage, blockedMessage } from "@/lib/api-client";
 import { useT } from "@/lib/i18n/client";
 import {
   Target, Loader2, Play, ChevronDown, ChevronUp, Trash2,
@@ -44,7 +44,7 @@ export default function GoalsPage() {
   const [advancingId, setAdvancingId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [blocked, setBlocked] = useState(false);
+  const [blockedReason, setBlockedReason] = useState<string | null>(null);
 
   const { data: goals, isError: goalsError, refetch: refetchGoals } = useQuery({
     queryKey: ["goals"],
@@ -55,15 +55,15 @@ export default function GoalsPage() {
     e.preventDefault();
     setCreating(true);
     setError("");
-    setBlocked(false);
+    setBlockedReason(null);
     try {
       const goal = await api.post<Goal>("/goals", { title: title.trim() });
       setTitle("");
       setExpanded(goal.id);
       queryClient.invalidateQueries({ queryKey: ["goals"] });
     } catch (err: any) {
-      if (err.payload?.blocked) setBlocked(true);
-      else setError(err.message || "Error");
+      if (err.payload?.blocked) setBlockedReason(err.payload?.reason ?? null);
+      else setError(apiErrorMessage(err, t));
     } finally {
       setCreating(false);
     }
@@ -109,9 +109,9 @@ export default function GoalsPage() {
             {creating ? t("goals.creating") : t("goals.create")}
           </Button>
         </div>
-        {blocked && (
+        {blockedReason !== null && (
           <p className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            <ShieldAlert className="h-4 w-4" /> {t("filter.blocked")}
+            <ShieldAlert className="h-4 w-4" /> {blockedMessage(blockedReason, t)}
           </p>
         )}
         {error && <p className="text-sm text-destructive">{error}</p>}

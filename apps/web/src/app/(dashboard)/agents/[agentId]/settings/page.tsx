@@ -68,14 +68,14 @@ export default function AgentSettingsPage({ params }: { params: Promise<{ agentI
 
       <div className="rounded-2xl border bg-card p-6 shadow-soft">
         <h2 className="mb-1 font-semibold">{t("nav.marketplace")}</h2>
-        <p className="mb-4 text-sm text-muted-foreground">{t("market.convertToTemplateDesc")}</p>
+        <p className="mb-4 text-sm text-muted-foreground">{t("market.publishDesc")}</p>
         {agent?.isPublished ? (
           <Button variant="outline" onClick={() => unpublishMutation.mutate()} disabled={unpublishMutation.isPending}>
             <EyeOff /> {t("market.installed")} ✓
           </Button>
         ) : (
           <Button onClick={() => publishMutation.mutate()} disabled={publishMutation.isPending}>
-            <Globe /> {t("market.convertToTemplate")}
+            <Globe /> {t("market.publish")}
           </Button>
         )}
       </div>

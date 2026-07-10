@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useApiClient } from "@/lib/api-client";
+import { useApiClient, apiErrorMessage } from "@/lib/api-client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Shield, Link2, User, Globe, Check, Scale, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -8,8 +8,17 @@ import { useT, LOCALES } from "@/lib/i18n/client";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { ErrorState } from "@/components/ui/error-state";
+import { getClientSession, setClientSession } from "@/lib/session";
 
 type Tab = "profile" | "values" | "security" | "integrations";
+
+// Faqat jamoa (org) ichidagi foydalanuvchiga ma'noli — yakka foydalanuvchida ko'rsatilmaydi
+const ROLE_LABELS: Record<string, string> = {
+  OWNER: "Owner",
+  ADMIN: "Admin",
+  MEMBER: "Member",
+  VIEWER: "Viewer",
+};
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>("profile");
@@ -54,20 +63,63 @@ export default function SettingsPage() {
         (profileError ? <ErrorState onRetry={() => refetchProfile()} /> : <ProfileTab profile={profile} />)}
       {tab === "values" && <ValuesTab />}
       {tab === "security" && <SecurityTab />}
-      {tab === "integrations" && <IntegrationsTab />}
+      {tab === "integrations" && <IntegrationsTab profile={profile} />}
     </div>
   );
 }
 
 function ProfileTab({ profile }: { profile: any }) {
   const { t, locale, setLocale } = useT();
+  const api = useApiClient();
+  const queryClient = useQueryClient();
+  const [name, setName] = useState(profile?.name ?? "");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => setName(profile?.name ?? ""), [profile?.name]);
+
+  const saveName = async () => {
+    setSaving(true);
+    try {
+      await api.patch("/users/me", { name: name.trim() });
+      const session = getClientSession();
+      if (session) setClientSession({ ...session, name: name.trim() || undefined });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border bg-card p-6 shadow-soft">
         <h2 className="mb-4 font-semibold">{t("settings.profile")}</h2>
         <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3 border-b py-2">
+            <span className="text-sm text-muted-foreground">{t("settings.name")}</span>
+            <div className="flex items-center gap-2">
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={t("settings.namePh")}
+                className="h-8 w-44 text-right text-sm"
+              />
+              <Button
+                size="icon-sm"
+                variant="outline"
+                onClick={saveName}
+                disabled={saving || name.trim() === (profile?.name ?? "")}
+                aria-label={t("common.save")}
+              >
+                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+              </Button>
+            </div>
+          </div>
+          {saved && <p className="text-right text-xs text-primary">{t("settings.nameSaved")}</p>}
           <Row label={t("settings.email")} value={profile?.email ?? "…"} />
-          <Row label="Role" value={profile?.role ?? "MEMBER"} />
+          {profile?.orgId && <Row label={t("settings.role")} value={ROLE_LABELS[profile.role] ?? profile.role} />}
           <Row label={t("settings.businessAccount")} value={profile?.isBusinessAccount ? "✓" : "—"} />
         </div>
       </div>
@@ -156,7 +208,7 @@ function ValuesTab() {
       const res = await api.post<any>("/ethics/evaluate", { action: action.trim() });
       setVerdict(res);
     } catch (err: any) {
-      setVerdict({ verdict: "REJECT", reasoning: err.message });
+      setVerdict({ verdict: "REJECT", reasoning: apiErrorMessage(err, t) });
     } finally {
       setChecking(false);
     }
@@ -269,9 +321,8 @@ function SecurityTab() {
   );
 }
 
-function IntegrationsTab() {
+function IntegrationsTab({ profile }: { profile: any }) {
   const items = [
-    { name: "Telegram Bot", desc: "Chat with agents via Telegram", status: "setup", color: "text-blue-600 bg-blue-500/10" },
     { name: "Google Calendar", desc: "Events and reminders", status: "soon", color: "text-muted-foreground bg-muted" },
     { name: "Payme", desc: "Uzbekistan payments", status: "sandbox", color: "text-gold bg-gold/10" },
     { name: "Click", desc: "Uzbekistan payments", status: "sandbox", color: "text-gold bg-gold/10" },
@@ -279,6 +330,7 @@ function IntegrationsTab() {
   ];
   return (
     <div className="space-y-3">
+      <TelegramIntegrationRow connected={!!profile?.telegramChatId} />
       {items.map((i) => (
         <div key={i.name} className="flex items-center justify-between rounded-2xl border bg-card p-4 shadow-soft">
           <div>
@@ -288,6 +340,52 @@ function IntegrationsTab() {
           <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium", i.color)}>{i.status}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+function TelegramIntegrationRow({ connected }: { connected: boolean }) {
+  const { t } = useT();
+  const api = useApiClient();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const connect = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await api.post<{ url: string | null }>("/telegram/link-code", {});
+      if (res.url) {
+        window.open(res.url, "_blank");
+      } else {
+        setError(t("integrations.telegramNotConfigured"));
+      }
+    } catch (err) {
+      setError(apiErrorMessage(err, t));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border bg-card p-4 shadow-soft">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium">Telegram Bot</p>
+          <p className="text-xs text-muted-foreground">{t("integrations.telegramDesc")}</p>
+        </div>
+        {connected ? (
+          <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+            {t("integrations.connected")}
+          </span>
+        ) : (
+          <Button size="sm" variant="outline" onClick={connect} disabled={loading} className="shrink-0">
+            {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            {t("integrations.connect")}
+          </Button>
+        )}
+      </div>
+      {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
     </div>
   );
 }

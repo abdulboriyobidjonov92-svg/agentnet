@@ -3,6 +3,7 @@ import { use } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useApiClient } from "@/lib/api-client";
 import { ChatInterface } from "@/components/chat/chat-interface";
+import { TrustLog } from "@/components/agents/trust-log";
 import { ArrowLeft, Bot, Settings, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { ErrorState } from "@/components/ui/error-state";
@@ -54,6 +55,8 @@ export default function AgentChatPage({ params }: { params: Promise<{ agentId: s
           <Settings className="h-4 w-4 text-muted-foreground" />
         </Link>
       </div>
+
+      <TrustLog agentId={agentId} />
 
       <div className="min-h-0 flex-1">
         <ChatInterface agentId={agentId} agentDefinition={agent} />

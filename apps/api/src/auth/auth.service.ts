@@ -232,17 +232,18 @@ export class ClerkSyncService {
    * foydalanuvchini topadi/yaratadi. Prototip uchun (tashqi auth'siz).
    */
   async devLogin(input: { email?: string; phone?: string; name?: string }) {
-    const name = input.name ?? '';
+    const name = input.name?.trim() || undefined;
 
     // Har bir muvaffaqiyatli login imzolangan token bilan qaytadi — guard
     // shu tokenni tekshiradi (userId'ning o'zi endi kirish uchun yetarli emas).
     const issue = (
-      u: { id: string; email: string; phone: string | null; role: string },
+      u: { id: string; email: string; phone: string | null; role: string; name: string | null },
       isNewUser: boolean,
     ) => ({
       userId: u.id,
       email: u.email,
       phone: u.phone,
+      name: u.name,
       role: u.role,
       isNewUser,
       token: signToken({ sub: u.id, email: u.email }),
@@ -264,6 +265,7 @@ export class ClerkSyncService {
           // email majburiy/unique — telefondan barqaror sintetik qiymat.
           email: `${phone.replace('+', '')}@phone.agentnet`,
           phone,
+          name,
           role: 'MEMBER',
         },
       });
@@ -290,6 +292,7 @@ export class ClerkSyncService {
       data: {
         clerkId: this.devClerkId(),
         email: clean,
+        name,
         role: 'MEMBER',
       },
     });

@@ -4,6 +4,42 @@ import { getClientSession } from "@/lib/session";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
+interface ApiErrorPayload {
+  reason?: string;
+  creationPriceSom?: number;
+  limit?: number;
+}
+
+/**
+ * Backend xato-xabarlari (message) doim o'zbekcha keladi — chetdan kelgan matnni
+ * to'g'ridan-to'g'ri ko'rsatish tanlangan UI tilini buzadi. `reason` kodi bo'lsa,
+ * o'rniga tarjima qilingan matn quramiz; bo'lmasa xom `message`ga tushamiz.
+ */
+export function apiErrorMessage(err: unknown, t: (key: string) => string): string {
+  const e = err as { message?: string; payload?: ApiErrorPayload } | undefined;
+  const reason = e?.payload?.reason;
+  if (reason === "engine_unavailable") return t("common.engineUnavailable");
+  if (reason === "insufficient_balance" && e?.payload?.creationPriceSom != null) {
+    return t("common.insufficientBalance").replace(
+      "{price}",
+      e.payload.creationPriceSom.toLocaleString("ru-RU"),
+    );
+  }
+  if (reason === "agent_limit" && e?.payload?.limit != null) {
+    return t("common.agentLimitReached").replace("{limit}", String(e.payload.limit));
+  }
+  return e?.message ?? t("common.error");
+}
+
+/** Ethics Guard blokladi — sabab bo'lsa ko'rsatamiz, aks holda umumiy xabar. */
+export function blockedMessage(
+  reason: string | null | undefined,
+  t: (key: string) => string,
+  keys: { plain: string; withReason: string } = { plain: "filter.blocked", withReason: "filter.blockedReason" },
+): string {
+  return reason ? t(keys.withReason).replace("{reason}", reason) : t(keys.plain);
+}
+
 export function useApiClient() {
   const request = useCallback(
     async <T>(path: string, options: RequestInit = {}): Promise<T> => {

@@ -285,7 +285,7 @@ export class OperationsService {
         throw new UnprocessableEntityException({ blocked: true, reason: detail.reason });
       }
       this.logger.error(`Engine xatosi (${path}): ${e.message}`);
-      throw new BadGatewayException("Agent engine bilan aloqa yo'q");
+      throw new BadGatewayException({ message: "Agent engine bilan aloqa yo'q", reason: 'engine_unavailable' });
     }
   }
 }

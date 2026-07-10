@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useApiClient } from "@/lib/api-client";
+import { useApiClient, apiErrorMessage, blockedMessage } from "@/lib/api-client";
 import { useT } from "@/lib/i18n/client";
 import { Fireworks } from "@/components/three/fireworks";
 import {
@@ -55,7 +55,7 @@ export default function AgentOsPage() {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<CommandResult | null>(null);
   const [error, setError] = useState("");
-  const [blocked, setBlocked] = useState(false);
+  const [blockedReason, setBlockedReason] = useState<string | null>(null);
   const [burst, setBurst] = useState(0);
 
   // Ish maydoni setup holati
@@ -91,15 +91,15 @@ export default function AgentOsPage() {
     e.preventDefault();
     setRunning(true);
     setError("");
-    setBlocked(false);
+    setBlockedReason(null);
     setResult(null);
     try {
       const rec = await api.post<any>("/agentos/command", { command: command.trim() });
       setResult(rec.result);
       setBurst((b) => b + 1);
     } catch (err: any) {
-      if (err.payload?.blocked) setBlocked(true);
-      else setError(err.message || "Error");
+      if (err.payload?.blocked) setBlockedReason(err.payload?.reason ?? null);
+      else setError(apiErrorMessage(err, t));
     } finally {
       setRunning(false);
     }
@@ -202,7 +202,7 @@ export default function AgentOsPage() {
             <div>
               <h1 className="text-xl font-bold">{workspace.name}</h1>
               <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                AgentOS · {workspace.kind}{workspace.industry ? ` · ${workspace.industry}` : ""}
+                {t("nav.agentos")} · {workspace.kind}{workspace.industry ? ` · ${workspace.industry}` : ""}
               </p>
             </div>
           </div>
@@ -262,9 +262,9 @@ export default function AgentOsPage() {
             {running ? t("os.running") : t("os.execute")}
           </Button>
         </div>
-        {blocked && (
+        {blockedReason !== null && (
           <p className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            <ShieldAlert className="h-4 w-4" /> {t("filter.blocked")}
+            <ShieldAlert className="h-4 w-4" /> {blockedMessage(blockedReason, t)}
           </p>
         )}
         {error && <p className="text-sm text-destructive">{error}</p>}

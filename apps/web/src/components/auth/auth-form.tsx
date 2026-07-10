@@ -69,7 +69,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         userId: data.userId,
         email: data.email,
         phone: data.phone ?? undefined,
-        name: payload.name,
+        name: data.name || payload.name || undefined,
         token: data.token,
       });
       // Yangi hisob → adaptiv onboarding; mavjud hisob → dashboard

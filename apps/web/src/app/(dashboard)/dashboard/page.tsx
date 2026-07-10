@@ -40,6 +40,7 @@ function pick(text: LocalizedText | undefined, locale: string): string {
 interface Me {
   id: string;
   email: string;
+  name?: string | null;
   professionTitle?: string | null;
   domain?: string | null;
   onboardingCompleted: boolean;
@@ -225,7 +226,7 @@ export default function DashboardPage() {
         <div>
           <p className="label-mono">{t("dash.greeting")}</p>
           <h1 className="mt-1.5 text-xl font-semibold tracking-tight sm:text-2xl">
-            {me?.professionTitle || me?.email?.split("@")[0] || "—"}
+            {me?.name || me?.professionTitle || me?.email?.split("@")[0] || "—"}
           </h1>
         </div>
         <p className="label-mono flex items-center gap-2">

@@ -117,6 +117,7 @@ export function MacScreen({ t }: { t: HeroT }) {
       </div>
 
       {/* OLTIN CTA — reference'dagi markaziy tugma, haqiqiy havola */}
+      {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- drei <Html> portalida router konteksti yo'q, izohga qarang */}
       <a
         href="/sign-up"
         className="cta-gold mx-auto mt-0.5 flex w-[62%] items-center justify-center gap-1.5 rounded-lg py-2 text-[12px] font-bold"
@@ -143,6 +144,7 @@ export function PhoneScreen({ t }: { t: HeroT }) {
           <span key={i} className={`h-1 w-1 rounded-full ${i < 4 ? "bg-[hsl(var(--accent-cyan))]" : "bg-white/20"}`} />
         ))}
       </div>
+      {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- drei <Html> portalida router konteksti yo'q */}
       <a href="/sign-up" className="cta-gold mt-1 rounded-full px-4 py-1.5 text-[11px] font-bold">
         {t("hero.getStarted")}
       </a>

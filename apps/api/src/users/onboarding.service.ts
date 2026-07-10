@@ -60,7 +60,7 @@ export class OnboardingService {
         throw new UnprocessableEntityException({ blocked: true, reason: detail.reason });
       }
       this.logger.error(`Role detection engine xatosi: ${e.message}`);
-      throw new BadGatewayException("Agent engine bilan aloqa yo'q");
+      throw new BadGatewayException({ message: "Agent engine bilan aloqa yo'q", reason: 'engine_unavailable' });
     }
 
     const updated = await this.prisma.user.update({
@@ -143,7 +143,7 @@ export class OnboardingService {
       return { ...data, recommended_agents: agents };
     } catch (e: any) {
       this.logger.error(`Recommendations engine xatosi: ${e.message}`);
-      throw new BadGatewayException("Agent engine bilan aloqa yo'q");
+      throw new BadGatewayException({ message: "Agent engine bilan aloqa yo'q", reason: 'engine_unavailable' });
     }
   }
 

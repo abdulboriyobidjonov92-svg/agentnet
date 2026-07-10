@@ -36,6 +36,9 @@ const en: Dict = {
     "common.new": "New",
     "common.error": "Something went wrong. Please try again.",
     "common.errorTitle": "Failed to load",
+    "common.engineUnavailable": "The service is temporarily unavailable. Please try again shortly.",
+    "common.insufficientBalance": "Your balance is too low. Price: {price} so'm. Please top up your account.",
+    "common.agentLimitReached": "You've reached your agent limit ({limit}). Upgrade your plan to create more.",
     "common.retry": "Retry",
     "common.undo": "Undo",
     "agents.deleted": "Agent deleted",
@@ -67,7 +70,7 @@ const en: Dict = {
     "landing.heroTitle1": "Command your",
     "landing.heroTitleAccent": "autonomous",
     "landing.heroTitle2": "AI workforce",
-    "landing.heroSubtitle": "One instruction, executed across specialized AI agents. Life Twin, autonomous goals, cross-domain agent fusion and an enterprise C-suite — a real operations platform, not a chatbot.",
+    "landing.heroSubtitle": "One instruction, executed across specialized AI agents. Life Twin, autonomous goals, cross-domain deep analysis and an enterprise AI leadership team — a real operations platform, not a chatbot.",
     "landing.ctaPrimary": "Start free",
     "landing.ctaSecondary": "Sign in",
     "landing.check1": "No credit card required",
@@ -92,7 +95,7 @@ const en: Dict = {
     "landing.a4d": "Live sources, cited answers",
     "landing.a5": "Operations",
     "landing.a5d": "Schedule, comms, follow-ups",
-    "landing.a6": "AgentOS C-suite",
+    "landing.a6": "AI Leadership Team",
     "landing.a6d": "AI-CEO, CFO, CMO, CLO, CTO",
     "landing.ctaTitle": "Start now",
     "landing.ctaDesc": "Sign up in a minute and create your first AI agent.",
@@ -103,10 +106,10 @@ const en: Dict = {
     "landing.indTitle": "For individuals",
     "landing.indDesc": "A Life Twin that models your finances, work and goals — and an AI workforce that acts on them, from planning to execution.",
     "landing.bizTitle": "For enterprises & government",
-    "landing.bizDesc": "AgentOS runs your organization: an AI C-suite that executes one leader command across finance, legal, marketing and engineering — with a full audit trail.",
+    "landing.bizDesc": "Your AI Leadership Team runs the organization: an AI C-suite that executes one leader command across finance, legal, marketing and engineering — with a full audit trail.",
     "landing.indP1": "Life Twin & what-if",
     "landing.indP2": "Autonomous goals",
-    "landing.indP3": "Cross-domain fusion",
+    "landing.indP3": "Cross-domain deep analysis",
     "landing.bizP1": "AI C-suite orchestration",
     "landing.bizP2": "Ethics Guard + audit log",
     "landing.bizP3": "Real-time operations",
@@ -146,7 +149,7 @@ const en: Dict = {
     "auth.brandF2": "No-code builder",
     "auth.brandF2d": "Create specialized agents without coding",
     "auth.brandF3": "Autonomous",
-    "auth.brandF3d": "Life Twin, goals, fusion and an AI C-suite in one place",
+    "auth.brandF3d": "Life Twin, goals, deep analysis and an AI C-suite in one place",
     "auth.brandFooter": "AgentNet · Built for the world",
 
     // Sidebar
@@ -215,7 +218,8 @@ const en: Dict = {
     // Y3 — template gallery
     "nav.templates": "Templates",
     "templates.title": "Ready agent templates",
-    "templates.subtitle": "Pick your profession — install a predictive, autonomous agent in one click.",
+    "templates.subtitle": "Pick your profession — install a predictive, autonomous agent in one click. These are AgentNet's official templates.",
+    "templates.wantCommunity": "Want to see agents built by other users?",
     "templates.search": "Type your profession (e.g. shop, auto service, farmer)",
     "templates.install": "Install",
     "templates.installing": "Installing…",
@@ -283,7 +287,8 @@ const en: Dict = {
     "onb.skip": "Skip for now",
     "onb.redo": "Not right? Describe yourself again",
     "onb.blocked": "This description was blocked by the Ethics Guard.",
-    "onb.offlineNote": "Detected by keywords (offline mode). With an Anthropic API key, detection becomes much smarter.",
+    "onb.blockedReason": "This description was blocked by the Ethics Guard: {reason}",
+    "onb.offlineNote": "Detected approximately from keywords — full analysis isn't available right now.",
 
     // Adaptive dashboard
     "dash.onbBanner": "Personalize your workspace — tell us your profession and goals, and AgentNet will adapt.",
@@ -299,9 +304,8 @@ const en: Dict = {
     // Nav (wow features)
     "nav.twin": "Life Twin",
     "nav.goals": "Goals",
-    "nav.fusion": "Fusion",
-    "nav.supermode": "Super Mode",
-    "nav.agentos": "AgentOS",
+    "nav.fusion": "Deep Analysis",
+    "nav.agentos": "AI Leadership Team",
     "nav.automation": "Web Operator",
     "nav.connectors": "Connectors",
     "nav.retail": "Retail Intel",
@@ -394,7 +398,7 @@ const en: Dict = {
     "market.rate": "Rate",
 
     // AgentOS (enterprise)
-    "os.setupTitle": "Launch your AgentOS workspace",
+    "os.setupTitle": "Launch your AI Leadership Team",
     "os.setupSub": "One command from you, executed across a full AI C-suite. Set up your company workspace to begin.",
     "os.orgName": "Organization name",
     "os.orgNamePh": "e.g. Baraka Foods",
@@ -465,8 +469,12 @@ const en: Dict = {
     "goals.status.completed": "Completed",
     "goals.status.active": "Active",
 
-    // Fusion
-    "fusion.title": "Agent Fusion",
+    // Deep Analysis (Fusion + Super Mode merged)
+    "consult.title": "Deep Analysis",
+    "consult.subtitle": "Get a complex question answered from multiple expert angles — or plan your whole day together.",
+    "consult.tabExperts": "Expert panel",
+    "consult.tabDaily": "Daily management",
+
     "fusion.subtitle": "Combine experts — doctor, lawyer, accountant and more — into one working group that returns a single coherent answer.",
     "fusion.ph": "e.g. My insurance company refused to cover my father's treatment. Is it worth going to court?",
     "fusion.run": "Convene the experts",
@@ -477,11 +485,10 @@ const en: Dict = {
     "fusion.synthesis": "Joint conclusion",
     "fusion.actionPlan": "Action plan",
 
-    // Super Mode
-    "super.title": "One Command · Super Mode",
+    // Daily management (formerly "Super Mode")
     "super.subtitle": "All five capabilities working together: Life Twin context → day plan → agent deliverables → ethics checks → live knowledge → report.",
     "super.ph": "Manage my whole day today",
-    "super.run": "Run Super Mode",
+    "super.run": "Manage my day",
     "super.running": "Orchestrating your day…",
     "super.focus": "Focus of the day",
     "super.deliverable": "Deliverable",
@@ -507,21 +514,22 @@ const en: Dict = {
 
     // Shared
     "filter.blocked": "Blocked by the Ethics Guard.",
-    "common.offline": "Offline mode — add an Anthropic API key for full AI reasoning.",
+    "filter.blockedReason": "Blocked by the Ethics Guard: {reason}",
+    "common.offline": "Limited mode — full AI analysis isn't available right now.",
     "common.sources": "Sources",
     "tool.knowledge": "Live knowledge",
     "tool.knowledgeDesc": "news, Wikipedia, prices — with sources",
 
     // Marketplace
     "market.title": "Marketplace",
-    "market.subtitle": "Ready-made and community agents.",
-    "market.builtin": "Built-in agents",
-    "market.convertToTemplate": "Convert to template",
-    "market.convertToTemplateDesc": "Turn this agent into a marketplace template — prices are preserved, others can install it in one click.",
+    "market.subtitle": "Agents created and published for sale by other users — not the official templates.",
+    "market.wantOfficial": "Looking for an official ready-made template?",
+    "market.publish": "Publish to Marketplace",
+    "market.publishDesc": "Publish this agent to the marketplace — prices are preserved, other users can install it in one click.",
     "market.community": "Community agents",
+    "market.empty": "No community agents yet — published ones will appear here with ratings.",
     "market.install": "Install",
     "market.installed": "Installed",
-    "market.empty": "No community agents yet",
 
     // Settings
     "settings.title": "Settings",
@@ -531,7 +539,27 @@ const en: Dict = {
     "settings.integrations": "Integrations",
     "settings.language": "Language",
     "settings.email": "Email",
+    "settings.role": "Team role",
     "settings.name": "Name",
+    "settings.namePh": "Your name",
+    "settings.nameSaved": "Saved",
+
+    "integrations.telegramDesc": "Chat with your agents via Telegram",
+    "integrations.connect": "Connect",
+    "integrations.connected": "Connected",
+    "integrations.telegramNotConfigured": "The bot isn't set up yet. Please try again later.",
+
+    "trust.title": "Trust log",
+    "trust.empty": "No actions yet.",
+    "trust.created": "Created — {price} so'm charged",
+    "trust.createdMonthly": " ({price} so'm/month)",
+    "trust.deleted": "Agent deleted",
+    "trust.monthlyCharge": "Monthly fee charged automatically — {price} so'm",
+    "trust.frozen": "Frozen after {retries} failed attempts — balance was too low ({price} so'm)",
+    "trust.chargeRetry": "Monthly payment failed (balance too low) — attempt {retries}, retrying tomorrow",
+    "trust.published": "Published to the Marketplace",
+    "trust.installedByOther": "Another user installed a copy of this agent — {price} so'm",
+    "trust.installRecommended": "Installed automatically as a recommended agent during onboarding ({domain})",
     "settings.businessAccount": "Business account",
 
     // Tools names
@@ -562,7 +590,7 @@ const en: Dict = {
     "pricing.freeDesc": "Try the platform — real agents, real tools, daily limits.",
     "pricing.proName": "Pro",
     "pricing.proDesc": "Higher limits for professionals who work with agents daily.",
-    "pricing.entName": "Enterprise · AgentOS",
+    "pricing.entName": "Enterprise · AI Leadership Team",
     "pricing.entDesc": "AI C-suite (CEO/CFO/CMO/CLO/CTO) orchestration for organizations.",
     "pricing.perMonth": "/ 30 days",
     "pricing.chatPerDay": "messages per day",
@@ -575,7 +603,7 @@ const en: Dict = {
     "pricing.upgraded": "Pro activated!",
     "pricing.insufficient": "Balance too low. Top up your account first.",
     "pricing.topupLink": "Top up balance",
-    "pricing.entCta": "Open AgentOS",
+    "pricing.entCta": "Open AI Leadership Team",
     "pricing.free0": "0 so'm",
     "pricing.balanceNote": "Chat messages are charged per message from your prepaid balance on every plan — the plan changes limits, not message price.",
     "pricing.marketplaceNote": "Marketplace: creators earn 70% on every paid install — see the creator dashboard.",
