@@ -24,6 +24,17 @@ import { Prisma, type User } from '@prisma/client';
 // birga ishlatiladi — bir foydalanuvchining parallel yaratishlari seriyalashadi).
 const AGENT_CREATE_LOCK_NS = 4772;
 
+// Sinov shartlari (FAQAT foydalanuvchining birinchi agenti): 3 kun YOKI 20
+// xabar — qaysi biri oldin tugasa. Kod o'zgartirilmasdan sozlash uchun env.
+export function trialDays(): number {
+  const v = Number(process.env.TRIAL_DAYS);
+  return Number.isFinite(v) && v > 0 ? Math.floor(v) : 3;
+}
+export function trialMessageLimit(): number {
+  const v = Number(process.env.TRIAL_MESSAGE_LIMIT);
+  return Number.isFinite(v) && v > 0 ? Math.floor(v) : 20;
+}
+
 /** $transaction ichidan tashqariga balans yetmasligini signal qilish uchun. */
 class InsufficientBalanceError extends Error {
   constructor(public readonly creationPriceSom: number) {
@@ -35,6 +46,12 @@ class InsufficientBalanceError extends Error {
 export function addMonths(date: Date, n: number): Date {
   const d = new Date(date);
   d.setMonth(d.getMonth() + n);
+  return d;
+}
+
+export function addDays(date: Date, n: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
   return d;
 }
 
@@ -100,6 +117,13 @@ export class AgentsService {
           if (updated.count === 0) throw new InsufficientBalanceError(price.creationSom);
         }
 
+        // Sinov — FAQAT foydalanuvchining ENG BIRINCHI agenti (lock ostida
+        // hisoblangani uchun parallel so'rovlarda ham faqat bittasi "birinchi"
+        // bo'lib chiqadi). 2-va-keyingi agentlar to'g'ridan-to'g'ri oddiy oylik
+        // rejimga o'tadi (foydalanuvchi allaqachon qiymatni ko'rgan).
+        const existingCount = await tx.agent.count({ where: { userId: user.id } });
+        const isFirstAgent = existingCount === 0;
+
         const now = new Date();
         const created = await tx.agent.create({
           data: {
@@ -114,7 +138,14 @@ export class AgentsService {
             userId: user.id,
             creationPriceTiyin,
             monthlyPriceTiyin,
-            nextChargeAt: monthlyPriceTiyin > 0 ? addMonths(now, 1) : null,
+            isTrialAgent: isFirstAgent && monthlyPriceTiyin > 0,
+            trialStartedAt: isFirstAgent && monthlyPriceTiyin > 0 ? now : null,
+            nextChargeAt:
+              monthlyPriceTiyin > 0
+                ? isFirstAgent
+                  ? addDays(now, trialDays())
+                  : addMonths(now, 1)
+                : null,
           },
         });
 
@@ -292,6 +323,20 @@ export class AgentsService {
    * Darhol qarzdor oylik siklni yechishga urinadi; muvaffaqiyatli bo'lsa
    * frozen=false bo'ladi, aks holda aniq 402 xato (hali ham yetarli emas).
    */
+  /** Muzlatilgan agent uchun sabab-mos aniq xabar (sinov tugashi vs oylik to'lov muvaffaqiyatsizligi). */
+  private frozenErrorPayload(agent: { name: string; monthlyPriceTiyin: number; frozenReason: string | null }) {
+    if (agent.frozenReason === 'trial_expired') {
+      return {
+        message: `"${agent.name}" agentining sinov muddati tugadi (${trialDays()} kun yoki ${trialMessageLimit()} xabar). Davom etish uchun oylik to'lovni amalga oshiring (${Math.round(agent.monthlyPriceTiyin / 100).toLocaleString('ru-RU')} so'm/oy).`,
+        reason: 'trial_expired',
+      };
+    }
+    return {
+      message: `"${agent.name}" agenti muzlatilgan — oylik to'lov o'tmadi. Hisobingizni to'ldirib, agentni qayta faollashtiring.`,
+      reason: 'agent_frozen',
+    };
+  }
+
   async reactivate(id: string, user: User) {
     const agent = await this.findOne(id, user);
     if (!agent.frozen) return agent;
@@ -311,16 +356,28 @@ export class AgentsService {
   }
 
   async run(id: string, user: User, message: string, conversationId?: string) {
-    const agent = await this.findOne(id, user);
+    let agent = await this.findOne(id, user);
     if (agent.frozen) {
-      throw new HttpException(
-        {
-          message: `"${agent.name}" agenti muzlatilgan — oylik to'lov o'tmadi. Hisobingizni to'ldirib, agentni qayta faollashtiring.`,
-          reason: 'agent_frozen',
-        },
-        HttpStatus.PAYMENT_REQUIRED,
-      );
+      throw new HttpException(this.frozenErrorPayload(agent), HttpStatus.PAYMENT_REQUIRED);
     }
+
+    // Sinov (faqat birinchi agent): 20-xabar chegarasi bu yerda, 3-kunlik
+    // chegara esa agent-billing.service.ts'dagi kunlik cron orqali (nextChargeAt
+    // sinov boshida +3kunga o'rnatilgan) — ikkalasi HAM resolveTrialEnd()ga
+    // tushadi, shu bilan qaysi biri oldin tugasa o'sha ishlaydi.
+    if (agent.isTrialAgent) {
+      const nextCount = agent.trialMessageCount + 1;
+      if (nextCount > trialMessageLimit()) {
+        agent = await this.agentBilling.resolveTrialEnd(agent, user);
+        if (agent.frozen) {
+          throw new HttpException(this.frozenErrorPayload(agent), HttpStatus.PAYMENT_REQUIRED);
+        }
+        // Muvaffaqiyatli to'landi (oddiy oylik rejimga o'tdi) — shu xabar davom etadi.
+      } else {
+        await this.prisma.agent.update({ where: { id: agent.id }, data: { trialMessageCount: { increment: 1 } } });
+      }
+    }
+
     // LLM chaqiruvidan oldin kunlik/global limitni tekshiramiz
     await this.usage.consumeChat(user);
     const engineUrl = process.env.AGENT_ENGINE_URL ?? 'http://localhost:8000';

@@ -1,15 +1,15 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, ArrowRight, Mail, Phone } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, Mail, Phone, ShieldCheck } from "lucide-react";
 import { setClientSession } from "@/lib/session";
 import { useT } from "@/lib/i18n/client";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
 type Method = "email" | "phone";
-type Pending = "form" | "google" | null;
+type Step = "identify" | "code" | "twofa";
 
 // O'zbekiston raqami: +998 prefiks + 9 ta raqam ("90 123 45 67" ko'rinishida)
 const DIAL_CODE = "+998";
@@ -19,10 +19,12 @@ const formatUzPhone = (digits: string): string => {
   return parts.join(" ");
 };
 
+const RESEND_COOLDOWN_SEC = 60;
+
 // Google'ning rasmiy 4-rangli "G" belgisi (brend aktivi — monoxrom istisno)
 function GoogleGlyph() {
   return (
-    <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" aria-hidden>
+    <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] opacity-50" aria-hidden>
       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.76h3.56c2.08-1.92 3.28-4.74 3.28-8.09Z" />
       <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.56-2.76c-.98.66-2.23 1.06-3.72 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z" />
       <path fill="#FBBC05" d="M5.84 14.11a6.6 6.6 0 0 1 0-4.22V7.05H2.18a11 11 0 0 0 0 9.9l3.66-2.84Z" />
@@ -34,87 +36,170 @@ function GoogleGlyph() {
 export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const router = useRouter();
   const { t } = useT();
+  const [step, setStep] = useState<Step>("identify");
   const [method, setMethod] = useState<Method>("email");
   const [email, setEmail] = useState("");
   const [phoneDigits, setPhoneDigits] = useState(""); // faqat raqamlar (prefikssiz)
   const [name, setName] = useState("");
-  const [pending, setPending] = useState<Pending>(null);
+  const [code, setCode] = useState("");
+  const [twoFaCode, setTwoFaCode] = useState("");
+  const [userId, setUserId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [cooldown, setCooldown] = useState(0);
 
   const isSignUp = mode === "sign-up";
   const phoneValid = phoneDigits.length === 9;
-  const canSubmit = method === "email" ? email.includes("@") : phoneValid;
-  const busy = pending !== null;
+  const canSubmitIdentify = method === "email" ? email.includes("@") : phoneValid;
+  const identifierPayload = method === "email" ? { email: email.trim() } : { phone: `${DIAL_CODE}${phoneDigits}` };
+  const identifierLabel = method === "email" ? email.trim() : `${DIAL_CODE} ${formatUzPhone(phoneDigits)}`;
 
-  // Umumiy autentifikatsiya oqimi — email / telefon / Google uchun bitta yo'l.
-  const authenticate = async (
-    payload: { email?: string; phone?: string; name?: string },
-    who: Exclude<Pending, null>,
-  ) => {
+  const cooldownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => () => {
+    if (cooldownTimer.current) clearInterval(cooldownTimer.current);
+  }, []);
+
+  const startCooldown = () => {
+    setCooldown(RESEND_COOLDOWN_SEC);
+    if (cooldownTimer.current) clearInterval(cooldownTimer.current);
+    cooldownTimer.current = setInterval(() => {
+      setCooldown((c) => {
+        if (c <= 1 && cooldownTimer.current) clearInterval(cooldownTimer.current);
+        return Math.max(0, c - 1);
+      });
+    }, 1000);
+  };
+
+  const finishLogin = (data: {
+    userId: string;
+    email: string;
+    phone?: string | null;
+    name?: string | null;
+    token: string;
+    isNewUser?: boolean;
+  }) => {
+    setClientSession({
+      userId: data.userId,
+      email: data.email,
+      phone: data.phone ?? undefined,
+      name: data.name || name.trim() || undefined,
+      token: data.token,
+    });
+    router.push(isSignUp || data.isNewUser ? "/onboarding" : "/dashboard");
+    router.refresh();
+  };
+
+  const requestCode = async () => {
+    if (!canSubmitIdentify || busy) return;
     setError("");
-    setPending(who);
+    setBusy(true);
     try {
-      const res = await fetch(`${API_URL}/api/auth/dev-login`, {
+      const res = await fetch(`${API_URL}/api/auth/otp/request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(identifierPayload),
       });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j.message || "Error");
-      }
-      const data = await res.json();
-      const isNew = data.isNewUser ?? false;
-      setClientSession({
-        userId: data.userId,
-        email: data.email,
-        phone: data.phone ?? undefined,
-        name: data.name || payload.name || undefined,
-        token: data.token,
-      });
-      // Yangi hisob → adaptiv onboarding; mavjud hisob → dashboard
-      router.push(isSignUp || isNew ? "/onboarding" : "/dashboard");
-      router.refresh();
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.message || "Error");
+      setStep("code");
+      setCode("");
+      startCooldown();
     } catch (err: any) {
       setError(err.message || "Error");
-      setPending(null);
+    } finally {
+      setBusy(false);
     }
   };
 
-  const submit = (e: React.FormEvent) => {
+  const submitIdentify = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit || busy) return;
-    authenticate(
-      method === "email"
-        ? { email: email.trim(), name: name.trim() }
-        : { phone: `${DIAL_CODE}${phoneDigits}`, name: name.trim() },
-      "form",
-    );
+    requestCode();
   };
 
-  const googleLogin = () => {
-    if (busy) return;
-    // Demo rejimi: Clerk/OAuth kredensiallarisiz — barqaror demo Google hisobi.
-    authenticate({ email: "demo.google@agentnet.app", name: "Google User" }, "google");
+  const submitCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (code.length !== 6 || busy) return;
+    setError("");
+    setBusy(true);
+    try {
+      const res = await fetch(`${API_URL}/api/auth/otp/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...identifierPayload, code, name: name.trim() || undefined }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Error");
+      if (data.needsTwoFactor) {
+        setUserId(data.userId);
+        setStep("twofa");
+        setTwoFaCode("");
+      } else {
+        finishLogin(data);
+      }
+    } catch (err: any) {
+      setError(err.message || "Error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitTwoFa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (twoFaCode.length !== 6 || busy || !userId) return;
+    setError("");
+    setBusy(true);
+    try {
+      const res = await fetch(`${API_URL}/api/auth/2fa/login-verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, token: twoFaCode }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Error");
+      finishLogin(data);
+    } catch (err: any) {
+      setError(err.message || "Error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const goBack = () => {
+    setError("");
+    setStep("identify");
+    setCode("");
   };
 
   const inputCls =
     "w-full rounded-lg border border-border bg-surface-2 px-3.5 py-3 text-[15px] text-foreground placeholder:text-muted-foreground/60 outline-none transition-colors";
+  const codeInputCls =
+    "nums w-full rounded-lg border border-border bg-surface-2 px-3.5 py-3 text-center text-[22px] font-semibold tracking-[0.4em] text-foreground placeholder:text-muted-foreground/40 outline-none transition-colors";
 
   return (
-    <form onSubmit={submit} className="w-full animate-in-up">
+    <div className="w-full animate-in-up">
       {/* Editorial sarlavha — oversized, chapga tekislangan */}
       <div className="mb-8">
         <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-          {isSignUp ? t("auth.startBadge") : t("auth.welcomeBadge")}
+          {step !== "identify" ? t("auth.verifyBadge") : isSignUp ? t("auth.startBadge") : t("auth.welcomeBadge")}
         </p>
         <h1 className="text-[2.6rem] font-semibold leading-[1.05] tracking-tight">
-          {isSignUp ? t("auth.signUpTitle") : t("auth.signInTitle")}
+          {step === "twofa"
+            ? t("auth.twoFaTitle")
+            : step === "code"
+              ? t("auth.otpTitle")
+              : isSignUp
+                ? t("auth.signUpTitle")
+                : t("auth.signInTitle")}
         </h1>
-        {/* Imzo: sarlavha ostida chizilib keluvchi arctic hairline */}
         <div className="mt-4 h-px w-10 origin-left bg-line draw-x" />
         <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-          {isSignUp ? t("auth.signUpSub") : t("auth.signInSub")}
+          {step === "twofa"
+            ? t("auth.twoFaSub")
+            : step === "code"
+              ? t("auth.otpSentTo").replace("{identifier}", identifierLabel)
+              : isSignUp
+                ? t("auth.signUpSub")
+                : t("auth.signInSub")}
         </p>
       </div>
 
@@ -124,123 +209,198 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         </div>
       )}
 
-      {/* Google — birlamchi ijtimoiy kirish */}
-      <button
-        type="button"
-        onClick={googleLogin}
-        disabled={busy}
-        className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-border bg-surface-1 px-4 py-3 text-sm font-medium text-foreground shadow-soft transition hover:bg-surface-2 disabled:opacity-40"
-      >
-        {pending === "google" ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleGlyph />}
-        {t("auth.google")}
-      </button>
+      {step === "identify" && (
+        <form onSubmit={submitIdentify}>
+          {/* Google — hozircha nofaol, chalg'ituvchi soxta OAuth o'rniga halol holat */}
+          <button
+            type="button"
+            disabled
+            title={t("auth.googleSoonHint")}
+            className="flex w-full cursor-not-allowed items-center justify-center gap-2.5 rounded-lg border border-border bg-surface-1 px-4 py-3 text-sm font-medium text-muted-foreground opacity-60"
+          >
+            <GoogleGlyph />
+            {t("auth.googleSoon")}
+          </button>
 
-      {/* "yoki" ajratgich — hairline */}
-      <div className="my-5 flex items-center gap-3">
-        <span className="h-px flex-1 bg-border" />
-        <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/70">
-          {t("auth.or")}
-        </span>
-        <span className="h-px flex-1 bg-border" />
-      </div>
+          <div className="my-5 flex items-center gap-3">
+            <span className="h-px flex-1 bg-border" />
+            <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/70">
+              {t("auth.or")}
+            </span>
+            <span className="h-px flex-1 bg-border" />
+          </div>
 
-      {/* Segmented control — Email / Telefon (Filament active) */}
-      <div className="mb-5 grid grid-cols-2 gap-1 rounded-xl border border-border bg-surface-2 p-1">
-        {([
-          { k: "email" as Method, icon: Mail, label: t("auth.methodEmail") },
-          { k: "phone" as Method, icon: Phone, label: t("auth.methodPhone") },
-        ]).map(({ k, icon: Icon, label }) => {
-          const active = method === k;
-          return (
-            <button
-              key={k}
-              type="button"
-              onClick={() => {
-                setMethod(k);
-                setError("");
-              }}
-              aria-pressed={active}
-              className={`relative flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                active
-                  ? "bg-surface-1 text-foreground shadow-soft"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-              {active && <span className="absolute inset-x-3 -bottom-px h-px bg-line" />}
-            </button>
-          );
-        })}
-      </div>
+          {/* Segmented control — Email / Telefon (Filament active) */}
+          <div className="mb-5 grid grid-cols-2 gap-1 rounded-xl border border-border bg-surface-2 p-1">
+            {([
+              { k: "email" as Method, icon: Mail, label: t("auth.methodEmail") },
+              { k: "phone" as Method, icon: Phone, label: t("auth.methodPhone") },
+            ]).map(({ k, icon: Icon, label }) => {
+              const active = method === k;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => {
+                    setMethod(k);
+                    setError("");
+                  }}
+                  aria-pressed={active}
+                  className={`relative flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                    active
+                      ? "bg-surface-1 text-foreground shadow-soft"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                  {active && <span className="absolute inset-x-3 -bottom-px h-px bg-line" />}
+                </button>
+              );
+            })}
+          </div>
 
-      <div className="space-y-4">
-        {isSignUp && (
+          <div className="space-y-4">
+            {isSignUp && (
+              <label className="filament block">
+                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("auth.name")}</span>
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={t("auth.namePlaceholder")}
+                  className={inputCls}
+                />
+              </label>
+            )}
+
+            {method === "email" ? (
+              <label className="filament block">
+                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("auth.email")}</span>
+                <input
+                  required
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={t("auth.emailPlaceholder")}
+                  className={inputCls}
+                />
+              </label>
+            ) : (
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("auth.phone")}</span>
+                <div className="filament flex items-stretch overflow-hidden rounded-lg border border-border bg-surface-2 focus-within:border-[hsl(var(--accent-line)/0.75)]">
+                  <span className="flex select-none items-center gap-2 border-r border-border bg-surface-3 px-3.5">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">UZ</span>
+                    <span className="nums text-[15px] font-medium tracking-tight text-foreground">{DIAL_CODE}</span>
+                  </span>
+                  <input
+                    required
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel-national"
+                    value={formatUzPhone(phoneDigits)}
+                    onChange={(e) => setPhoneDigits(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                    placeholder={t("auth.phonePlaceholder")}
+                    className="nums w-full bg-transparent px-3.5 py-3 text-[15px] tracking-wide text-foreground placeholder:text-muted-foreground/60 outline-none"
+                  />
+                </div>
+                {phoneDigits.length > 0 && !phoneValid && (
+                  <span className="mt-1.5 block text-xs text-muted-foreground/70">{t("auth.phoneInvalid")}</span>
+                )}
+              </label>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            disabled={busy || !canSubmitIdentify}
+            className="group mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:opacity-90 disabled:opacity-40"
+          >
+            {busy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                {t("auth.sendCodeBtn")}
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </>
+            )}
+          </button>
+        </form>
+      )}
+
+      {step === "code" && (
+        <form onSubmit={submitCode}>
           <label className="filament block">
-            <span className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("auth.name")}</span>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t("auth.namePlaceholder")}
-              className={inputCls}
-            />
-          </label>
-        )}
-
-        {method === "email" ? (
-          <label className="filament block">
-            <span className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("auth.email")}</span>
+            <span className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("auth.otpCodeLabel")}</span>
             <input
               required
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t("auth.emailPlaceholder")}
-              className={inputCls}
+              autoFocus
+              inputMode="numeric"
+              maxLength={6}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder={t("auth.otpCodePlaceholder")}
+              className={codeInputCls}
             />
           </label>
-        ) : (
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("auth.phone")}</span>
-            <div className="filament flex items-stretch overflow-hidden rounded-lg border border-border bg-surface-2 focus-within:border-[hsl(var(--accent-line)/0.75)]">
-              {/* +998 prefiks chip — UZ (bayroq emoji Windows'da renderlanmaydi) */}
-              <span className="flex select-none items-center gap-2 border-r border-border bg-surface-3 px-3.5">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">UZ</span>
-                <span className="nums text-[15px] font-medium tracking-tight text-foreground">{DIAL_CODE}</span>
-              </span>
-              <input
-                required
-                type="tel"
-                inputMode="numeric"
-                autoComplete="tel-national"
-                value={formatUzPhone(phoneDigits)}
-                onChange={(e) => setPhoneDigits(e.target.value.replace(/\D/g, "").slice(0, 9))}
-                placeholder={t("auth.phonePlaceholder")}
-                className="nums w-full bg-transparent px-3.5 py-3 text-[15px] tracking-wide text-foreground placeholder:text-muted-foreground/60 outline-none"
-              />
-            </div>
-            {phoneDigits.length > 0 && !phoneValid && (
-              <span className="mt-1.5 block text-xs text-muted-foreground/70">{t("auth.phoneInvalid")}</span>
-            )}
-          </label>
-        )}
-      </div>
 
-      {/* Asosiy amal — rang bilan emas, yorug'lik (near-white) bilan */}
-      <button
-        type="submit"
-        disabled={busy || !canSubmit}
-        className="group mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:opacity-90 disabled:opacity-40"
-      >
-        {pending === "form" ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <>
-            {isSignUp ? t("auth.signUpBtn") : t("auth.signInBtn")}
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-          </>
-        )}
-      </button>
+          <button
+            type="submit"
+            disabled={busy || code.length !== 6}
+            className="group mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:opacity-90 disabled:opacity-40"
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("auth.otpVerifyBtn")}
+          </button>
+
+          <div className="mt-4 flex items-center justify-between text-sm">
+            <button
+              type="button"
+              onClick={goBack}
+              className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              {t("auth.otpBack")}
+            </button>
+            <button
+              type="button"
+              disabled={cooldown > 0 || busy}
+              onClick={requestCode}
+              className="text-muted-foreground hover:text-foreground disabled:opacity-40"
+            >
+              {cooldown > 0 ? `${t("auth.otpResend")} (${cooldown}s)` : t("auth.otpResend")}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {step === "twofa" && (
+        <form onSubmit={submitTwoFa}>
+          <label className="filament block">
+            <span className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              {t("auth.twoFaLabel")}
+            </span>
+            <input
+              required
+              autoFocus
+              inputMode="numeric"
+              maxLength={6}
+              value={twoFaCode}
+              onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder={t("auth.twoFaPlaceholder")}
+              className={codeInputCls}
+            />
+          </label>
+
+          <button
+            type="submit"
+            disabled={busy || twoFaCode.length !== 6}
+            className="group mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:opacity-90 disabled:opacity-40"
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("auth.twoFaVerifyBtn")}
+          </button>
+        </form>
+      )}
 
       <p className="mt-8 text-sm text-muted-foreground">
         {isSignUp ? t("auth.haveAccount") : t("auth.noAccount")}{" "}
@@ -253,6 +413,6 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
       </p>
 
       <p className="mt-3 text-xs text-muted-foreground/60">{t("auth.demoNote")}</p>
-    </form>
+    </div>
   );
 }

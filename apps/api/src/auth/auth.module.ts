@@ -1,10 +1,13 @@
 import { Module } from '@nestjs/common';
 import { AuditLogService, TwoFactorService, ClerkSyncService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { OtpService } from './otp.service';
+import { EmailService } from './email.service';
+import { SmsService } from './sms.service';
 
 @Module({
   controllers: [AuthController],
-  providers: [AuditLogService, TwoFactorService, ClerkSyncService],
-  exports: [AuditLogService, TwoFactorService, ClerkSyncService],
+  providers: [AuditLogService, TwoFactorService, ClerkSyncService, OtpService, EmailService, SmsService],
+  exports: [AuditLogService, TwoFactorService, ClerkSyncService, OtpService],
 })
 export class AuthModule {}

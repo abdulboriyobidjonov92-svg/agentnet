@@ -14,6 +14,7 @@ import agent_composer
 import agentos as agentos_engine
 import automation_planner
 import business_ops
+import camera_router
 import compliance_packs
 import ethics as ethics_engine
 import fusion as fusion_engine
@@ -96,6 +97,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# S4 qo'shimcha: haqiqiy IP-kamera monitoring (RTSP -> YOLO -> Claude Vision).
+# Ilgari camera_service.py yozilgan-u hech qayerga ulanmagan edi.
+app.include_router(camera_router.router)
 
 
 # ----------------------------------------------------------------

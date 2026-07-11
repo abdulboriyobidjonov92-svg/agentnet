@@ -101,3 +101,125 @@ describe('AgentBillingService.chargeOne', () => {
     );
   });
 });
+
+/**
+ * AgentBillingService.resolveTrialEnd — sinov tugashi (3 kun YOKI 20 xabar).
+ * chargeOne'dan FARQI: qayta-urinish (MAX_RETRIES) siyosati YO'Q — bitta
+ * urinish, muvaffaqiyatsiz bo'lsa DARHOL muzlatiladi (sinovning o'zi
+ * allaqachon imtiyoz muddati edi).
+ */
+describe('AgentBillingService.resolveTrialEnd', () => {
+  function makeTrialAgent(overrides: Record<string, any> = {}) {
+    return {
+      id: 'agent1',
+      userId: 'u1',
+      name: 'Birinchi agent',
+      monthlyPriceTiyin: 300_000,
+      isTrialAgent: true,
+      frozen: false,
+      trialMessageCount: 20,
+      ...overrides,
+    };
+  }
+  const user = { id: 'u1', telegramChatId: 'chat1' } as any;
+
+  it('balans yetarli -> DARHOL to\'lanadi, isTrialAgent:false, nextChargeAt +1oy, "trial_converted" audit', async () => {
+    const { prisma, audit, connectors } = makeMock();
+    prisma.agent.findUniqueOrThrow.mockResolvedValue(makeTrialAgent());
+    prisma.user.updateMany.mockResolvedValue({ count: 1 });
+    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 700_000 });
+    prisma.agent.update.mockResolvedValue({ ...makeTrialAgent(), isTrialAgent: false, frozen: false, frozenReason: null });
+    const svc = new AgentBillingService(prisma, audit, connectors);
+
+    const result = await svc.resolveTrialEnd(makeTrialAgent() as any, user);
+
+    expect(prisma.user.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'u1', balanceTiyin: { gte: 300_000 } },
+        data: { balanceTiyin: { decrement: 300_000 } },
+      }),
+    );
+    expect(prisma.creditLedger.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ kind: 'agent_monthly', amount: -300_000 }) }),
+    );
+    expect(prisma.agent.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ isTrialAgent: false, frozen: false, frozenReason: null }) }),
+    );
+    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'agent.trial_converted' }));
+    expect(result.frozen).toBe(false);
+  });
+
+  it('balans YETARLI EMAS -> DARHOL muzlatiladi (retry/grace YO\'Q), frozenReason="trial_expired", "SINOV" xabari yuboriladi', async () => {
+    const { prisma, audit, connectors } = makeMock();
+    prisma.agent.findUniqueOrThrow.mockResolvedValue(makeTrialAgent());
+    prisma.user.updateMany.mockResolvedValue({ count: 0 });
+    prisma.agent.update.mockResolvedValue({ ...makeTrialAgent(), frozen: true, frozenReason: 'trial_expired', isTrialAgent: false });
+    const svc = new AgentBillingService(prisma, audit, connectors);
+
+    const result = await svc.resolveTrialEnd(makeTrialAgent() as any, user);
+
+    expect(prisma.agent.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { frozen: true, frozenReason: 'trial_expired', isTrialAgent: false } }),
+    );
+    expect(prisma.creditLedger.create).not.toHaveBeenCalled(); // pul YECHILMAYDI
+    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'agent.trial_expired' }));
+    expect(connectors.sendViaChannel).toHaveBeenCalledWith(
+      expect.anything(), 'telegram', 'chat1', expect.stringContaining('SINOV'),
+    );
+    expect(result.frozen).toBe(true);
+  });
+
+  it('allaqachon hal qilingan (boshqa yo\'l orqali) -> NO-OP, ikkinchi marta yechilmaydi/muzlatilmaydi, audit qayta yozilmaydi', async () => {
+    const { prisma, audit, connectors } = makeMock();
+    // fresh fetch ichida allaqachon isTrialAgent:false (boshqa parallel chaqiruv hal qilgan)
+    prisma.agent.findUniqueOrThrow.mockResolvedValue({ ...makeTrialAgent(), isTrialAgent: false, frozen: false });
+    const svc = new AgentBillingService(prisma, audit, connectors);
+
+    await svc.resolveTrialEnd(makeTrialAgent() as any, user);
+
+    expect(prisma.user.updateMany).not.toHaveBeenCalled();
+    expect(prisma.agent.update).not.toHaveBeenCalled();
+    expect(prisma.creditLedger.create).not.toHaveBeenCalled();
+    expect(audit.record).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * chargeDueAgents cron — sinov agentlari (isTrialAgent) resolveTrialEnd()ga,
+ * oddiy agentlar chargeOne()ga yo'naltirilishi kerak (bir xil cron, ikki xil siyosat).
+ */
+describe('AgentBillingService.chargeDueAgents — sinov vs oddiy yo\'naltirish', () => {
+  it('isTrialAgent=true qator -> resolveTrialEnd chaqiriladi, chargeOne CHAQIRILMAYDI', async () => {
+    const { prisma, audit, connectors } = makeMock();
+    const trialDue = { id: 'agent-trial', userId: 'u1', isTrialAgent: true, frozen: false, monthlyPriceTiyin: 300_000, user: { id: 'u1' } };
+    prisma.agent.findMany.mockResolvedValue([trialDue]);
+    prisma.agent.findUniqueOrThrow.mockResolvedValue(trialDue);
+    prisma.user.updateMany.mockResolvedValue({ count: 1 });
+    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 500_000 });
+    prisma.agent.update.mockResolvedValue({ ...trialDue, isTrialAgent: false });
+    const svc = new AgentBillingService(prisma, audit, connectors);
+    const resolveSpy = jest.spyOn(svc, 'resolveTrialEnd');
+    const chargeSpy = jest.spyOn(svc, 'chargeOne');
+
+    await svc.chargeDueAgents();
+
+    expect(resolveSpy).toHaveBeenCalled();
+    expect(chargeSpy).not.toHaveBeenCalled();
+  });
+
+  it('isTrialAgent=false (oddiy) qator -> chargeOne chaqiriladi, resolveTrialEnd CHAQIRILMAYDI', async () => {
+    const { prisma, audit, connectors } = makeMock();
+    const normalDue = { id: 'agent-normal', userId: 'u1', isTrialAgent: false, frozen: false, chargeRetries: 0, monthlyPriceTiyin: 300_000, nextChargeAt: new Date(), user: { id: 'u1', telegramChatId: null } };
+    prisma.agent.findMany.mockResolvedValue([normalDue]);
+    prisma.user.updateMany.mockResolvedValue({ count: 1 });
+    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 500_000 });
+    const svc = new AgentBillingService(prisma, audit, connectors);
+    const resolveSpy = jest.spyOn(svc, 'resolveTrialEnd');
+    const chargeSpy = jest.spyOn(svc, 'chargeOne');
+
+    await svc.chargeDueAgents();
+
+    expect(chargeSpy).toHaveBeenCalled();
+    expect(resolveSpy).not.toHaveBeenCalled();
+  });
+});

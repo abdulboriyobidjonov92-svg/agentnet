@@ -4,7 +4,9 @@
  * (Y4: real-time FX; hozircha USD_UZS_RATE env, default ~12600). Bu — TAKLIF
  * narxi (kalkulyator); haqiqiy yechim/bonus Y4/Y5'da amalga oshiriladi.
  *
- * Bazaviy narxlar brief'dagi 20-agent jadvaliga mos (★★★ ≈ $35/$18 ...).
+ * Agent YARATISH bepul (activation'ni bo'g'masin — foydalanuvchi qiymat
+ * ko'rmasdan pul to'lamaydi). Qiymat faqat oylik obunada undiriladi;
+ * bazaviy narxlar brief'dagi 20-agent jadvaliga mos (★★★ ≈ $18/oy ...).
  */
 
 export interface AgentPrice {
@@ -17,8 +19,8 @@ export interface AgentPrice {
   fxRate: number; // 1 USD = fxRate so'm
 }
 
-// Murakkablik → bazaviy narx (USD). Brief 20-agent jadvalidan kalibrlangan.
-const CREATION_USD: Record<number, number> = { 1: 15, 2: 25, 3: 35, 4: 45, 5: 60 };
+// Murakkablik → bazaviy oylik narx (USD). Brief 20-agent jadvalidan kalibrlangan.
+// Yaratish HAR DOIM bepul — extraTools qo'shimchasi ham faqat oylikka qo'shiladi.
 const MONTHLY_USD: Record<number, number> = { 1: 8, 2: 12, 3: 18, 4: 22, 5: 30 };
 
 function clampComplexity(v: number): number {
@@ -39,16 +41,15 @@ export function priceForAgent(
 ): AgentPrice {
   const c = clampComplexity(complexity);
   const tools = Math.max(0, Math.floor(toolCount));
-  // Har QO'SHIMCHA tool (1-dan ortig'i) yaratishga +$3, oyligiga +$1
+  // Har QO'SHIMCHA tool (1-dan ortig'i) oyligiga +$1 (yaratish bepul qoladi)
   const extraTools = Math.max(0, tools - 1);
-  const creationUsd = CREATION_USD[c] + extraTools * 3;
   const monthlyUsd = MONTHLY_USD[c] + extraTools * 1;
   return {
     complexity: c,
     toolCount: tools,
-    creationUsd,
+    creationUsd: 0,
     monthlyUsd,
-    creationSom: Math.round(creationUsd * fxRate),
+    creationSom: 0,
     monthlySom: Math.round(monthlyUsd * fxRate),
     fxRate,
   };

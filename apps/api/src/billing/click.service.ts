@@ -2,6 +2,7 @@ import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletCreditService } from './wallet-credit.service';
+import { PlatformBillingService, type SelfServePlatformPlan } from './platform-billing.service';
 import type { PaymentProviderService, TopupReceipt } from './payment-provider.interface';
 import type { User } from '@prisma/client';
 
@@ -57,6 +58,7 @@ export class ClickService implements PaymentProviderService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly wallet: WalletCreditService,
+    private readonly platformBilling: PlatformBillingService,
   ) {}
 
   isConfigured(): boolean {
@@ -84,6 +86,36 @@ export class ClickService implements PaymentProviderService {
       merchant_id: process.env.CLICK_MERCHANT_ID!,
       amount: amountSom.toFixed(2),
       transaction_param: user.id, // merchant_trans_id — webhook shu orqali foydalanuvchini topadi
+    });
+    return {
+      provider: 'click',
+      payUrl: `https://my.click.uz/services/pay?${params.toString()}`,
+      amountSom,
+    };
+  }
+
+  /**
+   * Platforma obunasi (Pro/Max) uchun to'lov havolasi. Click'ning
+   * transaction_param bitta oddiy satr (Payme'dagi `account` JSON'i kabi
+   * emas) — shuning uchun `userId::sub::plan` shaklida kodlaymiz va
+   * prepare()da qayta ochamiz (webhook shu orqali maqsadni biladi).
+   */
+  async createSubscriptionReceipt(user: User, plan: SelfServePlatformPlan, amountSom: number): Promise<TopupReceipt> {
+    if (!this.isConfigured()) {
+      throw new HttpException(
+        {
+          message:
+            "To'lov tizimi hali sozlanmagan. Platforma administratori CLICK_MERCHANT_ID / CLICK_SERVICE_ID / CLICK_SECRET_KEY ni .env ga qo'yishi kerak.",
+          reason: 'payment_not_configured',
+        },
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+    const params = new URLSearchParams({
+      service_id: process.env.CLICK_SERVICE_ID!,
+      merchant_id: process.env.CLICK_MERCHANT_ID!,
+      amount: amountSom.toFixed(2),
+      transaction_param: `${user.id}::sub::${plan}`,
     });
     return {
       provider: 'click',
@@ -134,8 +166,15 @@ export class ClickService implements PaymentProviderService {
     return this.reply(body, ClickError.ActionNotFound);
   }
 
+  /** transaction_param'ni ochadi: oddiy "userId" (topup) yoki "userId::sub::plan" (obuna). */
+  private parseTransactionParam(raw: string): { userId: string; purpose: string; plan: string | null } {
+    const [userId, kind, plan] = String(raw).split('::');
+    if (kind === 'sub' && plan) return { userId, purpose: 'platform_subscription', plan };
+    return { userId, purpose: 'topup', plan: null };
+  }
+
   private async prepare(body: any) {
-    const userId = body.merchant_trans_id;
+    const { userId, purpose, plan } = this.parseTransactionParam(body.merchant_trans_id);
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) return this.reply(body, ClickError.UserNotFound);
 
@@ -158,6 +197,8 @@ export class ClickService implements PaymentProviderService {
         amountTiyin,
         state: 0,
         prepareTimeMs: BigInt(Date.now()),
+        purpose,
+        subscriptionPlan: plan,
       },
     });
     return this.reply(body, ClickError.Success, { merchant_prepare_id: tx.id });
@@ -191,7 +232,11 @@ export class ClickService implements PaymentProviderService {
         where: { id: tx.id },
         data: { state: 1, confirmTimeMs },
       });
-      await this.wallet.credit(tx.userId, tx.amountTiyin, { clickTransId }, client);
+      if (tx.purpose === 'platform_subscription' && tx.subscriptionPlan) {
+        await this.platformBilling.activateFromPayment(tx.userId, tx.subscriptionPlan as SelfServePlatformPlan, client);
+      } else {
+        await this.wallet.credit(tx.userId, tx.amountTiyin, { clickTransId }, client);
+      }
       return u;
     });
     return this.reply(body, ClickError.Success, { merchant_confirm_id: updated.id });

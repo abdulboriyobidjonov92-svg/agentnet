@@ -78,6 +78,20 @@ services:
         sync: false
       - key: PAYME_TEST_MODE
         value: "true"
+      # Login OTP — email-kod yetkazish uchun SHART (production'da bo'lmasa
+      # server ishga tushmaydi, [[EmailService]] fail-closed).
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        value: "AgentNet <login@agentnet.app>"
+      # Ixtiyoriy — bo'lmasa telefon orqali kirish avtomatik o'chirilgan
+      # holda qoladi (email hali ham ishlaydi, server qulamaydi).
+      - key: ESKIZ_EMAIL
+        sync: false
+      - key: ESKIZ_PASSWORD
+        sync: false
+      - key: ESKIZ_SMS_FROM
+        value: "4546"
 
   # 3) Next.js web — deep-space UI + 3D + AgentOS command center
   - type: web

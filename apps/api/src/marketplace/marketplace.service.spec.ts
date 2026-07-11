@@ -16,6 +16,7 @@ function makeMock() {
       create: jest.fn(),
       update: jest.fn(),
       findUniqueOrThrow: jest.fn(),
+      count: jest.fn(async () => 0), // sinov-aniqlash: standart holatda "birinchi agent"
     },
     user: {
       updateMany: jest.fn(),

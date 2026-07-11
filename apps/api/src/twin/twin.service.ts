@@ -3,6 +3,7 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../auth/auth.service';
+import { UsageService } from '../usage/usage.service';
 import type { User } from '@prisma/client';
 
 /**
@@ -19,6 +20,7 @@ export class TwinService {
     private readonly prisma: PrismaService,
     private readonly http: HttpService,
     private readonly audit: AuditLogService,
+    private readonly usage: UsageService,
   ) {}
 
   async listFacts(userId: string) {
@@ -81,6 +83,9 @@ export class TwinService {
   }
 
   async whatIf(user: User, question: string) {
+    // Platforma obunasi (Pro/Max/Enterprise) kerak — vertikal agentlardan
+    // FARQLI, bu umumiy intellekt-modul (per-agent narxlashga bog'liq emas).
+    await this.usage.consumePlatformFeature(user);
     const facts = await this.factsForEngine(user.id);
     try {
       const { data } = await firstValueFrom(
@@ -102,8 +107,17 @@ export class TwinService {
   /**
    * Matndan faktlarni ajratib saqlaydi (suhbatlar hook'i shu orqali ishlaydi).
    * Xato hech qachon chaqiruvchini yiqitmaydi — fire-and-forget uchun xavfsiz.
+   *
+   * MUHIM: source='conversation' bo'lsa GATING YO'Q — bu HAR bir suhbatning
+   * (jumladan vertikal agentlar — do'kon, avtoservis...) fon-rejimidagi passiv
+   * hodisasi, alohida platforma-funksiya emas; uni obunaga bog'lash vertikal
+   * agentlarni obunaga qaram qilib qo'yardi. Faqat source='manual' (foydalanuvchi
+   * to'g'ridan-to'g'ri POST /twin/extract chaqirsa) platforma-obunasi talab qiladi.
    */
   async extractAndStore(user: User, text: string, source: 'conversation' | 'manual' = 'conversation') {
+    if (source === 'manual') {
+      await this.usage.consumePlatformFeature(user);
+    }
     try {
       const { data } = await firstValueFrom(
         this.http.post(`${this.engineUrl}/twin/extract`, {

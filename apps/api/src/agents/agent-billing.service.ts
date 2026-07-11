@@ -7,6 +7,7 @@ import { addMonths } from './agents.service';
 import type { Agent, User } from '@prisma/client';
 
 const AGENT_MONTHLY_LOCK_NS = 4773;
+const TRIAL_END_LOCK_NS = 4775;
 const MAX_RETRIES = 3;
 
 function addDays(date: Date, n: number): Date {
@@ -45,7 +46,16 @@ export class AgentBillingService {
     this.logger.log(`Cron: ${due.length} agent oylik to'lov uchun tekshirilmoqda`);
     for (const agent of due) {
       try {
-        await this.chargeOne(agent);
+        // Sinov agentlari uchun 3-kunlik chegara ham shu cron orqali keladi
+        // (nextChargeAt yaratishda +3kunga o'rnatilgan) — lekin ODDIY oylik
+        // 3-marta-qayta-urinish siyosati EMAS: sinov tugagach DARHOL hal
+        // qilinadi (charge-yoki-frozen), chunki sinov davrining o'zi allaqachon
+        // imtiyoz muddati edi.
+        if (agent.isTrialAgent) {
+          await this.resolveTrialEnd(agent, agent.user);
+        } else {
+          await this.chargeOne(agent);
+        }
       } catch (e: any) {
         this.logger.warn(`Oylik yechim xatosi (agent ${agent.id}): ${e.message}`);
       }
@@ -81,7 +91,16 @@ export class AgentBillingService {
       });
       await tx.agent.update({
         where: { id: agent.id },
-        data: { nextChargeAt: addMonths(agent.nextChargeAt ?? new Date(), 1), chargeRetries: 0, frozen: false },
+        // isTrialAgent/frozenReason ham shu yerda tozalanadi — chargeOne qaysi
+        // yo'ldan chaqirilsa ham (cron, reactivate() yoki resolveTrialEnd()
+        // ichidan emas — o'zi alohida), muvaffaqiyatli to'lov sinovni yopadi.
+        data: {
+          nextChargeAt: addMonths(agent.nextChargeAt ?? new Date(), 1),
+          chargeRetries: 0,
+          frozen: false,
+          frozenReason: null,
+          isTrialAgent: false,
+        },
       });
       return 'charged' as const;
     });
@@ -102,7 +121,10 @@ export class AgentBillingService {
     const retries = agent.chargeRetries + 1;
     const priceSom = Math.round(amount / 100);
     if (retries >= MAX_RETRIES) {
-      await this.prisma.agent.update({ where: { id: agent.id }, data: { frozen: true, chargeRetries: retries } });
+      await this.prisma.agent.update({
+        where: { id: agent.id },
+        data: { frozen: true, frozenReason: 'monthly_payment_failed', chargeRetries: retries },
+      });
       await this.notifyUser(
         agent.user,
         `🥶 "${agent.name}" agenti muzlatildi — oylik to'lov (${priceSom.toLocaleString('ru-RU')} so'm) ${MAX_RETRIES} marta muvaffaqiyatsiz bo'ldi (balans yetarli emas). Hisobingizni to'ldirib, agentni qayta faollashtiring.`,
@@ -131,6 +153,84 @@ export class AgentBillingService {
         metadata: { retries, amountTiyin: amount },
       });
     }
+  }
+
+  /**
+   * Sinov tugashi (vaqt — 3-kunlik cron orqali, YOKI xabar-soni — agents.service.ts
+   * run() orqali) chaqiradi. chargeOne'dagi 3-kunlik qayta-urinish siyosati BU YERDA
+   * YO'Q — sinov davrining o'zi allaqachon imtiyoz muddati bo'lgani uchun, muvaffaqiyatsiz
+   * bo'lsa DARHOL muzlatiladi (kutish yo'q). Balans yetsa jim to'lanadi va agent
+   * ODDIY oylik rejimga o'tadi (isTrialAgent:false, nextChargeAt +1 oy).
+   */
+  async resolveTrialEnd(agent: Agent, user: User): Promise<Agent> {
+    const amount = agent.monthlyPriceTiyin;
+
+    const { agent: result, action } = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${TRIAL_END_LOCK_NS}::int, hashtext(${agent.id}))`;
+
+      const fresh = await tx.agent.findUniqueOrThrow({ where: { id: agent.id } });
+      if (!fresh.isTrialAgent || fresh.frozen) {
+        return { agent: fresh, action: 'noop' as const }; // boshqa yo'l (cron/xabar) allaqachon hal qilgan
+      }
+
+      if (amount > 0) {
+        const updatedUser = await tx.user.updateMany({
+          where: { id: user.id, balanceTiyin: { gte: amount } },
+          data: { balanceTiyin: { decrement: amount } },
+        });
+        if (updatedUser.count > 0) {
+          const freshUser = await tx.user.findUniqueOrThrow({ where: { id: user.id }, select: { balanceTiyin: true } });
+          await tx.creditLedger.create({
+            data: {
+              userId: user.id,
+              kind: 'agent_monthly',
+              amount: -amount,
+              balanceAfter: freshUser.balanceTiyin,
+              meta: { agentId: fresh.id, trialConverted: true },
+            },
+          });
+          const converted = await tx.agent.update({
+            where: { id: fresh.id },
+            data: {
+              isTrialAgent: false,
+              frozen: false,
+              frozenReason: null,
+              nextChargeAt: addMonths(new Date(), 1),
+            },
+          });
+          return { agent: converted, action: 'converted' as const };
+        }
+      }
+
+      const frozenAgent = await tx.agent.update({
+        where: { id: fresh.id },
+        data: { frozen: true, frozenReason: 'trial_expired', isTrialAgent: false },
+      });
+      return { agent: frozenAgent, action: 'frozen' as const };
+    });
+
+    if (action === 'frozen') {
+      await this.notifyUser(
+        user,
+        `⏳ "${agent.name}" agentining SINOV muddati tugadi. Davom etish uchun oylik to'lovni (${Math.round(amount / 100).toLocaleString('ru-RU')} so'm) amalga oshiring va agentni qayta faollashtiring.`,
+      );
+      await this.audit.record({
+        actorId: user.id,
+        action: 'agent.trial_expired',
+        resourceType: 'agent',
+        resourceId: agent.id,
+        metadata: { amountTiyin: amount },
+      });
+    } else if (action === 'converted') {
+      await this.audit.record({
+        actorId: user.id,
+        action: 'agent.trial_converted',
+        resourceType: 'agent',
+        resourceId: agent.id,
+        metadata: { amountTiyin: amount },
+      });
+    }
+    return result;
   }
 
   private async notifyUser(user: User, text: string) {

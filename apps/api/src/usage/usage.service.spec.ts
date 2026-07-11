@@ -90,6 +90,110 @@ describe('UsageService.consumeChat (atomik limit — race yo\'q)', () => {
   });
 });
 
+/**
+ * UsageService.consumePlatformFeature — Pro/Max/Enterprise platforma-obunasi
+ * gate'i (Twin/Fusion/Supermode/Ethics/Knowledge). PER-AGENT `consumeChat`dan
+ * ALOHIDA hisoblagich ('platform_chat' kind) — ikkalasi bir-biriga
+ * ARALASHMASLIGI shart (buni isolation testida ham tekshiramiz).
+ */
+describe('UsageService.consumePlatformFeature', () => {
+  beforeEach(() => {
+    process.env.PLATFORM_PRO_CHAT_PER_DAY = '2';
+    process.env.PLATFORM_MAX_CHAT_PER_DAY = '5';
+  });
+
+  function makeUser(overrides: Record<string, any> = {}): User {
+    return { id: 'u1', plan: 'free', proUntil: null, platformPlan: 'none', platformPlanUntil: null, platformPlanFrozen: false, ...overrides } as unknown as User;
+  }
+
+  it('obunasi yo\'q ("none") -> 402 platform_subscription_required, hisoblagichga tegilmaydi', async () => {
+    const store = new Map<string, number>();
+    const svc = new UsageService(makeMockPrisma(store) as any);
+
+    try {
+      await svc.consumePlatformFeature(makeUser());
+      throw new Error('402 kutilgan edi');
+    } catch (e: any) {
+      expect(e).toBeInstanceOf(HttpException);
+      expect(e.getStatus()).toBe(402);
+      expect(e.getResponse().reason).toBe('platform_subscription_required');
+    }
+    expect(store.size).toBe(0);
+  });
+
+  it('muzlatilgan obuna (platformPlanFrozen) -> 402, rawPlan nima bo\'lishidan qat\'i nazar', async () => {
+    const store = new Map<string, number>();
+    const svc = new UsageService(makeMockPrisma(store) as any);
+    const user = makeUser({ platformPlan: 'pro', platformPlanUntil: new Date(Date.now() + 999_999), platformPlanFrozen: true });
+
+    await expect(svc.consumePlatformFeature(user)).rejects.toBeInstanceOf(HttpException);
+  });
+
+  it('Pro -> kunlik limit (2) ichida ishlaydi, oshsa 429 platform_daily_cap', async () => {
+    const store = new Map<string, number>();
+    const svc = new UsageService(makeMockPrisma(store) as any);
+    const user = makeUser({ platformPlan: 'pro', platformPlanUntil: new Date(Date.now() + 999_999) });
+
+    const r1 = await svc.consumePlatformFeature(user);
+    expect(r1).toEqual({ remaining: 1, plan: 'pro' });
+    await svc.consumePlatformFeature(user); // 2/2
+
+    try {
+      await svc.consumePlatformFeature(user);
+      throw new Error('429 kutilgan edi');
+    } catch (e: any) {
+      expect(e.getResponse().reason).toBe('platform_daily_cap');
+      expect(e.getResponse().plan).toBe('pro');
+      expect(e.getResponse().limit).toBe(2);
+    }
+    // kompensatsiya — limitdan oshmaydi
+    expect(store.get(`u1|${today}|platform_chat`)).toBe(2);
+  });
+
+  it('Max -> Pro\'dan KENGROQ limit (5), Pro limitidan (2) ko\'p bo\'lsa ham o\'tadi', async () => {
+    const store = new Map<string, number>();
+    const svc = new UsageService(makeMockPrisma(store) as any);
+    const user = makeUser({ platformPlan: 'max', platformPlanUntil: new Date(Date.now() + 999_999) });
+
+    for (let i = 0; i < 5; i++) {
+      await expect(svc.consumePlatformFeature(user)).resolves.toBeDefined();
+    }
+    await expect(svc.consumePlatformFeature(user)).rejects.toBeInstanceOf(HttpException);
+  });
+
+  it('Enterprise -> cheksiz, hisoblagichga UMUMAN tegilmaydi (limit=null)', async () => {
+    const store = new Map<string, number>();
+    const svc = new UsageService(makeMockPrisma(store) as any);
+    const user = makeUser({ platformPlan: 'enterprise', platformPlanUntil: new Date(Date.now() + 999_999) });
+
+    const res = await svc.consumePlatformFeature(user);
+    expect(res).toEqual({ remaining: null, plan: 'enterprise' });
+    expect(store.size).toBe(0); // hech qanday hisoblagich yozilmadi
+  });
+
+  it('muddati o\'tgan obuna (lazy-expiry, cron hali ulgurmagan) -> 402ga qaytadi', async () => {
+    const store = new Map<string, number>();
+    const svc = new UsageService(makeMockPrisma(store) as any);
+    const user = makeUser({ platformPlan: 'pro', platformPlanUntil: new Date(Date.now() - 1000) });
+
+    await expect(svc.consumePlatformFeature(user)).rejects.toBeInstanceOf(HttpException);
+  });
+
+  it("consumeChat'ning hisoblagichi ('chat' kind) platform_chat'dan ALOHIDA — bir-biriga ta'sir qilmaydi", async () => {
+    process.env.USAGE_FREE_CHAT_PER_DAY = '2';
+    process.env.USAGE_GLOBAL_LLM_PER_DAY = '100';
+    const store = new Map<string, number>();
+    const svc = new UsageService(makeMockPrisma(store) as any);
+    const proUser = makeUser({ platformPlan: 'pro', platformPlanUntil: new Date(Date.now() + 999_999) });
+
+    await svc.consumeChat(proUser); // 'chat' kind
+    await svc.consumePlatformFeature(proUser); // 'platform_chat' kind — mustaqil hisoblagich
+
+    expect(store.get(`u1|${today}|chat`)).toBe(1);
+    expect(store.get(`u1|${today}|platform_chat`)).toBe(1);
+  });
+});
+
 describe('UsageService.assertCanCreateAgent', () => {
   beforeEach(() => {
     process.env.USAGE_FREE_AGENTS_MAX = '5';

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../auth/auth.service';
-import { addMonths } from '../agents/agents.service';
+import { addDays, addMonths, trialDays } from '../agents/agents.service';
 import type { User } from '@prisma/client';
 
 /**
@@ -124,10 +124,14 @@ export class MarketplaceService {
     let installed;
     try {
       installed = await this.prisma.$transaction(async (tx) => {
-        // O'ziga tegishli bo'lmagan pullik o'rnatish — balans ATOMIK tekshiriladi
-        // (agents.service.ts create()'dagi bilan bir xil naqsh).
+        // Har doim lock — pullik/o'ziniki-emas o'rnatishda balans ATOMIK tekshirilishi
+        // uchun SHART, bepul/o'z-o'ziga o'rnatishda esa quyidagi "birinchi agent"
+        // hisoblashning parallel so'rovlarda to'g'ri bo'lishi uchun (agents.service.ts
+        // create()'dagi bilan bir xil naqsh).
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(${MARKETPLACE_INSTALL_LOCK_NS}::int, hashtext(${user.id}))`;
+
+        // O'ziga tegishli bo'lmagan pullik o'rnatish — balans ATOMIK tekshiriladi.
         if (price > 0 && !isSelfInstall) {
-          await tx.$executeRaw`SELECT pg_advisory_xact_lock(${MARKETPLACE_INSTALL_LOCK_NS}::int, hashtext(${user.id}))`;
           const updated = await tx.user.updateMany({
             where: { id: user.id, balanceTiyin: { gte: price } },
             data: { balanceTiyin: { decrement: price } },
@@ -146,6 +150,13 @@ export class MarketplaceService {
           });
         }
 
+        // Sinov — FAQAT foydalanuvchining ENG BIRINCHI agenti (manual yaratish
+        // bilan bir xil qoida: marketplace'dan o'rnatish ham "birinchi agent"
+        // bo'lishi mumkin, shuning uchun agents.service.ts create()'dagi bilan
+        // bir xil mantiq qo'llanadi).
+        const existingCount = await tx.agent.count({ where: { userId: user.id } });
+        const isFirstAgent = existingCount === 0;
+
         const now = new Date();
         const newInstalled = await tx.agent.create({
           data: {
@@ -163,7 +174,14 @@ export class MarketplaceService {
             isPublished: false,
             creationPriceTiyin: source.creationPriceTiyin,
             monthlyPriceTiyin: source.monthlyPriceTiyin,
-            nextChargeAt: source.monthlyPriceTiyin > 0 ? addMonths(now, 1) : null,
+            isTrialAgent: isFirstAgent && source.monthlyPriceTiyin > 0,
+            trialStartedAt: isFirstAgent && source.monthlyPriceTiyin > 0 ? now : null,
+            nextChargeAt:
+              source.monthlyPriceTiyin > 0
+                ? isFirstAgent
+                  ? addDays(now, trialDays())
+                  : addMonths(now, 1)
+                : null,
           },
         });
 

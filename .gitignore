@@ -31,6 +31,10 @@ venv/
 .mypy_cache/
 .ruff_cache/
 
+# ultralytics avtomatik yuklab oladigan model og'irliklari (camera_service.py)
+*.pt
+yolo*.pt
+
 # Prisma generated
 prisma/migrations/dev.db
 *.db

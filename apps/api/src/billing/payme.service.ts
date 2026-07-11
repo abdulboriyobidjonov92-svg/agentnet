@@ -2,6 +2,7 @@ import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletCreditService } from './wallet-credit.service';
+import { PlatformBillingService, type SelfServePlatformPlan } from './platform-billing.service';
 import type { PaymentProviderService, TopupReceipt } from './payment-provider.interface';
 import type { User } from '@prisma/client';
 
@@ -17,6 +18,7 @@ export class PaymeService implements PaymentProviderService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly wallet: WalletCreditService,
+    private readonly platformBilling: PlatformBillingService,
   ) {}
 
   isConfigured(): boolean {
@@ -58,6 +60,58 @@ export class PaymeService implements PaymentProviderService {
       );
       if (data.error) {
         this.logger.error(`Payme receipts.create xatosi: ${JSON.stringify(data.error)}`);
+        throw new HttpException(`Payme: ${data.error.message}`, HttpStatus.BAD_GATEWAY);
+      }
+      const receiptId = data.result?.receipt?._id;
+      return {
+        provider: 'payme',
+        receiptId,
+        payUrl: `https://checkout.${test ? 'test.' : ''}paycom.uz/${receiptId}`,
+        amountSom,
+      };
+    } catch (e: any) {
+      if (e instanceof HttpException) throw e;
+      throw new HttpException(`Payme API bilan bog'lanib bo'lmadi: ${e.message}`, HttpStatus.BAD_GATEWAY);
+    }
+  }
+
+  /**
+   * Platforma obunasi (Pro/Max) uchun kvitansiya — createTopupReceipt bilan bir
+   * xil oqim, lekin `account.purpose` orqali belgilangan: webhook tasdiqlagach
+   * wallet'ga EMAS, to'g'ridan-to'g'ri User.platformPlan'ga ta'sir qiladi
+   * (performTransaction() da purpose orqali ajratiladi).
+   */
+  async createSubscriptionReceipt(user: User, plan: SelfServePlatformPlan, amountSom: number): Promise<TopupReceipt> {
+    if (!this.isConfigured()) {
+      throw new HttpException(
+        {
+          message:
+            "To'lov tizimi hali sozlanmagan. Platforma administratori PAYME_MERCHANT_ID / PAYME_SECRET_KEY ni .env ga qo'yishi kerak.",
+          reason: 'payment_not_configured',
+        },
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+
+    const amountTiyin = Math.round(amountSom * 100);
+    const test = String(process.env.PAYME_TEST_MODE ?? 'true') === 'true';
+    const base = test ? 'https://checkout.test.paycom.uz/api' : 'https://checkout.paycom.uz/api';
+    const headers = {
+      'X-Auth': `${process.env.PAYME_MERCHANT_ID}:${process.env.PAYME_SECRET_KEY}`,
+    };
+
+    try {
+      const { data } = await axios.post(
+        base,
+        {
+          id: Date.now(),
+          method: 'receipts.create',
+          params: { amount: amountTiyin, account: { user_id: user.id, purpose: 'platform_subscription', plan } },
+        },
+        { headers, timeout: 15_000 },
+      );
+      if (data.error) {
+        this.logger.error(`Payme receipts.create (subscription) xatosi: ${JSON.stringify(data.error)}`);
         throw new HttpException(`Payme: ${data.error.message}`, HttpStatus.BAD_GATEWAY);
       }
       const receiptId = data.result?.receipt?._id;
@@ -140,6 +194,7 @@ export class PaymeService implements PaymentProviderService {
     }
 
     const user = await this.resolveUser(params.account);
+    const isSubscription = params.account?.purpose === 'platform_subscription';
     const tx = await this.prisma.paymeTransaction.create({
       data: {
         paycomId: params.id,
@@ -147,6 +202,8 @@ export class PaymeService implements PaymentProviderService {
         amountTiyin: params.amount,
         state: 1,
         createTimeMs: BigInt(Date.now()),
+        purpose: isSubscription ? 'platform_subscription' : 'topup',
+        subscriptionPlan: isSubscription ? (params.account?.plan ?? null) : null,
       },
     });
     return { create_time: Number(tx.createTimeMs), transaction: tx.id, state: tx.state };
@@ -166,7 +223,11 @@ export class PaymeService implements PaymentProviderService {
         where: { id: tx.id },
         data: { state: 2, performTimeMs },
       });
-      await this.wallet.credit(tx.userId, tx.amountTiyin, { paycomTransactionId: params.id }, client);
+      if (tx.purpose === 'platform_subscription' && tx.subscriptionPlan) {
+        await this.platformBilling.activateFromPayment(tx.userId, tx.subscriptionPlan as SelfServePlatformPlan, client);
+      } else {
+        await this.wallet.credit(tx.userId, tx.amountTiyin, { paycomTransactionId: params.id }, client);
+      }
       return updated;
     });
     return { transaction: updatedTx.id, perform_time: Number(performTimeMs), state: 2 };
@@ -183,14 +244,29 @@ export class PaymeService implements PaymentProviderService {
     const newState = tx.state === 2 ? -2 : -1;
 
     if (tx.state === 2) {
-      // Bajarilgan to'lov bekor qilinmoqda — balansdan qaytarib olamiz
-      await this.prisma.$transaction(async (client) => {
-        await client.paymeTransaction.update({
+      if (tx.purpose === 'platform_subscription') {
+        // Platforma-obunasi to'lovi bekor qilinmoqda — bu wallet'ga hech qachon
+        // tegmagan (activateFromPayment balansni o'zgartirmaydi), shuning uchun
+        // debit() chaqirilmaydi. Obunani qo'lda bekor qilish (hozircha) — bu
+        // kamdan-kam holat (Paycom tomonidan chargeback), avtomatik hal
+        // qilinmaydi; faqat holatni belgilaymiz, admin operativ ko'rib chiqadi.
+        this.logger.warn(
+          `Platforma-obunasi to'lovi bekor qilindi (paycomId=${params.id}, user=${tx.userId}) — obuna holati QO'LDA tekshirilishi kerak`,
+        );
+        await this.prisma.paymeTransaction.update({
           where: { id: tx.id },
           data: { state: newState, cancelTimeMs, reason: params.reason },
         });
-        await this.wallet.debit(tx.userId, tx.amountTiyin, { paycomTransactionId: params.id, cancelled: true }, client);
-      });
+      } else {
+        // Bajarilgan to'lov bekor qilinmoqda — balansdan qaytarib olamiz
+        await this.prisma.$transaction(async (client) => {
+          await client.paymeTransaction.update({
+            where: { id: tx.id },
+            data: { state: newState, cancelTimeMs, reason: params.reason },
+          });
+          await this.wallet.debit(tx.userId, tx.amountTiyin, { paycomTransactionId: params.id, cancelled: true }, client);
+        });
+      }
     } else {
       await this.prisma.paymeTransaction.update({
         where: { id: tx.id },

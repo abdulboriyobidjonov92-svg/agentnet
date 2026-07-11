@@ -1,7 +1,7 @@
 "use client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiClient } from "@/lib/api-client";
-import { Bot, Plus, Trash2, Settings, MessageSquare, Snowflake, Wallet } from "lucide-react";
+import { Bot, Plus, Trash2, Settings, MessageSquare, Snowflake, Wallet, Hourglass, TimerReset } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useT } from "@/lib/i18n/client";
@@ -127,10 +127,24 @@ export default function AgentsPage() {
                 {agent.isPublished && (
                   <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">{t("nav.marketplace")}</span>
                 )}
-                {agent.frozen && (
+                {agent.frozen ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2 py-0.5 text-xs font-medium text-sky-500">
-                    <Snowflake className="h-3 w-3" /> {t("agents.frozen")}
+                    {agent.frozenReason === "trial_expired" ? (
+                      <>
+                        <Hourglass className="h-3 w-3" /> {t("agents.trialExpired")}
+                      </>
+                    ) : (
+                      <>
+                        <Snowflake className="h-3 w-3" /> {t("agents.frozen")}
+                      </>
+                    )}
                   </span>
+                ) : (
+                  agent.isTrialAgent && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-500">
+                      <TimerReset className="h-3 w-3" /> {t("agents.trialBadge").replace("{count}", String(agent.trialMessageCount ?? 0))}
+                    </span>
+                  )
                 )}
               </div>
               {agent.frozen ? (
@@ -140,7 +154,7 @@ export default function AgentsPage() {
                   onClick={() => reactivateMutation.mutate(agent.id)}
                   disabled={reactivateMutation.isPending}
                 >
-                  <Wallet /> {t("agents.reactivate")}
+                  <Wallet /> {agent.frozenReason === "trial_expired" ? t("agents.payToContinue") : t("agents.reactivate")}
                 </Button>
               ) : (
                 <Button asChild variant="subtle" className="mt-4 w-full">

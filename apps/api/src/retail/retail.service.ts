@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service';
@@ -302,6 +302,55 @@ export class RetailService {
 
   async listEvents(user: User) {
     return this.prisma.visionEvent.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, take: 50 });
+  }
+
+  // ---- Haqiqiy IP-kamera (agent-engine camera_service.py'ni ishga tushiradi) ----
+
+  async connectCamera(user: User, dto: { cameraId: string; rtspUrl: string; highValueZones?: any[] }) {
+    if (!dto.cameraId || !dto.rtspUrl) {
+      throw new BadRequestException('cameraId va rtspUrl majburiy');
+    }
+    const { data } = await firstValueFrom(
+      this.http.post(
+        `${this.engineUrl}/camera/connect`,
+        {
+          camera_id: dto.cameraId,
+          rtsp_url: dto.rtspUrl,
+          user_id: user.id,
+          high_value_zones: dto.highValueZones ?? [],
+        },
+        { timeout: 15_000 },
+      ),
+    );
+    await this.audit.record({
+      actorId: user.id,
+      action: 'retail.camera_connect',
+      resourceType: 'camera',
+      resourceId: dto.cameraId,
+      metadata: { rtspUrl: dto.rtspUrl },
+    });
+    return data;
+  }
+
+  async disconnectCamera(user: User, cameraId: string) {
+    if (!cameraId) throw new BadRequestException('cameraId majburiy');
+    const { data } = await firstValueFrom(
+      this.http.post(`${this.engineUrl}/camera/disconnect`, null, {
+        params: { camera_id: cameraId },
+        timeout: 10_000,
+      }),
+    );
+    return data;
+  }
+
+  async cameraStatus(user: User, cameraId?: string) {
+    const { data } = await firstValueFrom(
+      this.http.get(`${this.engineUrl}/camera/status`, {
+        params: cameraId ? { camera_id: cameraId } : {},
+        timeout: 10_000,
+      }),
+    );
+    return data;
   }
 
   // ---- Solishtirish (fuziya yadrosi) ----

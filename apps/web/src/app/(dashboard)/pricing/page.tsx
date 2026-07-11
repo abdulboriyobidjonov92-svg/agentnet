@@ -1,13 +1,14 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useApiClient } from "@/lib/api-client";
 import { useT } from "@/lib/i18n/client";
-import { Gem, Check, Loader2, Building2, Sparkles, Wallet } from "lucide-react";
+import { Gem, Check, Loader2, Building2, Sparkles, Wallet, Rocket, Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
+import { toast } from "@/components/ui/toast";
 
 interface PlansCatalog {
   pricePerMessageSom: number;
@@ -21,6 +22,19 @@ interface PlansCatalog {
 interface UsageStatus {
   plan: string;
   proUntil?: string | null;
+}
+
+interface PlatformPlansCatalog {
+  pro: { priceSom: number; chatPerDay: number };
+  max: { priceSom: number; chatPerDay: number };
+  enterprise: { priceSom: null; chatPerDay: null };
+}
+
+interface PlatformStatus {
+  plan: string;
+  rawPlan: string;
+  until: string | null;
+  frozen: boolean;
 }
 
 export default function PricingPage() {
@@ -39,6 +53,24 @@ export default function PricingPage() {
   const { data: usage } = useQuery({
     queryKey: ["usage"],
     queryFn: () => api.get<UsageStatus>("/usage/me"),
+  });
+
+  const { data: platformPlans, isError: platformPlansError, refetch: refetchPlatformPlans } = useQuery({
+    queryKey: ["platform-plans"],
+    queryFn: () => api.get<PlatformPlansCatalog>("/platform/plans"),
+  });
+  const { data: platformStatus } = useQuery({
+    queryKey: ["platform-status"],
+    queryFn: () => api.get<PlatformStatus>("/platform/status"),
+  });
+
+  const [platformProvider, setPlatformProvider] = useState<"payme" | "click">("payme");
+  const subscribe = useMutation({
+    mutationFn: (plan: "pro" | "max") => api.post<{ payUrl: string }>("/platform/subscribe", { plan, provider: platformProvider }),
+    onSuccess: (res) => window.open(res.payUrl, "_blank"),
+    onError: (e: any) => {
+      toast({ variant: "destructive", title: t("common.error"), description: e.message });
+    },
   });
 
   const fmt = (n: number) => n.toLocaleString(locale === "uz" ? "uz-UZ" : locale === "ru" ? "ru-RU" : "en-US");
@@ -76,6 +108,11 @@ export default function PricingPage() {
         </div>
         <h1 className="text-3xl font-bold tracking-tight">{t("pricing.title")}</h1>
         <p className="mx-auto mt-2 max-w-2xl text-muted-foreground">{t("pricing.subtitle")}</p>
+      </div>
+
+      <div className="mb-6">
+        <h2 className="text-xl font-bold tracking-tight">{t("pricing.vertical.title")}</h2>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("pricing.vertical.subtitle")}</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
@@ -182,6 +219,123 @@ export default function PricingPage() {
           </Button>
         </div>
       </div>
+
+      {/* Platforma imkoniyatlari — Twin/Fusion/Supermode, per-agent narxlashdan BUTUNLAY ALOHIDA */}
+      <div className="mb-6 mt-16 border-t pt-10">
+        <h2 className="text-xl font-bold tracking-tight">{t("pricing.platform.title")}</h2>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("pricing.platform.subtitle")}</p>
+      </div>
+
+      {platformPlansError ? (
+        <ErrorState onRetry={() => refetchPlatformPlans()} />
+      ) : (
+        <>
+          <div className="mb-5 flex justify-center gap-3">
+            <label className="flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+              <input type="radio" name="platform-pay-provider" checked={platformProvider === "payme"} onChange={() => setPlatformProvider("payme")} />
+              Payme
+            </label>
+            <label className="flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+              <input type="radio" name="platform-pay-provider" checked={platformProvider === "click"} onChange={() => setPlatformProvider("click")} />
+              Click
+            </label>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {/* Pro */}
+            <div className="flex flex-col rounded-2xl border bg-card p-6 shadow-soft">
+              <h3 className="text-lg font-semibold">{t("pricing.platform.pro")}</h3>
+              <p className="mt-1 min-h-10 text-sm text-muted-foreground">{t("pricing.platform.proDesc")}</p>
+              <p className="mt-4 text-3xl font-bold">
+                {platformPlans ? `${fmt(platformPlans.pro.priceSom)} so'm` : "…"}
+                <span className="text-sm font-normal text-muted-foreground">{t("pricing.platform.perMonth")}</span>
+              </p>
+              <ul className="mt-5 flex-1 space-y-2.5 text-sm">
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-primary" />
+                  {platformPlans ? `${fmt(platformPlans.pro.chatPerDay)} ${t("pricing.platform.chatPerDay")}` : "…"}
+                </li>
+              </ul>
+              {platformStatus?.plan === "pro" ? (
+                <div className="mt-5 rounded-lg bg-primary/10 px-3 py-2 text-center text-xs font-medium text-primary">
+                  {t("pricing.platform.currentPlan")}
+                  {platformStatus.until && (
+                    <span className="block mt-0.5">
+                      {t("pricing.platform.activeUntil")}: {new Date(platformStatus.until).toLocaleDateString(locale === "uz" ? "uz-UZ" : locale === "ru" ? "ru-RU" : "en-US")}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <Button className="mt-5 w-full" onClick={() => subscribe.mutate("pro")} disabled={subscribe.isPending || !platformPlans}>
+                  {subscribe.isPending ? <Loader2 className="animate-spin" /> : <Rocket />}
+                  {subscribe.isPending ? t("pricing.platform.subscribing") : t("pricing.platform.subscribe")}
+                </Button>
+              )}
+            </div>
+
+            {/* Max */}
+            <div className="relative flex flex-col rounded-2xl border border-primary/40 bg-card p-6 shadow-glow">
+              <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-[11px] font-bold uppercase text-primary-foreground">
+                <Sparkles className="mr-1 inline h-3 w-3" />
+                {t("pricing.platform.max")}
+              </span>
+              <h3 className="text-lg font-semibold">{t("pricing.platform.max")}</h3>
+              <p className="mt-1 min-h-10 text-sm text-muted-foreground">{t("pricing.platform.maxDesc")}</p>
+              <p className="mt-4 text-3xl font-bold">
+                {platformPlans ? `${fmt(platformPlans.max.priceSom)} so'm` : "…"}
+                <span className="text-sm font-normal text-muted-foreground">{t("pricing.platform.perMonth")}</span>
+              </p>
+              <ul className="mt-5 flex-1 space-y-2.5 text-sm">
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-primary" />
+                  {platformPlans ? `${fmt(platformPlans.max.chatPerDay)} ${t("pricing.platform.chatPerDay")}` : "…"}
+                </li>
+              </ul>
+              {platformStatus?.plan === "max" ? (
+                <div className="mt-5 rounded-lg bg-primary/10 px-3 py-2 text-center text-xs font-medium text-primary">
+                  {t("pricing.platform.currentPlan")}
+                  {platformStatus.until && (
+                    <span className="block mt-0.5">
+                      {t("pricing.platform.activeUntil")}: {new Date(platformStatus.until).toLocaleDateString(locale === "uz" ? "uz-UZ" : locale === "ru" ? "ru-RU" : "en-US")}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <Button className="mt-5 w-full" onClick={() => subscribe.mutate("max")} disabled={subscribe.isPending || !platformPlans}>
+                  {subscribe.isPending ? <Loader2 className="animate-spin" /> : <Crown />}
+                  {subscribe.isPending ? t("pricing.platform.subscribing") : t("pricing.platform.subscribe")}
+                </Button>
+              )}
+            </div>
+
+            {/* Enterprise — o'z-o'zidan sotib olinmaydi, "kelishuv asosida" */}
+            <div className="flex flex-col rounded-2xl border bg-card p-6 shadow-soft">
+              <h3 className="text-lg font-semibold">{t("pricing.platform.enterprise")}</h3>
+              <p className="mt-1 min-h-10 text-sm text-muted-foreground">{t("pricing.platform.enterpriseDesc")}</p>
+              <p className="mt-4 text-3xl font-bold">{t("pricing.platform.custom")}</p>
+              <ul className="mt-5 flex-1 space-y-2.5 text-sm">
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-primary" /> {t("pricing.platform.unlimited")}
+                </li>
+              </ul>
+              <Button asChild variant="outline" className="mt-5 w-full">
+                <Link href="mailto:sales@agentnet.app">
+                  <Building2 /> {t("pricing.platform.contactUs")}
+                </Link>
+              </Button>
+            </div>
+          </div>
+
+          {platformStatus?.frozen && (
+            <p className="mt-5 rounded-lg bg-destructive/10 px-3 py-2 text-center text-sm font-medium text-destructive">
+              {t("pricing.platform.frozen")}
+            </p>
+          )}
+          {!platformStatus || platformStatus.plan === "none" ? (
+            <p className="mt-5 text-center text-xs text-muted-foreground">{t("pricing.platform.none")}</p>
+          ) : null}
+        </>
+      )}
 
       <div className="mt-8 space-y-2 text-center text-xs text-muted-foreground">
         <p>{t("pricing.balanceNote")}</p>

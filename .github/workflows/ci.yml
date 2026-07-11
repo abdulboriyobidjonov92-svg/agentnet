@@ -75,6 +75,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Tests
+        run: npm test
+
       - name: Build
         run: npm run build
 
@@ -108,7 +111,18 @@ jobs:
         run: mypy . --ignore-missing-imports
 
       - name: Tests
-        run: pytest --tb=short -q || true
+        # Hozircha bu servisda pytest fayllari yo'q (`test_*.py` yo'q) --
+        # shartsiz `|| true` haqiqiy regressiyani ham yashirardi. Faqat
+        # "hech qanday test topilmadi" holatini (exit 5) o'tkazib yuboramiz;
+        # test qo'shilgach har qanday HAQIQIY xato CI'ni qizartiradi.
+        run: |
+          pytest --tb=short -q
+          code=$?
+          if [ "$code" -eq 5 ]; then
+            echo "Hali pytest fayllari yo'q — bu bosqichda kutilgan holat."
+            exit 0
+          fi
+          exit $code
         env:
           ANTHROPIC_API_KEY: "sk-ant-placeholder"
           DATABASE_URL: "postgresql://agentnet:password@localhost:5432/agentnet_test"

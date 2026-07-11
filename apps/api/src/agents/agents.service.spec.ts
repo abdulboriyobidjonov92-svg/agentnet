@@ -13,10 +13,13 @@ import { priceForAgent, usdUzsRate } from './agent-pricing';
 import type { User } from '@prisma/client';
 
 /**
- * Y4: agent yaratish endi HAQIQIY pul yechadi (avval faqat kalkulyator edi).
- * Bu testlar tasdiqlaydi: (1) narx to'g'ri yechiladi, (2) balans yetmasa
- * agent YARATILMAYDI, (3) bir xil so'rov ikki marta yuborilsa IKKINCHI
- * marta yechilmaydi (idempotency).
+ * Y4: agent YARATISH bepul (activation'ni bo'g'masin — Pricing audit topilmasi:
+ * avval har agent $15-60 turardi, foydalanuvchi qiymat ko'rmasdan to'lardi).
+ * Faqat OYLIK narx bor; balans-yechish mexanizmi endi faqat priceOverride
+ * bilan chaqirilganda ishlaydi (masalan pullik shablon/marketplace nusxasi).
+ * Bu testlar tasdiqlaydi: (1) standart yaratish bepul va balansga tegmaydi,
+ * (2) priceOverride bilan haqiqiy narx bo'lsa balans yetmasa YARATILMAYDI,
+ * (3) bir xil so'rov ikki marta yuborilsa IKKINCHI marta yechilmaydi (idempotency).
  */
 
 function makeMock() {
@@ -29,6 +32,7 @@ function makeMock() {
       count: jest.fn(async () => 0),
       create: jest.fn(),
       findUnique: jest.fn(),
+      update: jest.fn(async (a: any) => a),
     },
     creditLedger: {
       create: jest.fn(async (a: any) => ({ id: 'ledger1', ...a.data })),
@@ -45,7 +49,7 @@ function makeMock() {
   const http = { post: jest.fn() } as any;
   const audit = { record: jest.fn(async () => {}) } as any;
   const usage = { assertCanCreateAgent: jest.fn(async () => {}), consumeChat: jest.fn(async () => {}) } as any;
-  const agentBilling = { chargeOne: jest.fn() } as any;
+  const agentBilling = { chargeOne: jest.fn(), resolveTrialEnd: jest.fn() } as any;
   return { prisma, http, audit, usage, agentBilling };
 }
 
@@ -58,27 +62,39 @@ const baseDto = {
 };
 
 describe('AgentsService.create — haqiqiy pul yechish (avval faqat kalkulyator edi)', () => {
-  it('balans yetarli -> creation narxi ATOMIK yechiladi, agent yaratiladi, ledger yoziladi', async () => {
+  it('standart yaratish (override yo\'q) -> BEPUL, balansga tegilmaydi, ledger yozilmaydi', async () => {
+    const { prisma, http, audit, usage, agentBilling } = makeMock();
+    prisma.agent.create.mockResolvedValue({ id: 'agent1', ...baseDto });
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling);
+
+    await svc.create(user, { ...baseDto, complexity: 5 } as any); // eng qimmat murakkablik ham bepul
+
+    expect(prisma.user.updateMany).not.toHaveBeenCalled();
+    expect(prisma.creditLedger.create).not.toHaveBeenCalled();
+    expect(prisma.agent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ creationPriceTiyin: 0 }),
+      }),
+    );
+  });
+
+  it('priceOverride bilan (masalan pullik shablon) narx ATOMIK yechiladi, ledger yoziladi', async () => {
     const { prisma, http, audit, usage, agentBilling } = makeMock();
     prisma.user.updateMany.mockResolvedValue({ count: 1 });
     prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 50_000_000 });
     prisma.agent.create.mockResolvedValue({ id: 'agent1', ...baseDto });
     const svc = new AgentsService(prisma, http, audit, usage, agentBilling);
 
-    const price = priceForAgent(1, 0, usdUzsRate());
-    const expectedCreationTiyin = price.creationSom * 100;
+    const fxRate = usdUzsRate();
+    const priceOverride = { creationUsd: 30, monthlyUsd: 15 };
+    const expectedCreationTiyin = Math.round(priceOverride.creationUsd * fxRate) * 100;
 
-    await svc.create(user, { ...baseDto, complexity: 1 } as any);
+    await svc.create(user, baseDto as any, priceOverride);
 
     expect(prisma.user.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'u1', balanceTiyin: { gte: expectedCreationTiyin } },
         data: { balanceTiyin: { decrement: expectedCreationTiyin } },
-      }),
-    );
-    expect(prisma.agent.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ creationPriceTiyin: expectedCreationTiyin }),
       }),
     );
     expect(prisma.creditLedger.create).toHaveBeenCalledWith(
@@ -88,13 +104,13 @@ describe('AgentsService.create — haqiqiy pul yechish (avval faqat kalkulyator 
     );
   });
 
-  it('balans yetarli emas -> 402, agent YARATILMAYDI, ledger yozilmaydi', async () => {
+  it('priceOverride bilan balans yetarli emas -> 402, agent YARATILMAYDI, ledger yozilmaydi', async () => {
     const { prisma, http, audit, usage, agentBilling } = makeMock();
     prisma.user.updateMany.mockResolvedValue({ count: 0 });
     const svc = new AgentsService(prisma, http, audit, usage, agentBilling);
 
     try {
-      await svc.create(user, { ...baseDto, complexity: 3 } as any);
+      await svc.create(user, baseDto as any, { creationUsd: 30, monthlyUsd: 15 });
       throw new Error('402 kutilgan edi');
     } catch (e: any) {
       expect(e).toBeInstanceOf(HttpException);
@@ -322,5 +338,70 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
     const svc = new AgentsService(prisma, http, audit, usage, agentBilling);
 
     await expect(svc.run('agent1', user, 'x')).rejects.toBeInstanceOf(BadGatewayException);
+  });
+
+  /**
+   * Sinov (FAQAT birinchi agent): 20 xabar chegarasi shu yerda (3-kunlik
+   * chegara — agent-billing.service.spec.ts'da, chunki u kunlik cron orqali
+   * ishlaydi). resolveTrialEnd() ATOMIK charge-yoki-frozen qaror qabul qiladi;
+   * bu testlar faqat run()ning o'sha qarorga to'g'ri munosabatini tekshiradi.
+   */
+  describe('AgentsService.run — sinov (20-xabar chegarasi)', () => {
+    const trialAgent = { ...agent, isTrialAgent: true, trialStartedAt: new Date(), trialMessageCount: 5, monthlyPriceTiyin: 300_000 };
+
+    it('limit ostida (5/20) -> trialMessageCount +1, resolveTrialEnd CHAQIRILMAYDI, xabar davom etadi', async () => {
+      const { prisma, http, audit, usage, agentBilling } = makeMock();
+      prisma.agent.findUnique.mockResolvedValue(trialAgent);
+      http.post.mockReturnValue(of({ data: { messages: [{ content: 'ok' }] } }));
+      const svc = new AgentsService(prisma, http, audit, usage, agentBilling);
+
+      await svc.run('agent1', user, 'salom');
+
+      expect(agentBilling.resolveTrialEnd).not.toHaveBeenCalled();
+      expect(prisma.agent.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'agent1' }, data: { trialMessageCount: { increment: 1 } } }),
+      );
+      expect(http.post).toHaveBeenCalled(); // xabar baribir yuborildi
+    });
+
+    it('20-chi xabardan keyingi (limit oshdi) + balans yetarli -> resolveTrialEnd chaqiriladi, konvertatsiya bo\'lsa xabar DAVOM ETADI', async () => {
+      const { prisma, http, audit, usage, agentBilling } = makeMock();
+      const atLimit = { ...trialAgent, trialMessageCount: 20 };
+      prisma.agent.findUnique.mockResolvedValue(atLimit);
+      agentBilling.resolveTrialEnd.mockResolvedValue({ ...atLimit, isTrialAgent: false, frozen: false, frozenReason: null });
+      http.post.mockReturnValue(of({ data: { messages: [{ content: 'ok' }] } }));
+      const svc = new AgentsService(prisma, http, audit, usage, agentBilling);
+
+      const res = await svc.run('agent1', user, '21-chi xabar');
+
+      expect(agentBilling.resolveTrialEnd).toHaveBeenCalledWith(atLimit, user);
+      expect(http.post).toHaveBeenCalled(); // konvertatsiya muvaffaqiyatli -> xabar o'tadi
+      expect(res).toBeDefined();
+    });
+
+    it('20-chi xabardan keyingi + balans YETARLI EMAS -> resolveTrialEnd muzlatadi, 402 trial_expired, engine\'ga CHIQILMAYDI', async () => {
+      const { prisma, http, audit, usage, agentBilling } = makeMock();
+      const atLimit = { ...trialAgent, trialMessageCount: 20 };
+      prisma.agent.findUnique.mockResolvedValue(atLimit);
+      agentBilling.resolveTrialEnd.mockResolvedValue({
+        ...atLimit,
+        isTrialAgent: false,
+        frozen: true,
+        frozenReason: 'trial_expired',
+      });
+      const svc = new AgentsService(prisma, http, audit, usage, agentBilling);
+
+      try {
+        await svc.run('agent1', user, '21-chi xabar');
+        throw new Error('402 kutilgan edi');
+      } catch (e: any) {
+        expect(e).toBeInstanceOf(HttpException);
+        expect(e.getStatus()).toBe(402);
+        expect(e.getResponse().reason).toBe('trial_expired');
+        expect(e.getResponse().message).toContain('sinov');
+      }
+      expect(http.post).not.toHaveBeenCalled();
+      expect(usage.consumeChat).not.toHaveBeenCalled();
+    });
   });
 });

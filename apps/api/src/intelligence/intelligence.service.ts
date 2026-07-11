@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../auth/auth.service';
 import { TwinService } from '../twin/twin.service';
+import { UsageService } from '../usage/usage.service';
 import type { User } from '@prisma/client';
 
 /**
@@ -21,11 +22,15 @@ export class IntelligenceService {
     private readonly http: HttpService,
     private readonly audit: AuditLogService,
     private readonly twin: TwinService,
+    private readonly usage: UsageService,
   ) {}
 
   // ---- Cross-Profession Agent Fusion ----
 
   async fusion(user: User, problem: string, roles: string[] = []) {
+    // Platforma obunasi (Pro/Max/Enterprise) kerak — bularning barchasi
+    // umumiy platforma-intellekt, vertikal agent-narxlashdan alohida.
+    await this.usage.consumePlatformFeature(user);
     const facts = await this.twin.factsForEngine(user.id);
     const data = await this.callEngine('/fusion/run', {
       problem,
@@ -53,6 +58,7 @@ export class IntelligenceService {
   // ---- Ethical Decision Engine ----
 
   async ethicsEvaluate(user: User, action: string) {
+    await this.usage.consumePlatformFeature(user);
     const data = await this.callEngine('/ethics/evaluate', {
       action,
       values: user.valuesProfile ?? { tradition: 'islamic', statements: [] },
@@ -66,6 +72,7 @@ export class IntelligenceService {
   // ---- Real-time Global Knowledge Sync ----
 
   async knowledgeSearch(user: User, query: string) {
+    await this.usage.consumePlatformFeature(user);
     return this.callEngine('/knowledge/search', {
       query,
       language: user.preferredLanguage ?? 'en',
@@ -76,6 +83,7 @@ export class IntelligenceService {
   // ---- "One Command" Super Mode ----
 
   async superMode(user: User, command: string) {
+    await this.usage.consumePlatformFeature(user);
     const [facts, goals] = await Promise.all([
       this.twin.factsForEngine(user.id),
       this.prisma.goal.findMany({

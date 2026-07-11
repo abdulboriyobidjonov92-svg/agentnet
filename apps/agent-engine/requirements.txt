@@ -10,3 +10,17 @@ httpx==0.28.1
 sse-starlette==2.1.3
 python-dotenv==1.0.1
 pillow==11.1.0
+
+# camera_service.py (S4 real IP-kamera) -- ilgari bu 3 paket yo'q edi,
+# import qilingan zahoti ImportError berardi. Versiyalar production
+# Dockerfile'dagi bilan bir xil Python 3.12'da `pip install -r
+# requirements.txt` orqali toza venv'da real tekshirilgan (mavjud
+# numpy==2.2.1/pillow==11.1.0 pinlari bilan ziddiyatsiz).
+opencv-python==5.0.0.93
+onvif-zeep==0.2.12
+ultralytics==8.4.92
+# ultralytics'ning majburiy og'ir bog'liqliklari -- aniq pinlanmasa keyingi
+# `pip install` boshqa versiyani tortib, sinovdan o'tmagan kombinatsiya
+# yaratishi mumkin (torch ~120MB, torchvision ~4MB).
+torch==2.13.0
+torchvision==0.28.0

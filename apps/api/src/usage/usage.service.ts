@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { effectivePlatformPlan } from '../billing/platform-billing.service';
 import type { Prisma, User } from '@prisma/client';
 
 /**
@@ -191,6 +192,61 @@ export class UsageService {
         limit: limits.agentsMax,
       });
     }
+  }
+
+  /**
+   * Platforma-obunasi (Pro/Max/Enterprise) kunlik limiti — PER-AGENT
+   * `consumeChat`dan BUTUNLAY ALOHIDA hisoblagich ('platform_chat' kind).
+   * Faqat Twin/Fusion/Supermode/Ethics/Knowledge kabi umumiy platforma-
+   * intellekt chaqiruvlari OLDIDAN ishlatiladi — vertikal agentlar buni
+   * chaqirmaydi (ular `consumeChat` orqali ishlaydi, obunasiz ham to'liq ishlaydi).
+   */
+  private platformPlanLimit(plan: string): number | null {
+    if (plan === 'enterprise') return null; // cheksizga yaqin — hisoblagichga hojat yo'q
+    if (plan === 'max') return intEnv('PLATFORM_MAX_CHAT_PER_DAY', 300);
+    if (plan === 'pro') return intEnv('PLATFORM_PRO_CHAT_PER_DAY', 50);
+    return 0; // 'none'
+  }
+
+  /** Narxlar sahifasi uchun — Pro/Max kunlik limitlari (Enterprise = cheksiz). */
+  platformLimitsCatalog() {
+    return {
+      pro: { chatPerDay: this.platformPlanLimit('pro') },
+      max: { chatPerDay: this.platformPlanLimit('max') },
+      enterprise: { chatPerDay: null },
+    };
+  }
+
+  async consumePlatformFeature(user: User): Promise<{ remaining: number | null; plan: string }> {
+    const plan = effectivePlatformPlan(user);
+    if (plan === 'none') {
+      throw new HttpException(
+        {
+          message: "Bu funksiya uchun Pro/Max/Enterprise platforma-obunasi kerak. Narxlar sahifasiga o'ting.",
+          reason: 'platform_subscription_required',
+        },
+        HttpStatus.PAYMENT_REQUIRED,
+      );
+    }
+
+    const limit = this.platformPlanLimit(plan);
+    if (limit === null) return { remaining: null, plan }; // enterprise — cheksiz
+
+    const day = this.today();
+    const after = await this.bumpReturning(user.id, 'platform_chat', day);
+    if (after > limit) {
+      await this.decrement(user.id, 'platform_chat', day);
+      throw new HttpException(
+        {
+          message: `Kunlik platforma-funksiya limitiga yetdingiz (${limit}/kun, ${plan} tarif). Ertaga yangilanadi yoki tarifni oshiring.`,
+          reason: 'platform_daily_cap',
+          plan,
+          limit,
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    return { remaining: Math.max(0, limit - after), plan };
   }
 
   /** UI uchun joriy holat — qolgan kvota. */

@@ -229,17 +229,22 @@ export class ClerkSyncService {
 
   /**
    * Lokal dev auth — Clerk'siz. Email YOKI telefon raqami bo'yicha
-   * foydalanuvchini topadi/yaratadi. Prototip uchun (tashqi auth'siz).
+   * foydalanuvchini topadi/yaratadi. FAQAT NODE_ENV!==production'da chaqiriladi
+   * (controller darajasida cheklangan) — real login endi OtpService orqali.
    */
   async devLogin(input: { email?: string; phone?: string; name?: string }) {
-    const name = input.name?.trim() || undefined;
+    const { user, isNewUser } = await this.findOrCreateUser(input, {
+      action: 'auth.dev_login',
+    });
+    return this.issueSession(user, isNewUser);
+  }
 
-    // Har bir muvaffaqiyatli login imzolangan token bilan qaytadi — guard
-    // shu tokenni tekshiradi (userId'ning o'zi endi kirish uchun yetarli emas).
-    const issue = (
-      u: { id: string; email: string; phone: string | null; role: string; name: string | null },
-      isNewUser: boolean,
-    ) => ({
+  /** Har bir muvaffaqiyatli login imzolangan token bilan qaytadi. */
+  issueSession(
+    u: { id: string; email: string; phone: string | null; role: string; name: string | null },
+    isNewUser: boolean,
+  ) {
+    return {
       userId: u.id,
       email: u.email,
       phone: u.phone,
@@ -247,7 +252,21 @@ export class ClerkSyncService {
       role: u.role,
       isNewUser,
       token: signToken({ sub: u.id, email: u.email }),
-    });
+    };
+  }
+
+  /**
+   * Email YOKI telefon bo'yicha foydalanuvchini topadi, topilmasa yaratadi.
+   * OTP-login va dev-login ikkalasi ham shu yagona yo'ldan foydalanadi.
+   */
+  async findOrCreateUser(
+    input: { email?: string; phone?: string; name?: string },
+    opts: { action: string },
+  ): Promise<{
+    user: { id: string; email: string; phone: string | null; role: string; name: string | null; twoFactorEnabled: boolean };
+    isNewUser: boolean;
+  }> {
+    const name = input.name?.trim() || undefined;
 
     // --- Telefon bilan kirish ---
     if (input.phone) {
@@ -257,7 +276,7 @@ export class ClerkSyncService {
       }
       const existing = await this.prisma.user.findUnique({ where: { phone } });
       if (existing) {
-        return issue(existing, false);
+        return { user: existing, isNewUser: false };
       }
       const user = await this.prisma.user.create({
         data: {
@@ -271,12 +290,12 @@ export class ClerkSyncService {
       });
       await this.auditLog.record({
         actorId: user.id,
-        action: 'auth.dev_login',
+        action: opts.action,
         resourceType: 'user',
         resourceId: user.id,
         metadata: { name, method: 'phone' },
       });
-      return issue(user, true);
+      return { user, isNewUser: true };
     }
 
     // --- Email bilan kirish ---
@@ -286,7 +305,7 @@ export class ClerkSyncService {
     }
     const existing = await this.prisma.user.findUnique({ where: { email: clean } });
     if (existing) {
-      return issue(existing, false);
+      return { user: existing, isNewUser: false };
     }
     const user = await this.prisma.user.create({
       data: {
@@ -298,12 +317,12 @@ export class ClerkSyncService {
     });
     await this.auditLog.record({
       actorId: user.id,
-      action: 'auth.dev_login',
+      action: opts.action,
       resourceType: 'user',
       resourceId: user.id,
       metadata: { name, method: 'email' },
     });
-    return issue(user, true);
+    return { user, isNewUser: true };
   }
 
   private devClerkId(): string {
@@ -314,7 +333,7 @@ export class ClerkSyncService {
    * Telefon raqamini E.164'ga normallashtiradi. Faqat raqam/ "+" saqlanadi.
    * "+" bo'lmasa qo'shiladi. Yaroqsiz bo'lsa null qaytaradi (7–15 raqam).
    */
-  private normalizePhone(raw: string): string | null {
+  normalizePhone(raw: string): string | null {
     const digits = (raw || '').replace(/[^\d+]/g, '');
     const e164 = digits.startsWith('+') ? `+${digits.slice(1).replace(/\+/g, '')}` : `+${digits}`;
     const bare = e164.slice(1);

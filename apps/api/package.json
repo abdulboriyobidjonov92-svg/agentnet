@@ -32,6 +32,7 @@
     "playwright": "^1.61.1",
     "qrcode": "^1.5.4",
     "reflect-metadata": "^0.2.2",
+    "resend": "^6.17.2",
     "rxjs": "^7.8.1",
     "svix": "^1.45.1",
     "telegraf": "^4.16.3"

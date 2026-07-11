@@ -257,14 +257,20 @@ function ProposalCard({
         )}
       </div>
 
-      {/* Narx — yaratish (bir martalik) + oylik */}
+      {/* Narx — yaratish (endi bepul, activation'ni bo'g'maslik uchun) + oylik */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-white/10 p-3">
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
           <p className="text-xs text-muted-foreground">{t("compose.priceCreation")}</p>
-          <p className="mt-0.5 text-lg font-bold">
-            {som(price.creationSom)} <span className="text-sm font-normal text-muted-foreground">so'm</span>
-          </p>
-          <p className="text-[11px] text-muted-foreground">${price.creationUsd}</p>
+          {price.creationSom > 0 ? (
+            <>
+              <p className="mt-0.5 text-lg font-bold">
+                {som(price.creationSom)} <span className="text-sm font-normal text-muted-foreground">so'm</span>
+              </p>
+              <p className="text-[11px] text-muted-foreground">${price.creationUsd}</p>
+            </>
+          ) : (
+            <p className="mt-0.5 text-lg font-bold text-emerald-500">{t("compose.free")}</p>
+          )}
         </div>
         <div className="rounded-xl border border-white/10 p-3">
           <p className="text-xs text-muted-foreground">{t("compose.priceMonthly")}</p>
@@ -297,7 +303,9 @@ function ProposalCard({
   );
 }
 
-/** Y9↔shablon: custom yaratishdan oldin topilgan tayyor (arzonroq, tezroq) shablon taklifi. */
+/** Y9↔shablon: custom yaratishdan oldin topilgan tayyor (sinovdan o'tgan, tezroq) shablon taklifi.
+ * Eslatma: custom yaratish endi BEPUL — shablon narxi ko'rsatiladi, lekin "arzonroq" degan
+ * da'vo endi noto'g'ri (custom $0), shuning uchun taqqoslash tezlik/sifatga qaratilgan. */
 function TemplateSuggestionCard({
   suggestion,
   installing,
