@@ -47,6 +47,12 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [cooldown, setCooldown] = useState(0);
+  // Referral kodi (?ref=KOD) — signup'da serverga uzatiladi, ikkala tomon bonus oladi
+  const [refCode, setRefCode] = useState<string | null>(null);
+  useEffect(() => {
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    if (ref) setRefCode(ref);
+  }, []);
 
   const isSignUp = mode === "sign-up";
   const phoneValid = phoneDigits.length === 9;
@@ -125,7 +131,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
       const res = await fetch(`${API_URL}/api/auth/otp/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...identifierPayload, code, name: name.trim() || undefined }),
+        body: JSON.stringify({ ...identifierPayload, code, name: name.trim() || undefined, ref: refCode || undefined }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || "Error");

@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService, ClerkSyncService, TwoFactorService } from './auth.service';
 import { EmailService } from './email.service';
 import { SmsService } from './sms.service';
+import { ReferralService } from '../referral/referral.service';
 
 const CODE_TTL_MS = 10 * 60 * 1000; // 10 daqiqa
 const RESEND_COOLDOWN_MS = 60 * 1000; // 1 daqiqa — spam'ga qarshi
@@ -43,6 +44,7 @@ export class OtpService {
     private readonly clerkSync: ClerkSyncService,
     private readonly auditLog: AuditLogService,
     private readonly twoFactor: TwoFactorService,
+    private readonly referral: ReferralService,
   ) {}
 
   async requestOtp(input: { email?: string; phone?: string }): Promise<OtpRequestResult> {
@@ -91,6 +93,7 @@ export class OtpService {
     phone?: string;
     code: string;
     name?: string;
+    ref?: string;
   }): Promise<OtpVerifyResult> {
     const { channel, identifier } = this.resolveIdentifier(input);
     const code = (input.code || '').trim();
@@ -123,6 +126,11 @@ export class OtpService {
       channel === 'email' ? { email: identifier, name: input.name } : { phone: identifier, name: input.name },
       { action: 'auth.otp_login' },
     );
+
+    // Referral-bonus — FAQAT yangi foydalanuvchi, best-effort (signup'ni hech qachon buzmaydi)
+    if (isNewUser && input.ref) {
+      await this.referral.applyReferralOnSignup(user.id, input.ref).catch(() => undefined);
+    }
 
     if (user.twoFactorEnabled) {
       await this.auditLog.record({

@@ -753,6 +753,13 @@ const ru: Dict = {
     "share.more": "Ещё",
     "share.generating": "Готовим ссылку…",
     "share.watermark": "На странице будет знак «Создано с AgentNet»",
+
+    // Реферальная система
+    "referral.title": "Пригласите друга",
+    "referral.desc": "За каждого друга, зарегистрировавшегося по вашей ссылке, вы оба получите бонус {bonus} сум.",
+    "referral.copy": "Скопировать ссылку",
+    "referral.invited": "Приглашено",
+    "referral.earned": "Бонус (сум)",
 };
 
 export default ru;

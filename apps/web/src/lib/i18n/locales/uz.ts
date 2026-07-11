@@ -753,6 +753,13 @@ const uz: Dict = {
     "share.more": "Ko'proq",
     "share.generating": "Havola tayyorlanmoqda…",
     "share.watermark": "Ulashilgan sahifada \"AgentNet bilan yaratilgan\" belgisi ko'rinadi",
+
+    // Referral (taklif) tizimi
+    "referral.title": "Do'stingizni taklif qiling",
+    "referral.desc": "Havolangiz orqali ro'yxatdan o'tgan har bir do'stingiz uchun ikkalangiz ham {bonus} so'm bonus olasiz.",
+    "referral.copy": "Havolani nusxalash",
+    "referral.invited": "Taklif qilingan",
+    "referral.earned": "Bonus (so'm)",
 };
 
 export default uz;

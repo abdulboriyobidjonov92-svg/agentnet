@@ -83,7 +83,7 @@ export class AuthController {
   @Post('otp/verify')
   @Throttle({ default: { limit: 10, ttl: 60_000 } }) // kod-taxminlashga qarshi
   @HttpCode(200)
-  async verifyOtp(@Body() body: { email?: string; phone?: string; code: string; name?: string }) {
+  async verifyOtp(@Body() body: { email?: string; phone?: string; code: string; name?: string; ref?: string }) {
     return this.otp.verifyOtp(body);
   }
 

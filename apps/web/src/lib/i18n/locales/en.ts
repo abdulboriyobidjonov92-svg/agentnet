@@ -765,6 +765,13 @@ const en: Dict = {
     "share.more": "More",
     "share.generating": "Preparing link…",
     "share.watermark": "The shared page shows a \"Made with AgentNet\" badge",
+
+    // Referral system
+    "referral.title": "Invite a friend",
+    "referral.desc": "For every friend who signs up via your link, you both get a {bonus} som bonus.",
+    "referral.copy": "Copy link",
+    "referral.invited": "Invited",
+    "referral.earned": "Bonus (som)",
 };
 
 export default en;

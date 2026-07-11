@@ -56,9 +56,18 @@ function makeDeps() {
   };
   const auditLog = { record: jest.fn(async () => undefined) };
   const twoFactor = { verifyLogin: jest.fn(async () => true) };
+  const referral = { applyReferralOnSignup: jest.fn(async () => true) };
 
-  const svc = new OtpService(prisma, email as any, sms as any, clerkSync as any, auditLog as any, twoFactor as any);
-  return { svc, prisma, email, sms, clerkSync, auditLog, twoFactor };
+  const svc = new OtpService(
+    prisma,
+    email as any,
+    sms as any,
+    clerkSync as any,
+    auditLog as any,
+    twoFactor as any,
+    referral as any,
+  );
+  return { svc, prisma, email, sms, clerkSync, auditLog, twoFactor, referral };
 }
 
 describe('OtpService.requestOtp', () => {

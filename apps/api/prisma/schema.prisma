@@ -45,6 +45,15 @@ model User {
   clickTransactions      ClickTransaction[]
   feedbackItems          Feedback[]
   sharedResults          SharedResult[]
+
+  // --- Referral (taklif) tizimi — PLG viral halqasi ---
+  // referralCode birinchi so'ralganda lazily yaratiladi. referredById faqat
+  // ro'yxatdan o'tish paytida BIR MARTA o'rnatiladi (keyin o'zgarmaydi);
+  // ikkala tomon ham CreditLedger orqali bonus oladi (kind: referral_bonus).
+  referralCode           String?  @unique
+  referredById           String?
+  referredBy             User?    @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals              User[]   @relation("Referrals")
   orgId                  String?
   org                    Org?      @relation(fields: [orgId], references: [id])
   isBusinessAccount      Boolean   @default(false)
