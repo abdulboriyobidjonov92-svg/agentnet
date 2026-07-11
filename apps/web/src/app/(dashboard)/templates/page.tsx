@@ -8,7 +8,7 @@ import { useT } from "@/lib/i18n/client";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
 import { toast } from "@/components/ui/toast";
-import { Search, TrendingUp, Zap, Check, Loader2, Wrench, Store } from "lucide-react";
+import { Search, TrendingUp, Zap, Check, Loader2, Wrench, Store, Users } from "lucide-react";
 import { TemplatePreviewStrip } from "@/components/templates/template-preview-strip";
 
 interface TemplateCard {
@@ -22,6 +22,8 @@ interface TemplateCard {
   tools: string[];
   modules: string[];
   depth: { prediction: boolean; autonomous: boolean };
+  installCount: number;
+  top: boolean;
 }
 
 export default function TemplatesPage() {
@@ -107,6 +109,21 @@ export default function TemplatesPage() {
                   {"★".repeat(tpl.complexity)}
                 </span>
               </div>
+              {/* Ijtimoiy dalil — faqat REAL o'rnatishlar (0 bo'lsa ko'rsatilmaydi) */}
+              {(tpl.top || tpl.installCount > 0) && (
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {tpl.top && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-semibold text-amber-400">
+                      <TrendingUp className="h-3 w-3" /> {t("templates.top")}
+                    </span>
+                  )}
+                  {tpl.installCount > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] text-muted-foreground">
+                      <Users className="h-3 w-3" /> {t("templates.installedBy").replace("{n}", String(tpl.installCount))}
+                    </span>
+                  )}
+                </div>
+              )}
               <p className="mb-3 line-clamp-3 text-xs text-muted-foreground">{tpl.flagship}</p>
 
               <TemplatePreviewStrip profession={tpl.profession} tools={tpl.tools} depth={tpl.depth} />

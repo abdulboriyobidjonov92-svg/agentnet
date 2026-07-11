@@ -53,4 +53,9 @@ export class CreateAgentDto {
   @ApiProperty({ required: false })
   @IsOptional() @IsString() @MaxLength(100)
   idempotencyKey?: string;
+
+  // Shablon galereyasidan o'rnatilganda — shablon id (ijtimoiy dalil hisobi).
+  @ApiProperty({ required: false })
+  @IsOptional() @IsString() @MaxLength(60)
+  templateId?: string;
 }

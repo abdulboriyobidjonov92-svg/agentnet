@@ -176,6 +176,9 @@ model Agent {
   // Asl yaratuvchi (User.id) — sourceAgentId orqali JOIN qilmasdan doimiy
   // atributsiya uchun (manba agent keyinchalik o'chirilsa ham saqlanadi).
   originalCreatorId  String?
+  // Shablon galereyasidan o'rnatilgan bo'lsa — shablon id (registry.ts).
+  // Ijtimoiy dalil (REAL install-count) shu orqali hisoblanadi.
+  templateId         String?
   userId             String
   user               User           @relation(fields: [userId], references: [id])
   orgId              String?
@@ -218,6 +221,7 @@ model Agent {
   @@index([orgId])
   @@index([isPublished])
   @@index([sourceAgentId])
+  @@index([templateId])
 }
 
 model Conversation {

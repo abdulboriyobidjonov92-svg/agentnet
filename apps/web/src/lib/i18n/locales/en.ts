@@ -244,6 +244,8 @@ const en: Dict = {
     "templates.install": "Install",
     "templates.installing": "Installing…",
     "templates.predicts": "Predicts",
+    "templates.top": "Top installed",
+    "templates.installedBy": "Installed by {n}",
     "templates.autonomous": "Autonomous",
     "templates.previewAsk": "\"Need help for {profession}\"",
     "templates.previewTool": "Using tool",

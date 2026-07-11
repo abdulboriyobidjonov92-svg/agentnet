@@ -236,6 +236,8 @@ const uz: Dict = {
     "templates.install": "O'rnatish",
     "templates.installing": "O'rnatilmoqda…",
     "templates.predicts": "Bashorat qiladi",
+    "templates.top": "Top sotilgan",
+    "templates.installedBy": "{n} kishi o'rnatgan",
     "templates.autonomous": "Avtonom",
     "templates.previewAsk": "\"{profession} uchun yordam kerak\"",
     "templates.previewTool": "Vosita ishlatilmoqda",

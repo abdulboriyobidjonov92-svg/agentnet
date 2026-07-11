@@ -135,6 +135,7 @@ export class AgentsService {
             toolsConfig: (dto.toolsConfig ?? []) as object,
             vertical: dto.vertical ?? null,
             description: dto.description ?? null,
+            templateId: dto.templateId ?? null,
             userId: user.id,
             creationPriceTiyin,
             monthlyPriceTiyin,

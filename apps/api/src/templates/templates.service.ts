@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { AgentsService } from '../agents/agents.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { usdUzsRate } from '../agents/agent-pricing';
 import { loc } from './types';
 import {
@@ -23,7 +24,28 @@ const STRONG_MATCH_HITS = 2;
  */
 @Injectable()
 export class TemplatesService {
-  constructor(private readonly agents: AgentsService) {}
+  constructor(
+    private readonly agents: AgentsService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  /**
+   * Ijtimoiy dalil — HAQIQIY o'rnatishlar soni (Agent.templateId bo'yicha).
+   * Soxta raqam YO'Q: hisob to'g'ridan-to'g'ri DB'dan. Xato bo'lsa bo'sh map
+   * (galereya baribir ochiladi — count'siz).
+   */
+  private async installCounts(): Promise<Map<string, number>> {
+    try {
+      const rows = await this.prisma.agent.groupBy({
+        by: ['templateId'],
+        where: { templateId: { not: null } },
+        _count: { _all: true },
+      });
+      return new Map(rows.map((r) => [r.templateId as string, r._count._all]));
+    } catch {
+      return new Map();
+    }
+  }
 
   private card(t: AgentTemplate, language: string) {
     const rate = usdUzsRate();
@@ -47,10 +69,21 @@ export class TemplatesService {
     };
   }
 
-  list(language = 'uz') {
+  async list(language = 'uz') {
+    const counts = await this.installCounts();
+    // "Top" belgisi — eng ko'p o'rnatilgan shablon(lar), faqat REAL count >= 3
+    // bo'lsa (1-2 o'rnatish "top" deyishga halol asos emas).
+    const maxCount = Math.max(0, ...counts.values());
     return allTemplates()
-      .map((t) => this.card(t, language))
-      .sort((a, b) => b.complexity - a.complexity);
+      .map((t) => {
+        const installCount = counts.get(t.id) ?? 0;
+        return {
+          ...this.card(t, language),
+          installCount,
+          top: installCount >= 3 && installCount === maxCount,
+        };
+      })
+      .sort((a, b) => b.installCount - a.installCount || b.complexity - a.complexity);
   }
 
   get(id: string, language = 'uz') {
@@ -109,6 +142,7 @@ export class TemplatesService {
         description: loc(t.flagship, lang).slice(0, 300),
         halalFilterEnabled: true,
         memoryEnabled: true,
+        templateId: id, // ijtimoiy dalil — REAL install-count shu orqali
       },
       { creationUsd: t.createUsd, monthlyUsd: t.monthlyUsd },
     );

@@ -236,6 +236,8 @@ const ru: Dict = {
     "templates.install": "Установить",
     "templates.installing": "Установка…",
     "templates.predicts": "Прогнозирует",
+    "templates.top": "Хит продаж",
+    "templates.installedBy": "Установили {n} чел.",
     "templates.autonomous": "Автономно",
     "templates.previewAsk": "«Нужна помощь для {profession}»",
     "templates.previewTool": "Используется инструмент",

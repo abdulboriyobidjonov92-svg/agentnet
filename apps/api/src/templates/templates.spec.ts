@@ -49,14 +49,23 @@ describe('Y3 shablon registri', () => {
   });
 });
 
+// Ijtimoiy dalil (installCounts) uchun minimal Prisma mock
+const prismaMock = (counts: Record<string, number> = {}) => ({
+  agent: {
+    groupBy: jest.fn(async () =>
+      Object.entries(counts).map(([templateId, n]) => ({ templateId, _count: { _all: n } })),
+    ),
+  },
+});
+
 describe('TemplatesService (list / match / install)', () => {
   beforeEach(() => {
     process.env.USD_UZS_RATE = '12600';
   });
 
-  it('list — murakkablik bo\'yicha kamayadi, narx so\'mda', () => {
-    const svc = new TemplatesService(null as any);
-    const list = svc.list('uz');
+  it('list — murakkablik bo\'yicha kamayadi, narx so\'mda', async () => {
+    const svc = new TemplatesService(null as any, prismaMock() as any);
+    const list = await svc.list('uz');
     expect(list).toHaveLength(20);
     expect(list[0].complexity).toBeGreaterThanOrEqual(list[1].complexity);
     const shop = list.find((x) => x.id === 'shop-owner')!;
@@ -64,20 +73,32 @@ describe('TemplatesService (list / match / install)', () => {
     expect(shop.depth).toEqual({ prediction: true, autonomous: true });
   });
 
+  it('list — REAL install-count va Top belgisi (>=3 va eng ko\'p)', async () => {
+    const svc = new TemplatesService(null as any, prismaMock({ 'shop-owner': 5, farmer: 2 }) as any);
+    const list = await svc.list('uz');
+    const shop = list.find((x) => x.id === 'shop-owner')!;
+    const farmer = list.find((x) => x.id === 'farmer')!;
+    expect(shop.installCount).toBe(5);
+    expect(shop.top).toBe(true);
+    expect(farmer.installCount).toBe(2);
+    expect(farmer.top).toBe(false); // <3 o'rnatish — "Top" deyish halol emas
+    expect(list[0].id).toBe('shop-owner'); // eng ko'p o'rnatilgan birinchi
+  });
+
   it('match — kasb kalit so\'zidan to\'g\'ri shablon', () => {
-    const svc = new TemplatesService(null as any);
+    const svc = new TemplatesService(null as any, prismaMock() as any);
     expect(svc.match("Menga do'konim uchun yordamchi kerak", 'uz')[0].id).toBe('shop-owner');
     expect(svc.match('avtoservis ochdim', 'uz')[0].id).toBe('auto-service');
     expect(svc.match('fermerman', 'uz')[0].id).toBe('farmer');
   });
 
   it('match — moslik yo\'q → bo\'sh (Y9 custom-oqimga yo\'naltiriladi)', () => {
-    const svc = new TemplatesService(null as any);
+    const svc = new TemplatesService(null as any, prismaMock() as any);
     expect(svc.match('qwerty zxcv 123', 'uz')).toHaveLength(0);
   });
 
   it('match — matchPercent: 2+ kalit so\'z hit -> 70%+ (Y9 "tayyor agent bor" taklifi shu chegaradan boshlanadi)', () => {
-    const svc = new TemplatesService(null as any);
+    const svc = new TemplatesService(null as any, prismaMock() as any);
     // Ikkita kalit so'z ("do'kon" va "tovar") — kuchli signal, 100%
     const strong = svc.match("Do'konim uchun tovar hisobi yurituvchi kerak", 'uz')[0];
     expect(strong.id).toBe('shop-owner');
@@ -97,7 +118,7 @@ describe('TemplatesService (list / match / install)', () => {
         return { id: 'agent-1', ...dto };
       }),
     };
-    const svc = new TemplatesService(agentsMock as any);
+    const svc = new TemplatesService(agentsMock as any, prismaMock() as any);
     const user = { id: 'u1', preferredLanguage: 'uz' } as any;
 
     const res = await svc.install(user, 'shop-owner');
@@ -111,7 +132,7 @@ describe('TemplatesService (list / match / install)', () => {
   });
 
   it('install — noma\'lum shablon → xato', async () => {
-    const svc = new TemplatesService({ create: jest.fn() } as any);
+    const svc = new TemplatesService({ create: jest.fn() } as any, prismaMock() as any);
     await expect(svc.install({ id: 'u1' } as any, 'yo-q-shablon')).rejects.toThrow();
   });
 });
