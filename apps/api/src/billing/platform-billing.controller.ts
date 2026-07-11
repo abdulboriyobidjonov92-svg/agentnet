@@ -45,6 +45,7 @@ export class PlatformBillingController {
     return {
       pro: { ...prices.pro, ...limits.pro },
       max: { ...prices.max, ...limits.max },
+      max200: { ...prices.max200, ...limits.max200 },
       enterprise: { ...prices.enterprise, ...limits.enterprise },
     };
   }

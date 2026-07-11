@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useApiClient } from "@/lib/api-client";
 import { useT } from "@/lib/i18n/client";
-import { Gem, Check, Loader2, Building2, Sparkles, Wallet, Rocket, Crown } from "lucide-react";
+import { Gem, Check, Loader2, Building2, Sparkles, Wallet, Rocket, Crown, Users2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
@@ -27,8 +27,73 @@ interface UsageStatus {
 interface PlatformPlansCatalog {
   pro: { priceSom: number; chatPerDay: number };
   max: { priceSom: number; chatPerDay: number };
+  max200: { priceSom: number; chatPerDay: number };
   enterprise: { priceSom: null; chatPerDay: null };
 }
+
+type SelfServePlan = "pro" | "max" | "max200";
+
+// Platforma tariflari (Claude.ai uslubi) — self-serve: pro/max/max200; team/enterprise: bog'lanish.
+// `features` = i18n kalitlari (har tarif nima ochishini aniq ro'yxatlaydi).
+interface PlatformTier {
+  id: SelfServePlan | "team" | "enterprise";
+  self: boolean;
+  icon: React.ComponentType<{ className?: string }>;
+  name: string;
+  desc: string;
+  features: string[];
+  highlight?: boolean;
+  cta?: string;
+  href?: string;
+}
+
+const PLATFORM_TIERS: PlatformTier[] = [
+  {
+    id: "pro",
+    self: true,
+    icon: Rocket,
+    name: "pricing.platform.pro",
+    desc: "pricing.platform.proDesc",
+    features: ["pricing.pt.f.decision", "pricing.pt.f.experts", "pricing.pt.f.deep", "pricing.pt.f.standard"],
+  },
+  {
+    id: "max",
+    self: true,
+    icon: Crown,
+    highlight: true,
+    name: "pricing.platform.max",
+    desc: "pricing.platform.maxDesc",
+    features: ["pricing.pt.inPro", "pricing.pt.priority"],
+  },
+  {
+    id: "max200",
+    self: true,
+    icon: Gem,
+    name: "pricing.pt.max200",
+    desc: "pricing.pt.max200Desc",
+    features: ["pricing.pt.inMax", "pricing.pt.topPriority"],
+  },
+  {
+    id: "team",
+    self: false,
+    icon: Users2,
+    name: "pricing.pt.team",
+    desc: "pricing.pt.teamDesc",
+    features: ["pricing.pt.team.f1", "pricing.pt.team.f2", "pricing.pt.team.f3"],
+    cta: "pricing.platform.contactUs",
+    href: "mailto:sales@agentnet.app",
+  },
+  {
+    id: "enterprise",
+    self: false,
+    icon: Building2,
+    name: "pricing.platform.enterprise",
+    desc: "pricing.platform.enterpriseDesc",
+    features: ["pricing.platform.unlimited", "pricing.pt.ent.f1", "pricing.pt.ent.f2"],
+    cta: "pricing.platform.contactUs",
+    href: "mailto:sales@agentnet.app",
+  },
+];
 
 interface PlatformStatus {
   plan: string;
@@ -66,7 +131,7 @@ export default function PricingPage() {
 
   const [platformProvider, setPlatformProvider] = useState<"payme" | "click">("payme");
   const subscribe = useMutation({
-    mutationFn: (plan: "pro" | "max") => api.post<{ payUrl: string }>("/platform/subscribe", { plan, provider: platformProvider }),
+    mutationFn: (plan: SelfServePlan) => api.post<{ payUrl: string }>("/platform/subscribe", { plan, provider: platformProvider }),
     onSuccess: (res) => window.open(res.payUrl, "_blank"),
     onError: (e: any) => {
       toast({ variant: "destructive", title: t("common.error"), description: e.message });
@@ -241,89 +306,77 @@ export default function PricingPage() {
             </label>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-3">
-            {/* Pro */}
-            <div className="flex flex-col rounded-2xl border bg-card p-6 shadow-soft">
-              <h3 className="text-lg font-semibold">{t("pricing.platform.pro")}</h3>
-              <p className="mt-1 min-h-10 text-sm text-muted-foreground">{t("pricing.platform.proDesc")}</p>
-              <p className="mt-4 text-3xl font-bold">
-                {platformPlans ? `${fmt(platformPlans.pro.priceSom)} so'm` : "…"}
-                <span className="text-sm font-normal text-muted-foreground">{t("pricing.platform.perMonth")}</span>
-              </p>
-              <ul className="mt-5 flex-1 space-y-2.5 text-sm">
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 shrink-0 text-primary" />
-                  {platformPlans ? `${fmt(platformPlans.pro.chatPerDay)} ${t("pricing.platform.chatPerDay")}` : "…"}
-                </li>
-              </ul>
-              {platformStatus?.plan === "pro" ? (
-                <div className="mt-5 rounded-lg bg-primary/10 px-3 py-2 text-center text-xs font-medium text-primary">
-                  {t("pricing.platform.currentPlan")}
-                  {platformStatus.until && (
-                    <span className="block mt-0.5">
-                      {t("pricing.platform.activeUntil")}: {new Date(platformStatus.until).toLocaleDateString(locale === "uz" ? "uz-UZ" : locale === "ru" ? "ru-RU" : "en-US")}
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {PLATFORM_TIERS.map((tier) => {
+              const Icon = tier.icon;
+              const priceSom = tier.self ? platformPlans?.[tier.id as SelfServePlan]?.priceSom : null;
+              const chatPerDay = tier.self ? platformPlans?.[tier.id as SelfServePlan]?.chatPerDay : null;
+              const isCurrent = tier.self && platformStatus?.plan === tier.id;
+              return (
+                <div
+                  key={tier.id}
+                  className={cn(
+                    "relative flex flex-col rounded-2xl border bg-card p-6",
+                    tier.highlight ? "border-primary/40 shadow-glow" : "shadow-soft",
+                  )}
+                >
+                  {tier.highlight && (
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-[11px] font-bold uppercase text-primary-foreground">
+                      <Sparkles className="mr-1 inline h-3 w-3" />
+                      {t("pricing.platform.popular")}
                     </span>
                   )}
-                </div>
-              ) : (
-                <Button className="mt-5 w-full" onClick={() => subscribe.mutate("pro")} disabled={subscribe.isPending || !platformPlans}>
-                  {subscribe.isPending ? <Loader2 className="animate-spin" /> : <Rocket />}
-                  {subscribe.isPending ? t("pricing.platform.subscribing") : t("pricing.platform.subscribe")}
-                </Button>
-              )}
-            </div>
-
-            {/* Max */}
-            <div className="relative flex flex-col rounded-2xl border border-primary/40 bg-card p-6 shadow-glow">
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-[11px] font-bold uppercase text-primary-foreground">
-                <Sparkles className="mr-1 inline h-3 w-3" />
-                {t("pricing.platform.max")}
-              </span>
-              <h3 className="text-lg font-semibold">{t("pricing.platform.max")}</h3>
-              <p className="mt-1 min-h-10 text-sm text-muted-foreground">{t("pricing.platform.maxDesc")}</p>
-              <p className="mt-4 text-3xl font-bold">
-                {platformPlans ? `${fmt(platformPlans.max.priceSom)} so'm` : "…"}
-                <span className="text-sm font-normal text-muted-foreground">{t("pricing.platform.perMonth")}</span>
-              </p>
-              <ul className="mt-5 flex-1 space-y-2.5 text-sm">
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 shrink-0 text-primary" />
-                  {platformPlans ? `${fmt(platformPlans.max.chatPerDay)} ${t("pricing.platform.chatPerDay")}` : "…"}
-                </li>
-              </ul>
-              {platformStatus?.plan === "max" ? (
-                <div className="mt-5 rounded-lg bg-primary/10 px-3 py-2 text-center text-xs font-medium text-primary">
-                  {t("pricing.platform.currentPlan")}
-                  {platformStatus.until && (
-                    <span className="block mt-0.5">
-                      {t("pricing.platform.activeUntil")}: {new Date(platformStatus.until).toLocaleDateString(locale === "uz" ? "uz-UZ" : locale === "ru" ? "ru-RU" : "en-US")}
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <Icon className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-semibold">{t(tier.name)}</h3>
+                  </div>
+                  <p className="mt-1 min-h-10 text-sm text-muted-foreground">{t(tier.desc)}</p>
+                  <p className="mt-4 text-3xl font-bold">
+                    {tier.self ? (priceSom != null ? `${fmt(priceSom)} so'm` : "…") : t("pricing.platform.custom")}
+                    {tier.self && <span className="text-sm font-normal text-muted-foreground">{t("pricing.platform.perMonth")}</span>}
+                  </p>
+                  <ul className="mt-5 flex-1 space-y-2.5 text-sm">
+                    {tier.features.map((f) => (
+                      <li key={f} className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                        <span>{t(f)}</span>
+                      </li>
+                    ))}
+                    {tier.self && (
+                      <li className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                        <span>{chatPerDay != null ? `${fmt(chatPerDay)} ${t("pricing.platform.chatPerDay")}` : "…"}</span>
+                      </li>
+                    )}
+                  </ul>
+                  {isCurrent ? (
+                    <div className="mt-5 rounded-lg bg-primary/10 px-3 py-2 text-center text-xs font-medium text-primary">
+                      {t("pricing.platform.currentPlan")}
+                      {platformStatus?.until && (
+                        <span className="mt-0.5 block">
+                          {t("pricing.platform.activeUntil")}: {new Date(platformStatus.until).toLocaleDateString(locale === "uz" ? "uz-UZ" : locale === "ru" ? "ru-RU" : "en-US")}
+                        </span>
+                      )}
+                    </div>
+                  ) : tier.self ? (
+                    <Button
+                      className="mt-5 w-full"
+                      onClick={() => subscribe.mutate(tier.id as SelfServePlan)}
+                      disabled={subscribe.isPending || !platformPlans}
+                    >
+                      {subscribe.isPending ? <Loader2 className="animate-spin" /> : <Icon />}
+                      {subscribe.isPending ? t("pricing.platform.subscribing") : t("pricing.platform.subscribe")}
+                    </Button>
+                  ) : (
+                    <Button asChild variant="outline" className="mt-5 w-full">
+                      <Link href={tier.href!}>
+                        <Icon /> {t(tier.cta!)}
+                      </Link>
+                    </Button>
                   )}
                 </div>
-              ) : (
-                <Button className="mt-5 w-full" onClick={() => subscribe.mutate("max")} disabled={subscribe.isPending || !platformPlans}>
-                  {subscribe.isPending ? <Loader2 className="animate-spin" /> : <Crown />}
-                  {subscribe.isPending ? t("pricing.platform.subscribing") : t("pricing.platform.subscribe")}
-                </Button>
-              )}
-            </div>
-
-            {/* Enterprise — o'z-o'zidan sotib olinmaydi, "kelishuv asosida" */}
-            <div className="flex flex-col rounded-2xl border bg-card p-6 shadow-soft">
-              <h3 className="text-lg font-semibold">{t("pricing.platform.enterprise")}</h3>
-              <p className="mt-1 min-h-10 text-sm text-muted-foreground">{t("pricing.platform.enterpriseDesc")}</p>
-              <p className="mt-4 text-3xl font-bold">{t("pricing.platform.custom")}</p>
-              <ul className="mt-5 flex-1 space-y-2.5 text-sm">
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 shrink-0 text-primary" /> {t("pricing.platform.unlimited")}
-                </li>
-              </ul>
-              <Button asChild variant="outline" className="mt-5 w-full">
-                <Link href="mailto:sales@agentnet.app">
-                  <Building2 /> {t("pricing.platform.contactUs")}
-                </Link>
-              </Button>
-            </div>
+              );
+            })}
           </div>
 
           {platformStatus?.frozen && (

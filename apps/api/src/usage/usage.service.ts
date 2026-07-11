@@ -203,16 +203,18 @@ export class UsageService {
    */
   private platformPlanLimit(plan: string): number | null {
     if (plan === 'enterprise') return null; // cheksizga yaqin — hisoblagichga hojat yo'q
+    if (plan === 'max200') return intEnv('PLATFORM_MAX200_CHAT_PER_DAY', 1_000);
     if (plan === 'max') return intEnv('PLATFORM_MAX_CHAT_PER_DAY', 300);
     if (plan === 'pro') return intEnv('PLATFORM_PRO_CHAT_PER_DAY', 50);
     return 0; // 'none'
   }
 
-  /** Narxlar sahifasi uchun — Pro/Max kunlik limitlari (Enterprise = cheksiz). */
+  /** Narxlar sahifasi uchun — kunlik limitlar (Enterprise = cheksiz). */
   platformLimitsCatalog() {
     return {
       pro: { chatPerDay: this.platformPlanLimit('pro') },
       max: { chatPerDay: this.platformPlanLimit('max') },
+      max200: { chatPerDay: this.platformPlanLimit('max200') },
       enterprise: { chatPerDay: null },
     };
   }

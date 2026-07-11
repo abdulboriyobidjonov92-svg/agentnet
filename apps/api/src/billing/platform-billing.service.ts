@@ -18,7 +18,9 @@ import type { Prisma, User } from '@prisma/client';
  * foydalanuvchi harakatisiz) — KEYINGI BOSQICH (bu MVP'da yo'q).
  */
 
-export const PLATFORM_PLANS = ['pro', 'max'] as const; // enterprise = kelishuv, o'z-o'zidan sotib olinmaydi
+// Self-serve tariflar: pro (arzon, mahalliy) | max ($100) | max200 ($200, og'ir/premium).
+// enterprise = kelishuv asosida, o'z-o'zidan sotib olinmaydi. Team = jamoa-billing (2D-b).
+export const PLATFORM_PLANS = ['pro', 'max', 'max200'] as const;
 export type SelfServePlatformPlan = (typeof PLATFORM_PLANS)[number];
 
 const SUBSCRIPTION_DAYS = 30;
@@ -63,8 +65,10 @@ export class PlatformBillingService {
 
   /** 30 kunlik obuna narxi (UZS tiyin). */
   priceForPlan(plan: SelfServePlatformPlan): number {
+    if (plan === 'max200') return intEnv('PLATFORM_MAX200_PRICE_TIYIN', 252_000_000); // ~2 520 000 so'm (~$200)
     if (plan === 'max') return intEnv('PLATFORM_MAX_PRICE_TIYIN', 126_000_000); // ~1 260 000 so'm (~$100)
-    return intEnv('PLATFORM_PRO_PRICE_TIYIN', 25_200_000); // ~252 000 so'm (~$20)
+    // Pro — mahalliy bozorga moslangan (avvalgi ~$20 activation'ni bo'g'ardi)
+    return intEnv('PLATFORM_PRO_PRICE_TIYIN', 14_900_000); // ~149 000 so'm (~$12)
   }
 
   /** Narxlar sahifasi uchun katalog — env'dagi haqiqiy narxlar. */
@@ -72,6 +76,7 @@ export class PlatformBillingService {
     return {
       pro: { priceSom: Math.round(this.priceForPlan('pro') / 100) },
       max: { priceSom: Math.round(this.priceForPlan('max') / 100) },
+      max200: { priceSom: Math.round(this.priceForPlan('max200') / 100) },
       enterprise: { priceSom: null }, // kelishuv asosida — o'z-o'zidan sotib olinmaydi
     };
   }
