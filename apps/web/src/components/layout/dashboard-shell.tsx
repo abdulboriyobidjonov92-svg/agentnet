@@ -9,6 +9,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Button } from "@/components/ui/button";
 import { BalanceWidget } from "@/components/billing/balance-widget";
 import { Waveform } from "@/components/neuro/waveform";
+import { ProductTour } from "@/components/onboarding/product-tour";
 
 // Tuman — faqat klientda; SSR paytida sof qora bo'shliq qoladi
 const SceneCanvas = dynamic(() => import("@/components/neuro/scene-canvas"), {
@@ -91,6 +92,9 @@ export function DashboardShell({
           <Waveform />
         </div>
       </div>
+
+      {/* Yangi foydalanuvchi tanishtiruvi — birinchi kirishda avtomatik ochiladi */}
+      <ProductTour />
     </div>
   );
 }

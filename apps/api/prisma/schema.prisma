@@ -25,6 +25,17 @@ model User {
   plan                   String    @default("free")
   // Pro obuna amal qilish muddati — o'tgach limitlar avtomatik free'ga qaytadi
   proUntil               DateTime?
+
+  // --- Platforma obunasi (Pro/Max/Enterprise) — PER-AGENT narxlashdan BUTUNLAY
+  // ALOHIDA tizim. Faqat Twin/Fusion/Supermode/Ethics/Knowledge kabi umumiy
+  // platforma-intellekt modullariga kirish huquqini beradi; vertikal agentlar
+  // (do'kon, avtoservis...) bunga bog'liq emas. Wallet-balansdan EMAS — alohida
+  // oylik "kvitansiya" (Payme/Click), hozircha QO'LDA to'lanadi (karta-token
+  // avtomatik yechim keyingi bosqich).
+  platformPlan           String    @default("none") // none | pro | max | enterprise
+  platformPlanUntil      DateTime? // joriy to'langan davr oxiri
+  platformPlanFrozen     Boolean   @default(false)   // muddatida yangilanmadi — kirish to'xtatilgan
+  platformReminderSentAt DateTime? // oxirgi "muddati yaqinlashmoqda" eslatmasi (takror-yubormaslik uchun)
   // Prepaid balans (UZS tiyin) — real Claude chaqiruvlari shundan yechiladi.
   // Balans yetarli bo'lmasa LLM so'rovi hech qachon amalga oshmaydi — shu
   // orqali platforma egasi hech qachon o'z cho'ntagidan to'lamaydi.
@@ -49,6 +60,9 @@ model User {
   goals               Json?     // string[] — foydalanuvchi maqsadlari
   profileData         Json?     // { widgets: string[], quick_actions: [...], reasoning: string }
   onboardingCompleted Boolean   @default(false)
+  // UI mahsulot-turi (sahifama-sahifa "keyingi" tanishtiruvi) ko'rilganmi.
+  // onboardingCompleted (kasb aniqlash) dan ALOHIDA — ikkovi turli maqsad.
+  tourCompleted       Boolean   @default(false)
   preferredLanguage   String    @default("en") // en | ru | uz
   city                String?
 
@@ -163,8 +177,16 @@ model Agent {
   creationPriceTiyin Int            @default(0) // yaratishda BIR MARTA yechilgan narx (UZS tiyin)
   monthlyPriceTiyin  Int            @default(0) // har oy avtomatik yechiladigan obuna narxi
   frozen             Boolean        @default(false) // balans yetmagach — o'chirilmaydi, "muzlatiladi"
+  frozenReason       String?        // "trial_expired" | "monthly_payment_failed" | null — aniq xabar uchun
   nextChargeAt       DateTime?      // keyingi oylik yechim sanasi (monthlyPriceTiyin>0 bo'lsagina)
   chargeRetries      Int            @default(0) // ketma-ket muvaffaqiyatsiz oylik urinishlar soni
+
+  // --- Sinov (FAQAT foydalanuvchining birinchi agenti) ---
+  // 3 kun YOKI 20 xabar — qaysi biri oldin tugasa. Tugagach charge-yoki-frozen:
+  // balans yetsa jim to'lanadi (oddiy oylik rejimga o'tadi), yetmasa muzlatiladi.
+  isTrialAgent       Boolean        @default(false)
+  trialStartedAt     DateTime?
+  trialMessageCount  Int            @default(0)
 
   // --- Marketplace bozor dinamikasi (agregat hisoblagichlar) ---
   installCount       Int            @default(0)
@@ -277,6 +299,22 @@ model AuditLog {
   @@index([actorId])
   @@index([action])
   @@index([createdAt])
+}
+
+// Bir martalik login kodi (email/SMS OTP). Kod o'zi saqlanmaydi — faqat
+// sha256(kod+pepper) hash'i, shuning uchun DB dampi o'g'irlansa ham kodlar
+// ochilmaydi. `identifier` — normallashtirilgan email yoki E.164 telefon.
+model OtpCode {
+  id         String    @id @default(cuid())
+  identifier String
+  channel    String // "email" | "phone"
+  codeHash   String
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+
+  @@index([identifier])
 }
 
 // ================================================================
@@ -696,6 +734,11 @@ model PaymeTransaction {
   cancelTimeMs  BigInt?
   createdAt     DateTime  @default(now())
 
+  // "topup" (balansni to'ldirish) | "platform_subscription" (Pro/Max obunasi
+  // — muvaffaqiyatli to'lov wallet'ga EMAS, User.platformPlan'ga ta'sir qiladi)
+  purpose          String  @default("topup")
+  subscriptionPlan String? // purpose="platform_subscription" bo'lsa: "pro" | "max"
+
   @@index([userId])
   @@index([state])
 }
@@ -717,6 +760,10 @@ model ClickTransaction {
   confirmTimeMs BigInt?
   cancelTimeMs  BigInt?
   createdAt     DateTime  @default(now())
+
+  // "topup" (balansni to'ldirish) | "platform_subscription" (Pro/Max obunasi)
+  purpose          String  @default("topup")
+  subscriptionPlan String? // purpose="platform_subscription" bo'lsa: "pro" | "max"
 
   @@index([userId])
   @@index([state])

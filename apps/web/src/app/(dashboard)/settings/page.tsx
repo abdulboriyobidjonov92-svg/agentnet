@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import { useApiClient, apiErrorMessage } from "@/lib/api-client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Shield, Link2, User, Globe, Check, Scale, Loader2 } from "lucide-react";
+import { Shield, Link2, User, Globe, Check, Scale, Loader2, Compass } from "lucide-react";
+import { TOUR_EVENT } from "@/components/onboarding/product-tour";
 import { cn } from "@/lib/utils";
 import { useT, LOCALES } from "@/lib/i18n/client";
 import { Button } from "@/components/ui/button";
@@ -145,6 +146,21 @@ function ProfileTab({ profile }: { profile: any }) {
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="rounded-2xl border bg-card p-6 shadow-soft">
+        <div className="mb-1 flex items-center gap-2">
+          <Compass className="h-4 w-4 text-primary" />
+          <h2 className="font-semibold">{t("tour.replayTitle")}</h2>
+        </div>
+        <p className="mb-4 text-sm text-muted-foreground">{t("tour.replayDesc")}</p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))}
+        >
+          {t("tour.replay")}
+        </Button>
       </div>
     </div>
   );

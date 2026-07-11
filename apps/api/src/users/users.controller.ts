@@ -28,7 +28,10 @@ export class UsersController {
   }
 
   @Patch('me')
-  updateProfile(@CurrentUser() user: User, @Body() dto: { isBusinessAccount?: boolean; name?: string }) {
+  updateProfile(
+    @CurrentUser() user: User,
+    @Body() dto: { isBusinessAccount?: boolean; name?: string; tourCompleted?: boolean },
+  ) {
     return this.users.updateProfile(user.id, dto);
   }
 
