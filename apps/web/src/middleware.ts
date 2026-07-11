@@ -10,7 +10,9 @@ export function middleware(request: NextRequest) {
   const isPublic =
     PUBLIC_PATHS.includes(pathname) ||
     pathname.startsWith("/api") ||
-    pathname.startsWith("/_next");
+    pathname.startsWith("/_next") ||
+    // Ulashilgan natija (/s/<token>) — PLG public sahifa, kirishsiz ochilishi SHART
+    pathname.startsWith("/s/");
 
   if (isPublic) return NextResponse.next();
 
