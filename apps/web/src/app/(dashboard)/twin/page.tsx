@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { InfoHint } from "@/components/ui/info-hint";
 import { Input, Textarea } from "@/components/ui/input";
 import { ErrorState } from "@/components/ui/error-state";
 
@@ -111,6 +112,7 @@ export default function TwinPage() {
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold">
           <CircleUserRound className="h-6 w-6 text-primary" /> {t("twin.title")}
+          <InfoHint text={t("twin.hint")} label={t("twin.title")} />
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("twin.subtitle")}</p>
       </div>

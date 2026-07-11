@@ -313,7 +313,7 @@ const uz: Dict = {
     "dash.editProfile": "Profilni yangilash",
 
     // Nav (wow features)
-    "nav.twin": "Life Twin",
+    "nav.twin": "Qaror simulyatori",
     "nav.goals": "Maqsadlar",
     "nav.fusion": "Chuqur tahlil",
     "nav.agentos": "AI Boshqaruv Jamoasi",
@@ -445,8 +445,9 @@ const uz: Dict = {
     "os.opsActivity": "Operatsion o'tkazuvchanlik",
 
     // Life Twin
-    "twin.title": "Life Twin",
+    "twin.title": "Qaror simulyatori",
     "twin.subtitle": "Raqamli egizagingiz: barcha aqlli funksiyalarni oziqlantiruvchi hayotiy faktlar. Fakt qo'shing — yoki suhbatlar o'zi to'ldiradi.",
+    "twin.hint": "Hayotiy faktlaringizga (daromad, oila, sog'liq) asoslanib, \"Agar shunday qilsam-chi?\" degan qarorning oqibatini oldindan ko'rsatadi.",
     "twin.addFact": "Fakt qo'shish",
     "twin.label": "Fakt",
     "twin.labelPh": "masalan: Oylik daromad",
@@ -496,6 +497,9 @@ const uz: Dict = {
     "consult.subtitle": "Murakkab savolga bir nechta mutaxassis nuqtai nazaridan javob oling — yoki butun kuningizni birgalikda rejalashtiring.",
     "consult.tabExperts": "Mutaxassislar kengashi",
     "consult.tabDaily": "Kunlik boshqaruv",
+    "consult.hint": "Bitta murakkab savolga bir nechta mutaxassis (shifokor, advokat, buxgalter) nuqtai nazaridan yaxlit javob — yoki butun kuningizni bosqichma-bosqich reja qilish.",
+    "consult.hintExperts": "Turli sohadagi virtual mutaxassislar savolingizni birga muhokama qilib, bitta kelishilgan javob beradi.",
+    "consult.hintDaily": "Kuningizdagi vazifalarni ustuvorlik bo'yicha tartiblab, bajarsa bo'ladigan reja tuzadi.",
 
     "fusion.subtitle": "Mutaxassislarni — shifokor, advokat, buxgalter — bitta ishchi guruhga birlashtiring: bitta yaxlit javob.",
     "fusion.ph": "masalan: Sug'urta kompaniyasi otamning davolanishini qoplashdan bosh tortdi. Sudga berishga arziydimi?",

@@ -322,7 +322,7 @@ const en: Dict = {
     "dash.editProfile": "Update profile",
 
     // Nav (wow features)
-    "nav.twin": "Life Twin",
+    "nav.twin": "Decision Simulator",
     "nav.goals": "Goals",
     "nav.fusion": "Deep Analysis",
     "nav.agentos": "AI Leadership Team",
@@ -454,8 +454,9 @@ const en: Dict = {
     "os.opsActivity": "Operations throughput",
 
     // Life Twin
-    "twin.title": "Life Twin",
+    "twin.title": "Decision Simulator",
     "twin.subtitle": "Your digital twin: facts about your life that power every intelligent feature. Add facts or let conversations fill them in automatically.",
+    "twin.hint": "Based on facts about your life (income, family, health), it previews the consequences of a \"what if I do this?\" decision.",
     "twin.addFact": "Add fact",
     "twin.label": "Fact",
     "twin.labelPh": "e.g. Monthly income",
@@ -505,6 +506,9 @@ const en: Dict = {
     "consult.subtitle": "Get a complex question answered from multiple expert angles — or plan your whole day together.",
     "consult.tabExperts": "Expert panel",
     "consult.tabDaily": "Daily management",
+    "consult.hint": "One complex question answered from several expert angles (doctor, lawyer, accountant) — or step-by-step planning of your whole day.",
+    "consult.hintExperts": "Virtual experts from different fields discuss your question and give one agreed answer.",
+    "consult.hintDaily": "Sorts your day's tasks by priority and builds a plan you can actually follow.",
 
     "fusion.subtitle": "Combine experts — doctor, lawyer, accountant and more — into one working group that returns a single coherent answer.",
     "fusion.ph": "e.g. My insurance company refused to cover my father's treatment. Is it worth going to court?",
