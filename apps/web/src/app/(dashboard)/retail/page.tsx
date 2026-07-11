@@ -7,6 +7,7 @@ import { Camera, ShoppingCart, Package, BellRing, Loader2, Send, AlertTriangle, 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ErrorState } from "@/components/ui/error-state";
+import { ShareButton } from "@/components/share/share-button";
 
 type CameraStatus = {
   camera_id: string;
@@ -46,7 +47,7 @@ const URGENCY_STYLE: Record<ProductForecast["urgency"], string> = {
 export default function RetailPage() {
   const api = useApiClient();
   const qc = useQueryClient();
-  const { t } = useT();
+  const { t, locale } = useT();
   const [saleSku, setSaleSku] = useState("");
   const [visionType, setVisionType] = useState("shelf_empty");
   const [visionSku, setVisionSku] = useState("");
@@ -144,7 +145,25 @@ export default function RetailPage() {
 
       {/* Bashorat: har tovar necha kunda tugaydi */}
       <div className="rounded-2xl border bg-card p-5 shadow-soft">
-        <h2 className="mb-3 inline-flex items-center gap-2 font-semibold"><TrendingDown className="h-4 w-4 text-primary" /> {t("retail.forecast")}</h2>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="inline-flex items-center gap-2 font-semibold"><TrendingDown className="h-4 w-4 text-primary" /> {t("retail.forecast")}</h2>
+          {forecast?.products?.length ? (
+            <ShareButton
+              variant="ghost"
+              payload={{
+                kind: "retail_forecast",
+                title: t("retail.share.title"),
+                subtitle: new Date().toLocaleDateString(locale === "uz" ? "uz-UZ" : locale === "ru" ? "ru-RU" : "en-US"),
+                metrics: [
+                  { label: t("retail.share.tracked"), value: String(forecast.products.length) },
+                  { label: t("retail.forecast.status.critical"), value: String(forecast.products.filter((f) => f.urgency === "critical").length) },
+                  { label: t("retail.forecast.status.warning"), value: String(forecast.products.filter((f) => f.urgency === "warning").length) },
+                  { label: t("retail.forecast.status.ok"), value: String(forecast.products.filter((f) => f.urgency === "ok").length) },
+                ],
+              }}
+            />
+          ) : null}
+        </div>
         {!forecast?.products?.length ? (
           <p className="py-6 text-center text-sm text-muted-foreground">{t("retail.forecast.empty")}</p>
         ) : (

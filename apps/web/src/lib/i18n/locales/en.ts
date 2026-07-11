@@ -371,6 +371,8 @@ const en: Dict = {
     "retail.alerts": "Alerts (auto-pushed)",
     "retail.settings": "Alert channel",
     "retail.forecast": "Forecast: days until stockout",
+    "retail.share.title": "Store stock forecast",
+    "retail.share.tracked": "Products tracked",
     "retail.forecast.empty": "No forecast data yet — add some sales",
     "retail.forecast.product": "Product",
     "retail.forecast.stock": "Stock",
@@ -754,6 +756,15 @@ const en: Dict = {
     "admin.fb.status.new": "New",
     "admin.fb.status.seen": "Seen",
     "admin.fb.status.resolved": "Resolved",
+
+    // Share result (PLG)
+    "share.button": "Share",
+    "share.title": "Share result",
+    "share.copy": "Copy",
+    "share.telegram": "Telegram",
+    "share.more": "More",
+    "share.generating": "Preparing link…",
+    "share.watermark": "The shared page shows a \"Made with AgentNet\" badge",
 };
 
 export default en;

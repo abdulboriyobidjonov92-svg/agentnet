@@ -362,6 +362,8 @@ const ru: Dict = {
     "retail.alerts": "Алерты (авто-отправка)",
     "retail.settings": "Канал уведомлений",
     "retail.forecast": "Прогноз: через сколько дней закончится",
+    "retail.share.title": "Прогноз запасов магазина",
+    "retail.share.tracked": "Товаров под наблюдением",
     "retail.forecast.empty": "Пока нет данных для прогноза — добавьте продажи",
     "retail.forecast.product": "Товар",
     "retail.forecast.stock": "Остаток",
@@ -742,6 +744,15 @@ const ru: Dict = {
     "admin.fb.status.new": "Новый",
     "admin.fb.status.seen": "Просмотрен",
     "admin.fb.status.resolved": "Решён",
+
+    // Поделиться результатом (PLG)
+    "share.button": "Поделиться",
+    "share.title": "Поделиться результатом",
+    "share.copy": "Копировать",
+    "share.telegram": "Telegram",
+    "share.more": "Ещё",
+    "share.generating": "Готовим ссылку…",
+    "share.watermark": "На странице будет знак «Создано с AgentNet»",
 };
 
 export default ru;

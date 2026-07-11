@@ -25,6 +25,7 @@ import { UsageModule } from './usage/usage.module';
 import { BillingModule } from './billing/billing.module';
 import { TemplatesModule } from './templates/templates.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { ShareModule } from './share/share.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { FeedbackModule } from './feedback/feedback.module';
     BillingModule,
     TemplatesModule,
     FeedbackModule,
+    ShareModule,
   ],
   providers: [
     // Global rate-limiting: har IP uchun 60s ichida 100 so'rov (ThrottlerModule

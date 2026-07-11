@@ -362,6 +362,8 @@ const uz: Dict = {
     "retail.alerts": "Alertlar (avto-yuboriladi)",
     "retail.settings": "Xabar kanali",
     "retail.forecast": "Bashorat: necha kunda tugaydi",
+    "retail.share.title": "Do'kon zaxira bashorati",
+    "retail.share.tracked": "Kuzatuvdagi tovarlar",
     "retail.forecast.empty": "Hozircha bashorat uchun ma'lumot yo'q — savdo qo'shing",
     "retail.forecast.product": "Tovar",
     "retail.forecast.stock": "Qoldiq",
@@ -742,6 +744,15 @@ const uz: Dict = {
     "admin.fb.status.new": "Yangi",
     "admin.fb.status.seen": "Ko'rildi",
     "admin.fb.status.resolved": "Hal qilindi",
+
+    // Natija ulashish (PLG)
+    "share.button": "Ulashish",
+    "share.title": "Natijani ulashish",
+    "share.copy": "Nusxalash",
+    "share.telegram": "Telegram",
+    "share.more": "Ko'proq",
+    "share.generating": "Havola tayyorlanmoqda…",
+    "share.watermark": "Ulashilgan sahifada \"AgentNet bilan yaratilgan\" belgisi ko'rinadi",
 };
 
 export default uz;

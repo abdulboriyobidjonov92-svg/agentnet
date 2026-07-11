@@ -44,6 +44,7 @@ model User {
   paymeTransactions      PaymeTransaction[]
   clickTransactions      ClickTransaction[]
   feedbackItems          Feedback[]
+  sharedResults          SharedResult[]
   orgId                  String?
   org                    Org?      @relation(fields: [orgId], references: [id])
   isBusinessAccount      Boolean   @default(false)
@@ -300,6 +301,27 @@ model AuditLog {
   @@index([actorId])
   @@index([action])
   @@index([createdAt])
+}
+
+// Ulashilgan natija — foydalanuvchi agenti chiqargan natijaning (masalan "bu oy
+// do'kon tushumi") ommaviy suratkashi. `token` orqali /s/<token> public sahifada
+// ochiladi ("AgentNet bilan yaratilgan" watermark bilan) — PLG viral halqasi.
+// Snapshot: yaratilgan paytdagi qiymatlar saqlanadi (keyin o'zgarmaydi).
+model SharedResult {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  kind      String   @default("generic") // retail_forecast | twin | generic | ...
+  title     String
+  subtitle  String?
+  metrics   Json? // [{ label, value, hint? }] — asosiy raqamlar
+  body      String? // ixtiyoriy erkin matn
+  locale    String?  @default("uz")
+  views     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([ownerId])
 }
 
 // Foydalanuvchi fikri/shikoyati/savoli — Yordam panelidan yuboriladi.
