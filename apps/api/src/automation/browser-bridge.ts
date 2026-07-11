@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { chromium, Browser, Page } from 'playwright';
+import { urlBlockedReason } from '../common/ssrf';
 
 /**
  * S1: Browser Bridge — Playwright ustidagi past darajali primitivlar.
@@ -8,6 +9,10 @@ import { chromium, Browser, Page } from 'playwright';
  *
  * Xavfsizlik: faqat http/https; to'lov/yuborish kabi amallar planner
  * qoidalari bilan cheklangan (maqsadda aniq so'ralmagan bo'lsa taqiqlanadi).
+ * SSRF himoyasi (common/ssrf.ts): navigatsiya OLDIDAN host IP'ga resolve
+ * qilinadi va ichki/zahiralangan oraliqlar (loopback, private, link-local +
+ * bulut-metadata 169.254.169.254) BLOKLANADI — brauzer platforma tarmog'ida
+ * ishlaydi, aks holda foydalanuvchi ichki servis/metadata'ga yeta olardi.
  */
 
 export interface PageElement {
@@ -49,6 +54,18 @@ export class BrowserBridge {
   async open(): Promise<void> {
     this.browser = await chromium.launch({ headless: true });
     this.page = await this.browser.newPage({ viewport: { width: 1280, height: 900 } });
+    // SSRF himoyasi tarmoq qatlamida: hujjat/navigatsiya so'rovlari (jumladan
+    // sahifa REDIRECT'lari va havola-bosishlar) ichki IP'ga ketsa abort qilinadi
+    // — bu `navigate` amalidagi tekshiruvni chetlab o'tib bo'lmasligini ta'minlaydi.
+    // Subresurslar (rasm/CSS/JS) tekshirilmaydi (har biriga DNS = sekin); asosiy
+    // eksfiltratsiya vektori LLM o'qiydigan hujjatning o'zi.
+    await this.page.route('**/*', async (route) => {
+      const req = route.request();
+      if (req.resourceType() === 'document' || req.isNavigationRequest()) {
+        if (await urlBlockedReason(req.url())) return route.abort('blockedbyclient');
+      }
+      return route.continue();
+    });
   }
 
   async close(): Promise<void> {
@@ -66,7 +83,8 @@ export class BrowserBridge {
       switch (action.action) {
         case 'navigate': {
           const url = String(action.url ?? '');
-          if (!/^https?:\/\//i.test(url)) return `ERROR: only http/https URLs are allowed (got: ${url.slice(0, 60)})`;
+          const reason = await urlBlockedReason(url);
+          if (reason) return `ERROR: ${reason} (got: ${url.slice(0, 60)})`;
           await page.goto(url, { timeout: 25_000, waitUntil: 'domcontentloaded' });
           return `Opened ${page.url()} — "${await page.title()}"`;
         }

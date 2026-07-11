@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../auth/auth.service';
+import { safeFetchText } from '../common/ssrf';
 import type { User } from '@prisma/client';
 
 /**
@@ -69,9 +70,12 @@ export class CompetitorPriceService {
       return { price: source.manualPrice, ok: true, error: null };
     }
     try {
-      const res = await fetch(source.url, { signal: AbortSignal.timeout(10_000) });
+      // SSRF-xavfsiz fetch (common/ssrf.ts): foydalanuvchi bergan URL ichki/
+      // zahiralangan IP'ga (yoki redirect orqali) ketolmaydi — aks holda bu
+      // server-side fetch bilan ichki servis/metadata'ni probe qilish mumkin edi.
+      const res = await safeFetchText(source.url, { timeoutMs: 10_000 });
       if (!res.ok) return { price: null, ok: false, error: `HTTP ${res.status}` };
-      const html = await res.text();
+      const html = res.text;
       const match = html.match(PRICE_REGEX);
       if (!match) return { price: null, ok: false, error: "Narx topilmadi (sahifa tuzilishi tanilmadi)" };
       const digits = match[1].replace(/[\s.,]/g, '');

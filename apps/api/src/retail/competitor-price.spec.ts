@@ -1,5 +1,10 @@
 import { CompetitorPriceService } from './competitor-price.service';
+import { safeFetchText } from '../common/ssrf';
 import type { User } from '@prisma/client';
+
+// SSRF-xavfsiz fetch mock qilinadi (real DNS/tarmoqqa bog'lanmasdan deterministik test)
+jest.mock('../common/ssrf', () => ({ safeFetchText: jest.fn() }));
+const mockSafeFetch = safeFetchText as jest.MockedFunction<typeof safeFetchText>;
 
 function makeMock() {
   return {
@@ -53,14 +58,27 @@ describe('CompetitorPriceService — kunlik tekshiruv (manual manba, cheklovsiz 
     prisma.competitorSource.findMany.mockResolvedValue([
       { id: 's2', userId: 'u1', sku: 'SUT-1L', name: 'OLX', url: 'https://example.invalid/xyz', manualPrice: null, active: true },
     ]);
-    const originalFetch = global.fetch;
-    global.fetch = jest.fn(async () => ({ ok: false, status: 404 })) as any;
+    mockSafeFetch.mockResolvedValue({ ok: false, status: 404, text: '' });
     const svc = new CompetitorPriceService(prisma as any, audit);
 
     const results = await svc.runCheckForUser(user);
 
     expect(results[0]).toEqual(expect.objectContaining({ ok: false }));
     expect(prisma.retailAlert.create).not.toHaveBeenCalled();
-    global.fetch = originalFetch;
+  });
+
+  it('SSRF: ichki manzilga ko\'rsatuvchi URL bloklanadi (fetch xato sifatida yoziladi)', async () => {
+    const prisma = makeMock();
+    const audit = { record: jest.fn() } as any;
+    prisma.competitorSource.findMany.mockResolvedValue([
+      { id: 's3', userId: 'u1', sku: 'SUT-1L', name: 'Metadata', url: 'http://169.254.169.254/latest/meta-data/', manualPrice: null, active: true },
+    ]);
+    mockSafeFetch.mockRejectedValue(new Error('internal/reserved address blocked'));
+    const svc = new CompetitorPriceService(prisma as any, audit);
+
+    const results = await svc.runCheckForUser(user);
+
+    expect(results[0]).toEqual(expect.objectContaining({ ok: false }));
+    expect(prisma.retailAlert.create).not.toHaveBeenCalled();
   });
 });

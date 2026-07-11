@@ -138,6 +138,12 @@ export function ChatInterface({ agentId, agentDefinition }: ChatInterfaceProps) 
             } else if (event.type === "insufficient_balance") {
               fullContent = `💳 ${event.message}`;
               halalFlag = "ALLOW";
+            } else if (event.type === "error") {
+              // Engine yoki BFF xatosi (stream uzildi / to'lov tasdig'i o'tmadi).
+              // Bo'sh "pufak" o'rniga xabarni ko'rsatamiz; qisman javob bo'lsa saqlaymiz.
+              const note = `⚠️ ${event.message ?? "Xatolik yuz berdi — birozdan keyin urinib ko'ring."}`;
+              fullContent = fullContent ? `${fullContent}\n\n${note}` : note;
+              setStreamingContent(fullContent);
             } else if (event.type === "halal_block") {
               fullContent = `🚫 ${t("chat.blockedMsg")}\n\n_${event.reason}_`;
               halalFlag = "BLOCK";
