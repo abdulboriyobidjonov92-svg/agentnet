@@ -1,7 +1,7 @@
 # AgentNet — NestJS API (Core SaaS)
 # Postgres uchun: build vaqtida schema.prisma provider'i sqlite→postgresql
 # ga o'zgartiriladi (drift yo'q — bitta manba fayl).
-FROM node:20-slim AS base
+FROM node:26.5.0-slim AS base
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
