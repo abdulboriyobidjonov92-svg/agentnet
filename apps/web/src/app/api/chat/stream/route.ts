@@ -51,12 +51,22 @@ export async function POST(req: NextRequest) {
     },
   }).catch(() => null);
 
-  if (!chargeRes || chargeRes.status === 402) {
+  // FAIL-CLOSED: pul yechilishi TASDIQLANMASA oqim BOSHLANMAYDI. 402 = balans
+  // yetarli emas (aniq xabar). Boshqa HAR QANDAY non-OK (401/403 — yaroqsiz/
+  // eskirgan token, 5xx, yoki tarmoq uzilishi) ham bloklaydi — aks holda soxta
+  // cookie'dagi ixtiyoriy token bilan BEPUL LLM olish mumkin bo'lardi (billing
+  // + rate-limit chetlab o'tilardi). Balans himoyasi shu yerda yakuniy darvoza.
+  if (!chargeRes || !chargeRes.ok) {
     const info = chargeRes ? await chargeRes.json().catch(() => ({})) : {};
+    const insufficient = chargeRes?.status === 402;
     return new Response(
       `data: ${JSON.stringify({
-        type: "insufficient_balance",
-        message: info.message ?? "Balansingiz yetarli emas. Hisobingizni to'ldiring.",
+        type: insufficient ? "insufficient_balance" : "error",
+        message:
+          info.message ??
+          (insufficient
+            ? "Balansingiz yetarli emas. Hisobingizni to'ldiring."
+            : "To'lovni tasdiqlab bo'lmadi — qaytadan kiring yoki birozdan keyin urinib ko'ring."),
         pricePerMessageSom: info.pricePerMessageSom,
       })}\n\n` + `data: ${JSON.stringify({ type: "done", demo_mode: false })}\n\n`,
       { status: 200, headers: { "Content-Type": "text/event-stream" } },

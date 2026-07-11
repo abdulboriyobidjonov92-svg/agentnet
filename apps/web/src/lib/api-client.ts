@@ -70,8 +70,24 @@ export function useApiClient() {
 
   return {
     get: <T>(path: string) => request<T>(path),
-    getPublic: <T>(path: string) =>
-      fetch(`${API_URL}/api${path}`).then((r) => r.json()) as Promise<T>,
+    getPublic: async <T>(path: string): Promise<T> => {
+      // `request` bilan bir xil xato-ishlovi: non-OK javob DATA sifatida
+      // qaytmasligi kerak (aks holda React Query uni "muvaffaqiyat" deb bilib,
+      // keyin `.map` render'da yiqiladi va sahifa oqarib qoladi).
+      const res = await fetch(`${API_URL}/api${path}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        const e = new Error(err.message ?? err.reason ?? "API xatosi") as Error & {
+          payload?: unknown;
+          status?: number;
+        };
+        e.payload = err;
+        e.status = res.status;
+        throw e;
+      }
+      if (res.status === 204) return undefined as T;
+      return res.json();
+    },
     post: <T>(path: string, body: unknown) =>
       request<T>(path, { method: "POST", body: JSON.stringify(body) }),
     patch: <T>(path: string, body: unknown) =>

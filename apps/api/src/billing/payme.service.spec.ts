@@ -8,8 +8,11 @@ function makePrismaMock() {
     user: { findUnique: jest.fn(), update: jest.fn() },
     paymeTransaction: {
       findUnique: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      // Holat-himoyalangan atomik update (default: bitta qator o'zgardi)
+      updateMany: jest.fn(async () => ({ count: 1 })),
     },
     creditLedger: { create: jest.fn(async (a: any) => ({ id: 'ledger1', ...a.data })) },
     $transaction: jest.fn(async (fn: any) => fn(undefined as any)),

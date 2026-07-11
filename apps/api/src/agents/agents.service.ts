@@ -23,6 +23,9 @@ import { Prisma, type User } from '@prisma/client';
 // Agent-yaratish advisory-lock nommaydoni (foydalanuvchi bo'yicha kalit bilan
 // birga ishlatiladi — bir foydalanuvchining parallel yaratishlari seriyalashadi).
 const AGENT_CREATE_LOCK_NS = 4772;
+// Suhbatga xabar qo'shishni bir suhbat bo'yicha seriyalash uchun (parallel
+// xabarlar JSON massivda bir-birini o'chirib yubormasligi uchun).
+const CONVERSATION_APPEND_LOCK_NS = 4779;
 
 // Sinov shartlari (FAQAT foydalanuvchining birinchi agenti): 3 kun YOKI 20
 // xabar — qaysi biri oldin tugasa. Kod o'zgartirilmasdan sozlash uchun env.
@@ -367,15 +370,20 @@ export class AgentsService {
     // sinov boshida +3kunga o'rnatilgan) — ikkalasi HAM resolveTrialEnd()ga
     // tushadi, shu bilan qaysi biri oldin tugasa o'sha ishlaydi.
     if (agent.isTrialAgent) {
-      const nextCount = agent.trialMessageCount + 1;
-      if (nextCount > trialMessageLimit()) {
+      const limit = trialMessageLimit();
+      // Atomik: faqat limitdan PAST bo'lsa oshiramiz. count===0 → limit to'ldi
+      // (parallel xabarlar ham aynan bittasini "oxirgi" qiladi, chegara oshib
+      // ketmaydi). count>0 → sinov davom etadi, shu xabar o'tadi.
+      const bumped = await this.prisma.agent.updateMany({
+        where: { id: agent.id, isTrialAgent: true, trialMessageCount: { lt: limit } },
+        data: { trialMessageCount: { increment: 1 } },
+      });
+      if (bumped.count === 0) {
         agent = await this.agentBilling.resolveTrialEnd(agent, user);
         if (agent.frozen) {
           throw new HttpException(this.frozenErrorPayload(agent), HttpStatus.PAYMENT_REQUIRED);
         }
         // Muvaffaqiyatli to'landi (oddiy oylik rejimga o'tdi) — shu xabar davom etadi.
-      } else {
-        await this.prisma.agent.update({ where: { id: agent.id }, data: { trialMessageCount: { increment: 1 } } });
       }
     }
 
@@ -408,18 +416,32 @@ export class AgentsService {
       throw new BadGatewayException({ message: "Agent engine bilan aloqa yo'q", reason: 'engine_unavailable' });
     }
 
-    // Conversation ga yozish
-    const convId = conversationId ?? (await this.prisma.conversation.create({
-      data: { userId: user.id, agentId: agent.id, messages: [] },
-    })).id;
-
-    const existing = await this.prisma.conversation.findUnique({ where: { id: convId } });
-    const messages = (existing?.messages as any[]) ?? [];
-    messages.push(
-      { role: 'user', content: message, timestamp: new Date().toISOString() },
-      { role: 'assistant', content: data.messages?.at(-1)?.content ?? '', halalFlag: data.halal_flag, timestamp: new Date().toISOString() },
-    );
-    await this.prisma.conversation.update({ where: { id: convId }, data: { messages } });
+    // Conversation ga yozish — IDOR himoyasi + parallel-yozuv seriyalash.
+    // Mijoz yuborgan conversationId FAQAT shu foydalanuvchiga tegishli bo'lsa
+    // ishlatiladi (begona/mavjud-emas bo'lsa jimgina yangi suhbat ochiladi —
+    // boshqa foydalanuvchi suhbatiga yozib bo'lmaydi, mavjud-emas id 500 bermaydi).
+    const assistantContent = data.messages?.at(-1)?.content ?? '';
+    const convId = await this.prisma.$transaction(async (tx) => {
+      let id = conversationId;
+      if (id) {
+        const owned = await tx.conversation.findUnique({ where: { id }, select: { userId: true } });
+        if (!owned || owned.userId !== user.id) id = undefined;
+      }
+      if (!id) {
+        id = (await tx.conversation.create({ data: { userId: user.id, agentId: agent.id, messages: [] } })).id;
+      }
+      // Bir suhbat bo'yicha advisory lock — parallel xabarlar read-modify-write'da
+      // bir-birini o'chirmasligi uchun.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${CONVERSATION_APPEND_LOCK_NS}::int, hashtext(${id}))`;
+      const existing = await tx.conversation.findUnique({ where: { id }, select: { messages: true } });
+      const messages = (existing?.messages as any[]) ?? [];
+      messages.push(
+        { role: 'user', content: message, timestamp: new Date().toISOString() },
+        { role: 'assistant', content: assistantContent, halalFlag: data.halal_flag, timestamp: new Date().toISOString() },
+      );
+      await tx.conversation.update({ where: { id }, data: { messages } });
+      return id;
+    });
 
     return { ...data, conversationId: convId };
   }

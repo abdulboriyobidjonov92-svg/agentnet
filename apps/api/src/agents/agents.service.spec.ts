@@ -33,6 +33,8 @@ function makeMock() {
       create: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(async (a: any) => a),
+      // Atomik sinov-hisoblagichi (default: limitdan past, bitta qator o'zgardi)
+      updateMany: jest.fn(async () => ({ count: 1 })),
     },
     creditLedger: {
       create: jest.fn(async (a: any) => ({ id: 'ledger1', ...a.data })),
@@ -307,6 +309,7 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
     prisma.agent.findUnique.mockResolvedValue(agent);
     prisma.conversation.findUnique.mockResolvedValue({
       id: 'conv-existing',
+      userId: 'u1', // egasi shu foydalanuvchi — IDOR tekshiruvidan o'tadi
       messages: [{ role: 'user', content: 'oldingi', timestamp: 't0' }],
     });
     http.post.mockReturnValue(of({ data: { messages: [{ content: 'Davom etamiz' }] } }));
@@ -358,8 +361,11 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
       await svc.run('agent1', user, 'salom');
 
       expect(agentBilling.resolveTrialEnd).not.toHaveBeenCalled();
-      expect(prisma.agent.update).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: 'agent1' }, data: { trialMessageCount: { increment: 1 } } }),
+      expect(prisma.agent.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ id: 'agent1', trialMessageCount: { lt: 20 } }),
+          data: { trialMessageCount: { increment: 1 } },
+        }),
       );
       expect(http.post).toHaveBeenCalled(); // xabar baribir yuborildi
     });
@@ -368,6 +374,7 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
       const { prisma, http, audit, usage, agentBilling } = makeMock();
       const atLimit = { ...trialAgent, trialMessageCount: 20 };
       prisma.agent.findUnique.mockResolvedValue(atLimit);
+      prisma.agent.updateMany.mockResolvedValue({ count: 0 }); // limit to'ldi -> atomik bump 0 qator
       agentBilling.resolveTrialEnd.mockResolvedValue({ ...atLimit, isTrialAgent: false, frozen: false, frozenReason: null });
       http.post.mockReturnValue(of({ data: { messages: [{ content: 'ok' }] } }));
       const svc = new AgentsService(prisma, http, audit, usage, agentBilling);
@@ -383,6 +390,7 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
       const { prisma, http, audit, usage, agentBilling } = makeMock();
       const atLimit = { ...trialAgent, trialMessageCount: 20 };
       prisma.agent.findUnique.mockResolvedValue(atLimit);
+      prisma.agent.updateMany.mockResolvedValue({ count: 0 }); // limit to'ldi -> atomik bump 0 qator
       agentBilling.resolveTrialEnd.mockResolvedValue({
         ...atLimit,
         isTrialAgent: false,

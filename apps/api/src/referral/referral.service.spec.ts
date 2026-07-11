@@ -46,6 +46,9 @@ function makeMockPrisma(users: Row[]) {
         ledger.push(data);
         return data;
       }),
+      count: jest.fn(async ({ where }: any) =>
+        ledger.filter((l) => l.userId === where.userId && l.kind === where.kind).length,
+      ),
       aggregate: jest.fn(async ({ where }: any) => ({
         _sum: {
           amount: ledger

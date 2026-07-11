@@ -166,9 +166,23 @@ export class TelegramService implements OnModuleInit {
   }
 
   async setWebhook(url: string) {
+    // Webhook maxfiy-tokeni: o'rnatilgan bo'lsa Telegram'ga ham beramiz — shunda
+    // Telegram har so'rovda `X-Telegram-Bot-Api-Secret-Token` sarlavhasini
+    // yuboradi va controller uni tekshiradi (soxta update'lar rad etiladi).
+    // Bo'lmasa — ilgarigidek (ochiq webhook). MUHIM: token'siz setWebhook +
+    // controller-tekshiruv bir-biriga zid bo'lardi (barcha real update 401).
+    const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
+    if (!secret) {
+      this.logger.warn(
+        'TELEGRAM_WEBHOOK_SECRET o\'rnatilmagan — webhook autentifikatsiyasiz (ishlab chiqarishda o\'rnating).',
+      );
+    }
     await firstValueFrom(
-      this.http.post(`${this.apiBase}/setWebhook`, { url }),
+      this.http.post(`${this.apiBase}/setWebhook`, {
+        url,
+        ...(secret ? { secret_token: secret } : {}),
+      }),
     );
-    this.logger.log(`Telegram webhook o'rnatildi: ${url}`);
+    this.logger.log(`Telegram webhook o'rnatildi: ${url}${secret ? ' (secret bilan)' : ''}`);
   }
 }

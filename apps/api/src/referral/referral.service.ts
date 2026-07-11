@@ -29,6 +29,16 @@ export class ReferralService {
     return intEnv('REFERRAL_BONUS_TIYIN', 500_000);
   }
 
+  /**
+   * Bitta taklif qiluvchi ("referrer") uchun bonusli-taklif SONI chegarasi —
+   * soxta akkauntlar bilan bepul balans farming'iga qarshi. Chegaradan keyin
+   * havola baribir ishlaydi (yangi foydalanuvchi bog'lanadi), lekin BONUS
+   * BERILMAYDI. Cheksiz qilish uchun juda katta qiymat qo'ying.
+   */
+  get maxBonusInvites(): number {
+    return intEnv('REFERRAL_MAX_BONUS_INVITES', 100);
+  }
+
   /** O'qilishi oson, URL-xavfsiz 8 belgili kod (o'xshash belgilar chiqarilgan). */
   private generateCode(): string {
     const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -101,6 +111,16 @@ export class ReferralService {
           data: { referredById: referrer.id },
         });
         if (linked.count === 0) throw new Error('already_linked');
+
+        // Anti-farming: referrer allaqachon chegaradagi bonusni olgan bo'lsa —
+        // havola bog'lanadi, lekin BONUS berilmaydi (farming'ni cheklaydi).
+        const priorBonuses = await tx.creditLedger.count({
+          where: { userId: referrer.id, kind: 'referral_bonus' },
+        });
+        if (priorBonuses >= this.maxBonusInvites) {
+          this.logger.log(`Referral bog'landi, bonus SKIP (referrer ${referrer.id} chegaraga yetgan): ${normalized}`);
+          return;
+        }
 
         // Ikkala tomonga bonus + ledger (balanceAfter aniq bo'lishi uchun ketma-ket)
         for (const [userId, side] of [

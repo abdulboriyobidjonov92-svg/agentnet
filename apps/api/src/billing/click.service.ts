@@ -227,18 +227,21 @@ export class ClickService implements PaymentProviderService {
     }
 
     const confirmTimeMs = BigInt(Date.now());
-    const updated = await this.prisma.$transaction(async (client) => {
-      const u = await client.clickTransaction.update({
-        where: { id: tx.id },
+    // Holat-himoyalangan atomik update: Click Complete'ni takror yuborsa yoki
+    // parallel yetkazsa ham balans/obuna FAQAT BIR MARTA qo'llanadi —
+    // `WHERE state=0` sharti bo'yicha aynan bitta chaqiruv g'olib chiqadi.
+    await this.prisma.$transaction(async (client) => {
+      const confirmed = await client.clickTransaction.updateMany({
+        where: { id: tx.id, state: 0 },
         data: { state: 1, confirmTimeMs },
       });
+      if (confirmed.count === 0) return; // boshqa parallel chaqiruv allaqachon bajardi
       if (tx.purpose === 'platform_subscription' && tx.subscriptionPlan) {
         await this.platformBilling.activateFromPayment(tx.userId, tx.subscriptionPlan as SelfServePlatformPlan, client);
       } else {
         await this.wallet.credit(tx.userId, tx.amountTiyin, { clickTransId }, client);
       }
-      return u;
     });
-    return this.reply(body, ClickError.Success, { merchant_confirm_id: updated.id });
+    return this.reply(body, ClickError.Success, { merchant_confirm_id: tx.id });
   }
 }

@@ -40,9 +40,11 @@ export class WalletCreditService {
     meta: Record<string, unknown>,
     client: Prisma.TransactionClient = this.prisma,
   ) {
-    const fresh = await client.user.update({
+    // Balans 0 dan pastga TUSHMAYDI: allaqachon sarflangan mablag'ni "qaytarib
+    // olib" manfiy balans yasamaymiz (GREATEST bir atomik SQL bilan qulflaydi).
+    await client.$executeRaw`UPDATE "User" SET "balanceTiyin" = GREATEST(0, "balanceTiyin" - ${amountTiyin}) WHERE id = ${userId}`;
+    const fresh = await client.user.findUniqueOrThrow({
       where: { id: userId },
-      data: { balanceTiyin: { decrement: amountTiyin } },
       select: { balanceTiyin: true },
     });
     return client.creditLedger.create({

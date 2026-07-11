@@ -218,19 +218,28 @@ export class PaymeService implements PaymentProviderService {
     if (tx.state !== 1) throw this.paymeError(-31008, "Tranzaksiyani bajarib bo'lmaydi");
 
     const performTimeMs = BigInt(Date.now());
-    const updatedTx = await this.prisma.$transaction(async (client) => {
-      const updated = await client.paymeTransaction.update({
-        where: { id: tx.id },
+    // Holat-himoyalangan atomik update: Paycom PerformTransaction'ni takror
+    // yuborsa yoki parallel yetkazsa ham balans FAQAT BIR MARTA kreditlanadi —
+    // `WHERE state=1` sharti bo'yicha aynan bitta tranzaksiya g'olib chiqadi
+    // (Postgres qatorni qulflaydi; ikkinchisi qayta tekshirib 0 qator ko'radi).
+    const credited = await this.prisma.$transaction(async (client) => {
+      const performed = await client.paymeTransaction.updateMany({
+        where: { id: tx.id, state: 1 },
         data: { state: 2, performTimeMs },
       });
+      if (performed.count === 0) return false; // boshqa parallel chaqiruv allaqachon bajardi
       if (tx.purpose === 'platform_subscription' && tx.subscriptionPlan) {
         await this.platformBilling.activateFromPayment(tx.userId, tx.subscriptionPlan as SelfServePlatformPlan, client);
       } else {
         await this.wallet.credit(tx.userId, tx.amountTiyin, { paycomTransactionId: params.id }, client);
       }
-      return updated;
+      return true;
     });
-    return { transaction: updatedTx.id, perform_time: Number(performTimeMs), state: 2 };
+
+    const finalPerformTime = credited
+      ? performTimeMs
+      : (await this.prisma.paymeTransaction.findUniqueOrThrow({ where: { id: tx.id } })).performTimeMs;
+    return { transaction: tx.id, perform_time: Number(finalPerformTime), state: 2 };
   }
 
   private async cancelTransaction(params: any) {
@@ -245,26 +254,33 @@ export class PaymeService implements PaymentProviderService {
 
     if (tx.state === 2) {
       if (tx.purpose === 'platform_subscription') {
-        // Platforma-obunasi to'lovi bekor qilinmoqda — bu wallet'ga hech qachon
-        // tegmagan (activateFromPayment balansni o'zgartirmaydi), shuning uchun
-        // debit() chaqirilmaydi. Obunani qo'lda bekor qilish (hozircha) — bu
-        // kamdan-kam holat (Paycom tomonidan chargeback), avtomatik hal
-        // qilinmaydi; faqat holatni belgilaymiz, admin operativ ko'rib chiqadi.
-        this.logger.warn(
-          `Platforma-obunasi to'lovi bekor qilindi (paycomId=${params.id}, user=${tx.userId}) — obuna holati QO'LDA tekshirilishi kerak`,
-        );
-        await this.prisma.paymeTransaction.update({
-          where: { id: tx.id },
-          data: { state: newState, cancelTimeMs, reason: params.reason },
-        });
-      } else {
-        // Bajarilgan to'lov bekor qilinmoqda — balansdan qaytarib olamiz
+        // Bajarilgan obuna-to'lovi bekor qilinmoqda (chargeback) — obuna DARHOL
+        // muzlatiladi (wallet'ga tegmagan, shuning uchun debit YO'Q). Holat-
+        // himoyalangan: parallel bekor qilishlarda revoke faqat bir marta bajariladi.
         await this.prisma.$transaction(async (client) => {
-          await client.paymeTransaction.update({
-            where: { id: tx.id },
+          const cancelled = await client.paymeTransaction.updateMany({
+            where: { id: tx.id, state: 2 },
             data: { state: newState, cancelTimeMs, reason: params.reason },
           });
-          await this.wallet.debit(tx.userId, tx.amountTiyin, { paycomTransactionId: params.id, cancelled: true }, client);
+          if (cancelled.count > 0) {
+            await this.platformBilling.revokeSubscription(tx.userId, client);
+          }
+        });
+        this.logger.warn(
+          `Platforma-obunasi to'lovi bekor qilindi (paycomId=${params.id}, user=${tx.userId}) — obuna muzlatildi`,
+        );
+      } else {
+        // Bajarilgan to'lov bekor qilinmoqda — balansdan qaytarib olamiz.
+        // Holat-himoyalangan update: parallel CancelTransaction'da debit IKKI
+        // marta bo'lmasligi uchun (`WHERE state=2` faqat bittasiga tegadi).
+        await this.prisma.$transaction(async (client) => {
+          const cancelled = await client.paymeTransaction.updateMany({
+            where: { id: tx.id, state: 2 },
+            data: { state: newState, cancelTimeMs, reason: params.reason },
+          });
+          if (cancelled.count > 0) {
+            await this.wallet.debit(tx.userId, tx.amountTiyin, { paycomTransactionId: params.id, cancelled: true }, client);
+          }
         });
       }
     } else {

@@ -122,6 +122,26 @@ export class PlatformBillingService {
   }
 
   /**
+   * To'lov BEKOR qilinganda (Payme/Click chargeback) obunani darhol muzlatadi —
+   * `effectivePlatformPlan` shu zahoti 'none' qaytaradi (kirish to'xtaydi).
+   * Qayta ochish faqat yangi to'lov (activateFromPayment) orqali. Wallet-balansga
+   * tegilmaydi (obuna to'lovi hech qachon wallet'ga tushmagan).
+   */
+  async revokeSubscription(userId: string, client: Prisma.TransactionClient = this.prisma) {
+    await client.user.update({
+      where: { id: userId },
+      data: { platformPlanFrozen: true },
+    });
+    await this.audit.record({
+      actorId: userId,
+      action: 'platform.subscription_revoked',
+      resourceType: 'user',
+      resourceId: userId,
+      metadata: { reason: 'payment_cancelled' },
+    });
+  }
+
+  /**
    * Kunlik tekshiruv — ikki mustaqil qadam:
    *  1) Muddati ${REMINDER_DAYS_BEFORE} kundan kam qolgan obunalarga BIR MARTA
    *     eslatma ("muddati yaqinlashmoqda, yangilang").
