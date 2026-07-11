@@ -697,6 +697,33 @@ const uz: Dict = {
     "tour.replay": "Turni qayta ko'rish",
     "tour.replayTitle": "Tanishtiruv",
     "tour.replayDesc": "Asosiy bo'limlar bo'yicha qisqa tanishtiruvni istalgan payt qayta ko'rishingiz mumkin.",
+
+    // Yordam widgeti (FAQ + fikr bildirish)
+    "help.button": "Yordam",
+    "help.title": "Yordam markazi",
+    "help.tabFaq": "Savol-javob",
+    "help.tabFeedback": "Fikr bildirish",
+    "help.faq.q1": "Agentni qanday yarataman?",
+    "help.faq.a_q1": "\"Agentlar\" bo'limiga o'ting va kasbingizni oddiy tilda yozing — tizim tayyor agent taklif qiladi. Agent yaratish bepul.",
+    "help.faq.q2": "Pul qanday hisoblanadi?",
+    "help.faq.a_q2": "Balansingizdan faqat haqiqiy AI so'rovlari uchun yechiladi. Balansni Payme yoki Click orqali to'ldirasiz. Balans tugasa so'rov bajarilmaydi — kutilmagan xarajat bo'lmaydi.",
+    "help.faq.q3": "Pro / Max obunasi nima beradi?",
+    "help.faq.a_q3": "Obuna Qaror simulyatori, Ko'p-mutaxassis va Chuqur reja kabi platforma imkoniyatlarini ochadi. Vertikal agentlaringiz (do'kon, avtoservis...) obunasiz ham to'liq ishlaydi.",
+    "help.faq.q4": "Ma'lumotlarim xavfsizmi?",
+    "help.faq.a_q4": "Maxfiy ma'lumotlar (ulanish kalitlari, 2FA) shifrlangan holda saqlanadi. Hisobingizni himoyalash uchun Sozlamalar → Xavfsizlik'dan 2FA yoqishingiz mumkin.",
+    "help.faq.q5": "Ulanishlar (konnektorlar) nima?",
+    "help.faq.a_q5": "Ular agentingizni Payme, Soliq, Uzum, Telegram kabi xizmatlarga ulaydi — shunda u haqiqiy ishlarni bajaradi (to'lov tekshirish, xabar yuborish, hisobot olish).",
+    "help.fb.kind.suggestion": "Taklif",
+    "help.fb.kind.bug": "Xatolik",
+    "help.fb.kind.question": "Savol",
+    "help.fb.placeholder": "Fikringizni yozing…",
+    "help.fb.submit": "Yuborish",
+    "help.fb.thanks": "Rahmat! Fikringiz qabul qilindi.",
+    "admin.fb.tab": "Fikrlar",
+    "admin.fb.empty": "Hozircha fikr yo'q.",
+    "admin.fb.status.new": "Yangi",
+    "admin.fb.status.seen": "Ko'rildi",
+    "admin.fb.status.resolved": "Hal qilindi",
 };
 
 export default uz;

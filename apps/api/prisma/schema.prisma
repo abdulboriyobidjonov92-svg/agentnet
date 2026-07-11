@@ -43,6 +43,7 @@ model User {
   creditLedger           CreditLedger[]
   paymeTransactions      PaymeTransaction[]
   clickTransactions      ClickTransaction[]
+  feedbackItems          Feedback[]
   orgId                  String?
   org                    Org?      @relation(fields: [orgId], references: [id])
   isBusinessAccount      Boolean   @default(false)
@@ -299,6 +300,23 @@ model AuditLog {
   @@index([actorId])
   @@index([action])
   @@index([createdAt])
+}
+
+// Foydalanuvchi fikri/shikoyati/savoli — Yordam panelidan yuboriladi.
+// Admin (OWNER roli) ko'rib chiqadi. `page` va `locale` — kontekst uchun.
+model Feedback {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  kind      String   @default("suggestion") // suggestion | bug | question
+  message   String
+  page      String? // qaysi sahifadan yuborilgan
+  locale    String? // uz | ru | en
+  status    String   @default("new") // new | seen | resolved
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([status])
 }
 
 // Bir martalik login kodi (email/SMS OTP). Kod o'zi saqlanmaydi — faqat

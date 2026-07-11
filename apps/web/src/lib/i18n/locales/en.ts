@@ -709,6 +709,33 @@ const en: Dict = {
     "tour.replay": "Replay the tour",
     "tour.replayTitle": "Tour",
     "tour.replayDesc": "You can replay the short tour of the main areas anytime.",
+
+    // Help widget (FAQ + feedback)
+    "help.button": "Help",
+    "help.title": "Help center",
+    "help.tabFaq": "FAQ",
+    "help.tabFeedback": "Send feedback",
+    "help.faq.q1": "How do I create an agent?",
+    "help.faq.a_q1": "Go to \"Agents\" and describe your profession in plain words — the system suggests a ready agent. Creating is free.",
+    "help.faq.q2": "How is billing calculated?",
+    "help.faq.a_q2": "Your balance is charged only for real AI requests. Top up via Payme or Click. If the balance runs out, the request simply won't run — no surprise charges.",
+    "help.faq.q3": "What does a Pro / Max subscription give?",
+    "help.faq.a_q3": "A subscription unlocks platform features: Decision Simulator, Multi-Expert and Deep Plan. Your vertical agents (store, auto-service...) work without a subscription too.",
+    "help.faq.q4": "Is my data safe?",
+    "help.faq.a_q4": "Sensitive data (integration keys, 2FA) is stored encrypted. To protect your account, enable 2FA in Settings → Security.",
+    "help.faq.q5": "What are connections (connectors)?",
+    "help.faq.a_q5": "They connect your agent to Payme, Soliq, Uzum, Telegram and other services — so it does real work (checking payments, sending messages, pulling reports).",
+    "help.fb.kind.suggestion": "Suggestion",
+    "help.fb.kind.bug": "Bug",
+    "help.fb.kind.question": "Question",
+    "help.fb.placeholder": "Write your feedback…",
+    "help.fb.submit": "Send",
+    "help.fb.thanks": "Thanks! Your feedback was received.",
+    "admin.fb.tab": "Feedback",
+    "admin.fb.empty": "No feedback yet.",
+    "admin.fb.status.new": "New",
+    "admin.fb.status.seen": "Seen",
+    "admin.fb.status.resolved": "Resolved",
 };
 
 export default en;

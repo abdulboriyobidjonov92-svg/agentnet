@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useApiClient, apiErrorMessage } from "@/lib/api-client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Shield, Link2, User, Globe, Check, Scale, Loader2, Compass } from "lucide-react";
+import { Shield, Link2, User, Globe, Check, Scale, Loader2, Compass, Inbox } from "lucide-react";
 import { TOUR_EVENT } from "@/components/onboarding/product-tour";
 import { cn } from "@/lib/utils";
 import { useT, LOCALES } from "@/lib/i18n/client";
@@ -11,7 +11,7 @@ import { Input, Textarea } from "@/components/ui/input";
 import { ErrorState } from "@/components/ui/error-state";
 import { getClientSession, setClientSession } from "@/lib/session";
 
-type Tab = "profile" | "values" | "security" | "integrations";
+type Tab = "profile" | "values" | "security" | "integrations" | "admin";
 
 // Faqat jamoa (org) ichidagi foydalanuvchiga ma'noli — yakka foydalanuvchida ko'rsatilmaydi
 const ROLE_LABELS: Record<string, string> = {
@@ -31,11 +31,14 @@ export default function SettingsPage() {
     queryFn: () => api.get<any>("/users/me"),
   });
 
+  const isOwner = profile?.role === "OWNER";
   const TABS = [
     { id: "profile" as Tab, label: t("settings.profile"), icon: User },
     { id: "values" as Tab, label: t("values.title"), icon: Scale },
     { id: "security" as Tab, label: t("settings.security"), icon: Shield },
     { id: "integrations" as Tab, label: t("settings.integrations"), icon: Link2 },
+    // Faqat admin (OWNER) — foydalanuvchi fikrlari shu yerga tushadi
+    ...(isOwner ? [{ id: "admin" as Tab, label: t("admin.fb.tab"), icon: Inbox }] : []),
   ];
 
   return (
@@ -65,6 +68,7 @@ export default function SettingsPage() {
       {tab === "values" && <ValuesTab />}
       {tab === "security" && <SecurityTab />}
       {tab === "integrations" && <IntegrationsTab profile={profile} />}
+      {tab === "admin" && isOwner && <AdminFeedbackTab />}
     </div>
   );
 }
@@ -402,6 +406,76 @@ function TelegramIntegrationRow({ connected }: { connected: boolean }) {
         )}
       </div>
       {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+// Admin (OWNER) — foydalanuvchi fikrlari ro'yxati + holat boshqaruvi
+interface FeedbackItem {
+  id: string;
+  kind: string;
+  message: string;
+  page?: string | null;
+  locale?: string | null;
+  status: string;
+  createdAt: string;
+  user?: { email?: string; name?: string } | null;
+}
+
+function AdminFeedbackTab() {
+  const { t } = useT();
+  const api = useApiClient();
+  const queryClient = useQueryClient();
+  const { data, isError, refetch } = useQuery({
+    queryKey: ["admin-feedback"],
+    queryFn: () => api.get<FeedbackItem[]>("/feedback"),
+  });
+
+  const setStatus = async (id: string, status: string) => {
+    await api.patch(`/feedback/${id}/status`, { status });
+    queryClient.invalidateQueries({ queryKey: ["admin-feedback"] });
+  };
+
+  if (isError) return <ErrorState onRetry={() => refetch()} />;
+  if (!data) return <p className="text-sm text-muted-foreground">{t("common.loading")}</p>;
+  if (data.length === 0)
+    return <p className="rounded-2xl border bg-card p-6 text-sm text-muted-foreground shadow-soft">{t("admin.fb.empty")}</p>;
+
+  const KIND_LABEL: Record<string, string> = {
+    suggestion: t("help.fb.kind.suggestion"),
+    bug: t("help.fb.kind.bug"),
+    question: t("help.fb.kind.question"),
+  };
+
+  return (
+    <div className="space-y-3">
+      {data.map((f) => (
+        <div key={f.id} className="rounded-2xl border bg-card p-4 shadow-soft">
+          <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+            <span className="rounded-md bg-primary/10 px-2 py-0.5 font-medium text-primary">
+              {KIND_LABEL[f.kind] ?? f.kind}
+            </span>
+            <span className="text-muted-foreground">{f.user?.email ?? "—"}</span>
+            {f.page && <span className="font-mono text-muted-foreground/70">{f.page}</span>}
+            <span className="ml-auto text-muted-foreground/60">{new Date(f.createdAt).toLocaleString()}</span>
+          </div>
+          <p className="whitespace-pre-wrap text-sm">{f.message}</p>
+          <div className="mt-3 flex items-center gap-2">
+            {["new", "seen", "resolved"].map((s) => (
+              <button
+                key={s}
+                onClick={() => setStatus(f.id, s)}
+                className={cn(
+                  "rounded-md border px-2 py-0.5 text-xs transition",
+                  f.status === s ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {t(`admin.fb.status.${s}`)}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

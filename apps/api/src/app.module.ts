@@ -24,6 +24,7 @@ import { TradeModule } from './trade/trade.module';
 import { UsageModule } from './usage/usage.module';
 import { BillingModule } from './billing/billing.module';
 import { TemplatesModule } from './templates/templates.module';
+import { FeedbackModule } from './feedback/feedback.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { TemplatesModule } from './templates/templates.module';
     UsageModule,
     BillingModule,
     TemplatesModule,
+    FeedbackModule,
   ],
   providers: [
     // Global rate-limiting: har IP uchun 60s ichida 100 so'rov (ThrottlerModule
