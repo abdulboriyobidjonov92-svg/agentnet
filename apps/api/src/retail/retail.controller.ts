@@ -2,9 +2,7 @@ import {
   Body,
   Controller,
   Delete,
-  ForbiddenException,
   Get,
-  Headers,
   NotFoundException,
   Param,
   Patch,
@@ -14,13 +12,12 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ClerkGuard } from '../auth/clerk.guard';
+import { InternalTokenGuard } from '../auth/internal-token.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { RetailService } from './retail.service';
 import { CompetitorPriceService } from './competitor-price.service';
 import type { User } from '@prisma/client';
-
-const INTERNAL_TOKEN = process.env.INTERNAL_API_TOKEN ?? 'agentnet-internal-dev';
 
 @ApiTags('retail')
 @Controller('retail')
@@ -178,12 +175,13 @@ export class RetailController {
 
   /**
    * Ichki: haqiqiy CV servis (agent-engine camera_service.py) shu yerga uradi —
-   * Clerk JWT emas, servislararo x-internal-token (ConnectorsController/
-   * AutomationController bilan bir xil naqsh).
+   * Clerk JWT emas, servislararo InternalTokenGuard (x-internal-token, doimiy-
+   * vaqtli solishtirish + prod'da fail-closed — /billing/refund bilan bir xil
+   * himoya; oldin raw `!==` bilan prod-default kalitni qabul qilardi).
    */
   @Post('internal/vision-events')
+  @UseGuards(InternalTokenGuard)
   async internalVisionEvent(
-    @Headers('x-internal-token') token: string,
     @Body()
     body: {
       userId: string;
@@ -195,7 +193,6 @@ export class RetailController {
       raw?: any;
     },
   ) {
-    if (token !== INTERNAL_TOKEN) throw new ForbiddenException('Internal token invalid');
     const user = await this.prisma.user.findUnique({ where: { id: body.userId } });
     if (!user) throw new NotFoundException('User topilmadi');
     return this.retail.ingestVisionEvent(user, body);

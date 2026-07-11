@@ -12,6 +12,7 @@ function makeMockPrisma() {
         return select ? { id: row.id, createdAt: row.createdAt } : row;
       }),
       findMany: jest.fn(async ({ take }: any) => rows.slice(0, take)),
+      findUnique: jest.fn(async ({ where }: any) => rows.find((r) => r.id === where.id) ?? null),
       update: jest.fn(async ({ where, data, select }: any) => {
         const row = rows.find((r) => r.id === where.id);
         Object.assign(row, data);
@@ -56,5 +57,12 @@ describe('FeedbackService', () => {
     await svc.submit(user, { kind: 'question', message: 'savol?' });
     const res = await svc.setStatus('f1', 'resolved');
     expect(res.status).toBe('resolved');
+  });
+
+  it('setStatus — mavjud emas id -> 404 (500 emas)', async () => {
+    const prisma = makeMockPrisma();
+    const svc = new FeedbackService(prisma as any);
+    await expect(svc.setStatus('yoq-id', 'seen')).rejects.toMatchObject({ status: 404 });
+    expect(prisma.feedback.update).not.toHaveBeenCalled();
   });
 });

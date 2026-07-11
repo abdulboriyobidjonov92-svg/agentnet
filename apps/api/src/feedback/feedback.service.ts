@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { User } from '@prisma/client';
 
@@ -45,6 +45,9 @@ export class FeedbackService {
   }
 
   async setStatus(id: string, status: string) {
+    // Mavjud emas id'da Prisma P2025 (500) o'rniga tushunarli 404
+    const exists = await this.prisma.feedback.findUnique({ where: { id }, select: { id: true } });
+    if (!exists) throw new NotFoundException('Fikr topilmadi');
     const next = ['new', 'seen', 'resolved'].includes(status) ? status : 'seen';
     return this.prisma.feedback.update({
       where: { id },
