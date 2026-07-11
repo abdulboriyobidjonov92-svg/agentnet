@@ -762,6 +762,13 @@ const uz: Dict = {
     "referral.copy": "Havolani nusxalash",
     "referral.invited": "Taklif qilingan",
     "referral.earned": "Bonus (so'm)",
+
+    // Haftalik proaktiv brifing
+    "briefing.title": "Haftalik brifing",
+    "briefing.desc": "Har dushanba Telegram'ga qisqa hisobot: suhbatlar, yangi agentlar, sarflar.",
+    "briefing.needTelegram": "Ishlashi uchun Telegram hisobingizni ulang (Integratsiyalar bo'limida).",
+    "briefing.on": "Yoqilgan",
+    "briefing.off": "O'chirilgan",
 };
 
 export default uz;

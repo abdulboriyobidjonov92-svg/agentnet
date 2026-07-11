@@ -774,6 +774,13 @@ const en: Dict = {
     "referral.copy": "Copy link",
     "referral.invited": "Invited",
     "referral.earned": "Bonus (som)",
+
+    // Weekly proactive briefing
+    "briefing.title": "Weekly briefing",
+    "briefing.desc": "Every Monday, a short Telegram report: conversations, new agents, spend.",
+    "briefing.needTelegram": "Connect your Telegram account to enable (Integrations section).",
+    "briefing.on": "On",
+    "briefing.off": "Off",
 };
 
 export default en;

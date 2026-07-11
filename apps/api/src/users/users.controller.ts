@@ -30,7 +30,7 @@ export class UsersController {
   @Patch('me')
   updateProfile(
     @CurrentUser() user: User,
-    @Body() dto: { isBusinessAccount?: boolean; name?: string; tourCompleted?: boolean },
+    @Body() dto: { isBusinessAccount?: boolean; name?: string; tourCompleted?: boolean; briefingOptIn?: boolean },
   ) {
     return this.users.updateProfile(user.id, dto);
   }

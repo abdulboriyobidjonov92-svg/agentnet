@@ -30,7 +30,13 @@ export class UsersService {
 
   async updateProfile(
     userId: string,
-    dto: { isBusinessAccount?: boolean; role?: Role; name?: string; tourCompleted?: boolean },
+    dto: {
+      isBusinessAccount?: boolean;
+      role?: Role;
+      name?: string;
+      tourCompleted?: boolean;
+      briefingOptIn?: boolean;
+    },
   ) {
     const data = { ...dto, ...(dto.name !== undefined ? { name: dto.name.trim() || null } : {}) };
     return this.prisma.user.update({ where: { id: userId }, data });

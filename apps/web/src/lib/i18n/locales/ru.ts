@@ -762,6 +762,13 @@ const ru: Dict = {
     "referral.copy": "Скопировать ссылку",
     "referral.invited": "Приглашено",
     "referral.earned": "Бонус (сум)",
+
+    // Еженедельный проактивный брифинг
+    "briefing.title": "Недельный брифинг",
+    "briefing.desc": "Каждый понедельник краткий отчёт в Telegram: беседы, новые агенты, расходы.",
+    "briefing.needTelegram": "Для работы подключите Telegram (раздел Интеграции).",
+    "briefing.on": "Включён",
+    "briefing.off": "Выключен",
 };
 
 export default ru;

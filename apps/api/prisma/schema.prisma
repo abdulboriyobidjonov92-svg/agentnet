@@ -46,6 +46,11 @@ model User {
   feedbackItems          Feedback[]
   sharedResults          SharedResult[]
 
+  // --- Proaktiv haftalik brifing (cron -> Telegram) ---
+  // Faqat telegramChatId ulangan foydalanuvchilarga yuboriladi; opt-out mumkin.
+  briefingOptIn          Boolean   @default(true)
+  lastBriefingAt         DateTime?
+
   // --- Referral (taklif) tizimi — PLG viral halqasi ---
   // referralCode birinchi so'ralganda lazily yaratiladi. referredById faqat
   // ro'yxatdan o'tish paytida BIR MARTA o'rnatiladi (keyin o'zgarmaydi);
