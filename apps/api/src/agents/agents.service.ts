@@ -18,6 +18,7 @@ import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
 import { priceForAgent, usdUzsRate } from './agent-pricing';
 import { AgentBillingService } from './agent-billing.service';
+import { BillingService } from '../billing/billing.service';
 import { Prisma, type User } from '@prisma/client';
 
 // Agent-yaratish advisory-lock nommaydoni (foydalanuvchi bo'yicha kalit bilan
@@ -66,6 +67,7 @@ export class AgentsService {
     private readonly audit: AuditLogService,
     private readonly usage: UsageService,
     private readonly agentBilling: AgentBillingService,
+    private readonly billing: BillingService,
   ) {}
 
   /**
@@ -132,7 +134,7 @@ export class AgentsService {
           data: {
             name: dto.name,
             systemPrompt: dto.systemPrompt,
-            model: dto.model ?? 'claude-sonnet-4-6',
+            model: dto.model ?? 'claude-sonnet-5',
             halalFilterEnabled: dto.halalFilterEnabled ?? true,
             memoryEnabled: dto.memoryEnabled ?? true,
             toolsConfig: (dto.toolsConfig ?? []) as object,
@@ -244,7 +246,7 @@ export class AgentsService {
     const proposal = {
       name: data.name,
       systemPrompt: data.system_prompt,
-      model: data.model ?? 'claude-sonnet-4-6',
+      model: data.model ?? 'claude-sonnet-5',
       toolsConfig: tools,
       ...(data.vertical ? { vertical: data.vertical } : {}),
       ...(data.reasoning ? { description: String(data.reasoning).slice(0, 300) } : {}),
@@ -389,6 +391,14 @@ export class AgentsService {
 
     // LLM chaqiruvidan oldin kunlik/global limitni tekshiramiz
     await this.usage.consumeChat(user);
+
+    // PUL HIMOYASI — LLM chaqiruvidan OLDIN balansdan yechamiz (BFF stream
+    // yo'li bilan bir xil prepaid model). Ilgari bu yo'l (`POST /agents/:id/run`
+    // + Telegram bot) faqat consumeChat'ni chaqirar, chargeForMessage'ni EMAS —
+    // ya'ni har qanday tokenli foydalanuvchi bepul LLM olishi mumkin edi
+    // (billing butunlay chetlab o'tilardi). Balans yetmasa 402 tashlanadi va
+    // engine'ga so'rov umuman ketmaydi. Xizmat bajarilmasa — pul qaytariladi.
+    await this.billing.chargeForMessage(user, { agentId: agent.id, via: 'run' });
     const engineUrl = process.env.AGENT_ENGINE_URL ?? 'http://localhost:8000';
 
     let data: any;
@@ -409,6 +419,8 @@ export class AgentsService {
         }),
       ));
     } catch (e: any) {
+      // Javob berilmadi (halal-blok yoki engine xatosi) — yechilgan pulni qaytaramiz.
+      await this.billing.refund(user, 'agent_run_failed').catch(() => undefined);
       const detail = e?.response?.data?.detail;
       if (e?.response?.status === 422 && detail?.blocked) {
         throw new UnprocessableEntityException({ blocked: true, reason: detail.reason });

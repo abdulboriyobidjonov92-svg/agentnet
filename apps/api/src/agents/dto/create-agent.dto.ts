@@ -14,10 +14,10 @@ export class CreateAgentDto {
   @ApiProperty() @IsString() @MinLength(1) @MaxLength(100) name: string;
   @ApiProperty() @IsString() @MinLength(1) systemPrompt: string;
 
-  @ApiProperty({ enum: ['claude-sonnet-4-6', 'claude-haiku-4-5', 'claude-opus-4-8'] })
+  @ApiProperty({ enum: ['claude-sonnet-5', 'claude-haiku-4-5', 'claude-opus-4-8'] })
   @IsOptional()
-  @IsIn(['claude-sonnet-4-6', 'claude-haiku-4-5', 'claude-opus-4-8'])
-  model?: string = 'claude-sonnet-4-6';
+  @IsIn(['claude-sonnet-5', 'claude-haiku-4-5', 'claude-opus-4-8'])
+  model?: string = 'claude-sonnet-5';
 
   @ApiProperty({ default: true })
   @IsOptional() @IsBoolean()

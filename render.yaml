@@ -15,6 +15,17 @@ databases:
     databaseName: agentnet
     user: agentnet
 
+# Servislararo umumiy sirlar — Render bir marta generatsiya qiladi va guruhga
+# ulangan HAR uchala servisga BIR XIL qiymatni beradi. INTERNAL_API_TOKEN
+# ayni shu — agent-engine (ichki auth), API (refund guard) va web BFF (engine +
+# refund chaqiruvi) uchun aynan bir xil bo'lishi SHART, aks holda ichki
+# chaqiruvlar 401 bo'ladi. Qo'lda kiritishga hojat yo'q (generateValue).
+envVarGroups:
+  - name: agentnet-shared
+    envVars:
+      - key: INTERNAL_API_TOKEN
+        generateValue: true
+
 services:
   # 1) FastAPI agent-engine — orkestrator + 5 wow imkoniyat + AgentOS
   - type: web
@@ -25,13 +36,18 @@ services:
     dockerContext: ./apps/agent-engine
     healthCheckPath: /health
     envVars:
+      # Ichki auth guardi shu belgi bilan production rejimini aniqlaydi:
+      # ENV=production bo'lsa INTERNAL_API_TOKEN majburiy (fail-closed) —
+      # commlik default token bilan engine ochiq qolmaydi.
+      - key: ENV
+        value: production
+      # Umumiy INTERNAL_API_TOKEN — guruhdan (API va web bilan aynan bir xil).
+      - fromGroup: agentnet-shared
       - key: ANTHROPIC_API_KEY
         sync: false        # ixtiyoriy — bo'lmasa demo/heuristik rejim
       # web.automate/connector.invoke uchun API'ga ichki chaqiruv
       - key: API_URL
         value: https://agentnet-api-zf1h.onrender.com
-      - key: INTERNAL_API_TOKEN
-        sync: false        # api servisidagi bilan bir xil qiymat bo'lishi shart
       - key: AGENT_MAX_TOOL_ITERATIONS
         value: "8"
 
@@ -50,6 +66,14 @@ services:
           property: connectionString
       - key: AGENT_ENGINE_URL
         value: https://agentnet-engine.onrender.com
+      # At-rest shifrlash kaliti — prod'da bo'lmasa API boot'da qulaydi
+      # (CryptoService fail-closed). Render generatsiya qiladi, qo'lda kiritilmaydi.
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      # Sessiya-token imzo kaliti — bo'lmasa har restartda barcha foydalanuvchilar
+      # tizimdan chiqib ketadi (token.util tasodifiy fallback). Render generatsiya qiladi.
+      - key: AUTH_JWT_SECRET
+        generateValue: true
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: TELEGRAM_BOT_TOKEN
@@ -58,8 +82,8 @@ services:
       - key: NEXT_PUBLIC_APP_URL
         value: https://agentnet-web-cstn.onrender.com
       # web.automate/connector.invoke ichki chaqiruvlari uchun umumiy token
-      - key: INTERNAL_API_TOKEN
-        sync: false        # engine servisidagi bilan bir xil qiymat bo'lishi shart
+      # (engine va web bilan aynan bir xil — guruhdan keladi).
+      - fromGroup: agentnet-shared
       # Rate limiting / xarajat himoyasi (env bo'lmasa kod ichidagi defaultlar ishlaydi)
       - key: USAGE_FREE_CHAT_PER_DAY
         value: "20"
@@ -108,5 +132,8 @@ services:
         value: https://agentnet-api-zf1h.onrender.com
       - key: AGENT_ENGINE_URL
         value: https://agentnet-engine.onrender.com
+      # BFF (/api/chat/stream) engine'ga va /billing/refund'ga ichki token bilan
+      # murojaat qiladi — engine va API bilan aynan bir xil qiymat (guruhdan).
+      - fromGroup: agentnet-shared
       - key: NODE_ENV
         value: production

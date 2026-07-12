@@ -95,7 +95,7 @@ export function ChatInterface({ agentId, agentDefinition }: ChatInterfaceProps) 
             agent_id: agentDefinition.id,
             name: agentDefinition.name,
             system_prompt: agentDefinition.systemPrompt,
-            model: agentDefinition.model ?? "claude-sonnet-4-6",
+            model: agentDefinition.model ?? "claude-sonnet-5",
             tools: agentDefinition.toolsConfig ?? [],
             halal_filter_enabled: agentDefinition.halalFilterEnabled ?? true,
             memory_enabled: agentDefinition.memoryEnabled ?? true,

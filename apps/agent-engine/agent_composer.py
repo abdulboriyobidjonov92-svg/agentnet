@@ -120,7 +120,7 @@ def _normalize(parsed: dict[str, Any], method: str, matched: str | None) -> dict
     return {
         "name": name,
         "system_prompt": system_prompt,
-        "model": "claude-sonnet-4-6",
+        "model": "claude-sonnet-5",
         "tools": [{"tool_id": t, "config": {}} for t in tools],
         "domain": domain,
         "vertical": vertical,

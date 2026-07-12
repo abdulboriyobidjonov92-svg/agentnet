@@ -1,12 +1,15 @@
 """
 AgentNet — Agent Engine FastAPI (to'liq versiya)
 """
+import hmac
 import json
+import os
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
@@ -97,6 +100,53 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ----------------------------------------------------------------
+# Ichki (server-to-server) auth — engine faqat platformaning o'z servislari
+# (NestJS API va Next.js BFF) tomonidan chaqirilishi kerak. Ilgari HECH QANDAY
+# auth yo'q edi: Render'da `type: web` bo'lgani uchun engine ommaviy URL'da
+# ochiq turardi, ya'ni istalgan odam /agents/stream ni chaqirib ANTHROPIC
+# kalitini bepul sarflashi va halal/billing/limit qatlamlarini butunlay
+# chetlab o'tishi mumkin edi. Endi har so'rov `x-internal-token` bilan
+# tekshiriladi (NestJS'dagi InternalTokenGuard bilan bir xil siyosat).
+#
+# /health — Render healthcheck uchun ochiq (token talab qilinmaydi).
+_PUBLIC_DEV_DEFAULT = "agentnet-internal-dev"
+_OPEN_PATHS = {"/health"}
+
+
+def _is_production() -> bool:
+    # Render `ENV=production` (render.yaml) yoki umumiy RENDER belgisidan
+    # foydalanamiz — ikkalasidan biri bo'lsa prod deb hisoblanadi (fail-closed).
+    return os.getenv("ENV", "").lower() == "production" or os.getenv("RENDER") == "true"
+
+
+@app.middleware("http")
+async def internal_token_guard(request: Request, call_next):
+    path = request.url.path
+    if request.method == "OPTIONS" or path in _OPEN_PATHS:
+        return await call_next(request)
+
+    configured = os.getenv("INTERNAL_API_TOKEN")
+
+    # Prod'da commlik default yoki bo'sh token — fail-closed (kuchli kalit majburiy).
+    if _is_production() and (not configured or configured == _PUBLIC_DEV_DEFAULT):
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "INTERNAL_API_TOKEN production uchun kuchli qiymatga sozlanishi shart"},
+        )
+
+    expected = configured or _PUBLIC_DEV_DEFAULT
+    provided = request.headers.get("x-internal-token", "")
+    if not hmac.compare_digest(provided, expected):
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Faqat ichki (server-to-server) chaqiruv ruxsat etiladi"},
+        )
+
+    return await call_next(request)
+
 
 # S4 qo'shimcha: haqiqiy IP-kamera monitoring (RTSP -> YOLO -> Claude Vision).
 # Ilgari camera_service.py yozilgan-u hech qayerga ulanmagan edi.
@@ -660,7 +710,7 @@ async def get_builtin_agents():
                     "and prioritized recommendations with explicit assumptions. "
                     "Cite what needs verification. Always reply in the language the user writes in."
                 ),
-                "model": "claude-sonnet-4-6",
+                "model": "claude-sonnet-5",
                 "tools": [
                     {"tool_id": "knowledge.search", "config": {}},
                     {"tool_id": "finance.currency_rates", "config": {}},
@@ -675,7 +725,7 @@ async def get_builtin_agents():
                     "compliant alternative if their declared values require it. Information, not "
                     "licensed advice. Always reply in the language the user writes in."
                 ),
-                "model": "claude-sonnet-4-6",
+                "model": "claude-sonnet-5",
                 "tools": [
                     {"tool_id": "finance.get_transactions", "config": {}},
                     {"tool_id": "finance.currency_rates", "config": {}},
@@ -689,7 +739,7 @@ async def get_builtin_agents():
                     "Cite the relevant legal concept when suggesting language. A drafting tool for "
                     "professionals, not legal advice for laypeople. Always reply in the language the user writes in."
                 ),
-                "model": "claude-sonnet-4-6",
+                "model": "claude-sonnet-5",
                 "tools": [],
             },
             {
@@ -700,7 +750,7 @@ async def get_builtin_agents():
                     "prices and facts, and always attribute them. Summarize clearly and mark anything "
                     "that needs verification. Always reply in the language the user writes in."
                 ),
-                "model": "claude-sonnet-4-6",
+                "model": "claude-sonnet-5",
                 "tools": [
                     {"tool_id": "knowledge.search", "config": {}},
                     {"tool_id": "utility.weather", "config": {}},
@@ -715,7 +765,7 @@ async def get_builtin_agents():
                     "trade-compliance screening. Duty figures are reference estimates — always tell "
                     "the user to confirm with official customs sources. Always reply in the language the user writes in."
                 ),
-                "model": "claude-sonnet-4-6",
+                "model": "claude-sonnet-5",
                 "vertical": "trade",
                 "tools": [
                     {"tool_id": "knowledge.search", "config": {}},
@@ -731,7 +781,7 @@ async def get_builtin_agents():
                     "multi-step processes (passport, propiska, YaTT, pension...). Procedural guidance "
                     "only — final decisions belong to the responsible agency. Always reply in the language the user writes in."
                 ),
-                "model": "claude-sonnet-4-6",
+                "model": "claude-sonnet-5",
                 "vertical": "government",
                 "tools": [{"tool_id": "knowledge.search", "config": {}}],
             },
@@ -744,7 +794,7 @@ async def get_builtin_agents():
                     "user explicitly asked. Report exactly what you did and what you found. "
                     "Always reply in the language the user writes in."
                 ),
-                "model": "claude-sonnet-4-6",
+                "model": "claude-sonnet-5",
                 "tools": [{"tool_id": "web.automate", "config": {}}],
             },
             {
@@ -755,7 +805,7 @@ async def get_builtin_agents():
                     "tasks and follow-ups, and keep the day moving. Clear, concise, action-oriented. "
                     "Always reply in the language the user writes in."
                 ),
-                "model": "claude-sonnet-4-6",
+                "model": "claude-sonnet-5",
                 "tools": [
                     {"tool_id": "calendar.get_events", "config": {}},
                     {"tool_id": "messaging.telegram_send", "config": {}},

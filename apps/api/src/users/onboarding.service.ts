@@ -162,7 +162,7 @@ export class OnboardingService {
         data: {
           name: tpl.name,
           systemPrompt: tpl.systemPrompt,
-          model: 'claude-sonnet-4-6',
+          model: 'claude-sonnet-5',
           halalFilterEnabled: true, // har doim yoqiq
           memoryEnabled: true,
           toolsConfig: (tpl.toolsConfig ?? []) as object,

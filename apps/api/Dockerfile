@@ -23,5 +23,13 @@ ENV NODE_ENV=production
 ENV PORT=3001
 EXPOSE 3001
 
-# Migratsiyani deploy qilib, so'ng serverni ishga tushirish
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=prisma/schema.prod.prisma || npx prisma db push --schema=prisma/schema.prod.prisma --accept-data-loss; node dist/main.js"]
+# Migratsiyani deploy qilib, so'ng serverni ishga tushirish.
+# MUHIM (H3): ilgari `migrate deploy` muvaffaqiyatsiz bo'lsa `|| db push
+# --accept-data-loss` ishlab ketardi — bu sxemaga moslash uchun prod'da
+# ustun/jadval O'CHIRIB YUBORISHI (ma'lumot yo'qolishi) mumkin edi. Yana `;`
+# tufayli server migratsiya natijasidan QAT'I NAZAR ishga tushardi. Endi:
+# faqat `migrate deploy` (halol, versiyalangan migratsiyalar) va `&&` bilan
+# server FAQAT migratsiya muvaffaqiyatli bo'lsa boshlanadi. Migratsiya
+# yiqilsa konteyner xato-kod bilan to'xtaydi (deploy ovozli tarzda qulaydi,
+# ma'lumot buzilmaydi).
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=prisma/schema.prod.prisma && node dist/main.js"]

@@ -66,6 +66,9 @@ export default function MarketplacePage() {
   const payoutMutation = useMutation({
     mutationFn: () => api.post<any>("/marketplace/creator/payout", {}),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["creator-dashboard"] }),
+    // Pul yechish kanali hali ulanmagan — backend 503 + aniq xabar qaytaradi.
+    // Balans saqlanadi; foydalanuvchiga jim yiqilish o'rniga aniq bildiramiz.
+    onError: (e) => toast({ title: e instanceof Error ? e.message : t("common.error") }),
   });
 
   const handleInstall = async (id: string) => {

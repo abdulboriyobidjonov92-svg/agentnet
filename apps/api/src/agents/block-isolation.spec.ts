@@ -54,7 +54,8 @@ function makeMock() {
   };
   const usage = new UsageService(usagePrisma);
   const agentBilling = { chargeOne: jest.fn(), resolveTrialEnd: jest.fn() } as any;
-  return { prisma, http, audit, usage, agentBilling };
+  const billing = { chargeForMessage: jest.fn(async () => ({})), refund: jest.fn(async () => ({})) } as any;
+  return { prisma, http, audit, usage, agentBilling, billing };
 }
 
 // Block B'da HECH QANDAY platforma-obunasi yo'q (eng qattiq holat).
@@ -70,9 +71,9 @@ const noSubscriptionUser = {
 
 describe('BLOK A/B izolyatsiyasi — platforma obunasi vertikal agentlarga TA\'SIR QILMAYDI', () => {
   it("obunasiz foydalanuvchi do'kon-agentini (vertikal, retail) MUVAFFAQIYATLI yaratadi", async () => {
-    const { prisma, http, audit, usage, agentBilling } = makeMock();
+    const { prisma, http, audit, usage, agentBilling, billing } = makeMock();
     prisma.agent.create.mockResolvedValue({ id: 'agent1', name: "Do'kon agenti", vertical: 'retail' });
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing);
 
     const agent = await svc.create(noSubscriptionUser, {
       name: "Do'kon agenti",
@@ -86,7 +87,7 @@ describe('BLOK A/B izolyatsiyasi — platforma obunasi vertikal agentlarga TA\'S
   });
 
   it('obunasiz foydalanuvchi shu agent bilan MUVAFFAQIYATLI suhbatlashadi — consumeChat ishlaydi, consumePlatformFeature UMUMAN CHAQIRILMAYDI', async () => {
-    const { prisma, http, audit, usage, agentBilling } = makeMock();
+    const { prisma, http, audit, usage, agentBilling, billing } = makeMock();
     const platformFeatureSpy = jest.spyOn(usage, 'consumePlatformFeature');
     prisma.agent.findUnique.mockResolvedValue({
       id: 'agent1',
@@ -95,13 +96,13 @@ describe('BLOK A/B izolyatsiyasi — platforma obunasi vertikal agentlarga TA\'S
       isTrialAgent: false,
       name: "Do'kon agenti",
       systemPrompt: 'p',
-      model: 'claude-sonnet-4-6',
+      model: 'claude-sonnet-5',
       toolsConfig: [],
       halalFilterEnabled: true,
       memoryEnabled: true,
     });
     http.post.mockReturnValue(of({ data: { messages: [{ content: 'Salom! Qanday yordam bera olaman?' }] } }));
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing);
 
     const res = await svc.run('agent1', noSubscriptionUser, "Tovar qoldig'i qancha?");
 
@@ -124,14 +125,14 @@ describe('BLOK A/B izolyatsiyasi — platforma obunasi vertikal agentlarga TA\'S
   });
 
   it("agent yaratish/ishlatish User.platformPlan maydonini UMUMAN o'qimaydi (real UsageService bilan — 'none' bo'lsa ham hech narsa yiqilmaydi)", async () => {
-    const { prisma, http, audit, usage, agentBilling } = makeMock();
+    const { prisma, http, audit, usage, agentBilling, billing } = makeMock();
     prisma.agent.findUnique.mockResolvedValue({
       id: 'agent1', userId: 'u1', frozen: false, isTrialAgent: false,
-      name: 'X', systemPrompt: 'p', model: 'claude-sonnet-4-6',
+      name: 'X', systemPrompt: 'p', model: 'claude-sonnet-5',
       toolsConfig: [], halalFilterEnabled: true, memoryEnabled: true,
     });
     http.post.mockReturnValue(of({ data: { messages: [{ content: 'ok' }] } }));
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing);
 
     // platformPlanFrozen: true HAM bo'lsa (eng yomon holat) — vertikal agent baribir ishlashi kerak
     const frozenPlatformUser = { ...noSubscriptionUser, platformPlan: 'pro', platformPlanFrozen: true } as unknown as User;

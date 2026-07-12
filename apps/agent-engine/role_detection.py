@@ -721,10 +721,13 @@ Rules:
 async def _detect_with_llm(text: str) -> RoleProfile | None:
     try:
         response = await _client.messages.create(
-            model="claude-sonnet-4-6",
+            model="claude-sonnet-5",
             max_tokens=400,
             system=_LLM_SYSTEM,
             messages=[{"role": "user", "content": text}],
+            # Sonnet 5 sukutdagi adaptiv fikrlashi past max_tokens'da JSON'ni
+            # kesib qo'yishi mumkin — xulqni bir xil saqlab, o'chiramiz.
+            extra_body={"thinking": {"type": "disabled"}},
         )
         raw = response.content[0].text.strip()
         # JSON'ni ajratib olish (LLM ba'zan atrofga matn qo'shishi mumkin)

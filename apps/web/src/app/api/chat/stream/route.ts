@@ -77,7 +77,11 @@ export async function POST(req: NextRequest) {
   try {
     upstream = await fetch(`${engineUrl}/agents/stream`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      // Engine endi ichki auth talab qiladi (main.py internal_token_guard) —
+      // token'siz so'rov 401. Bu BFF platformaning ichki servisi bo'lgani uchun
+      // uzatishga haqli (foydalanuvchi brauzeri engine'ga to'g'ridan-to'g'ri
+      // yeta olmaydi).
+      headers: { "Content-Type": "application/json", "x-internal-token": internalToken },
       body: JSON.stringify({
         agent_definition: body.agentDefinition,
         user_id: session.userId,

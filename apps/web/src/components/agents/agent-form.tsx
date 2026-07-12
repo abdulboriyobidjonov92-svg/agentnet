@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 const MODELS = [
-  { value: "claude-sonnet-4-6", key: "form.modelRecommended", label: "Claude Sonnet 4.6" },
+  { value: "claude-sonnet-5", key: "form.modelRecommended", label: "Claude Sonnet 5" },
   { value: "claude-haiku-4-5", key: "form.modelFast", label: "Claude Haiku 4.5" },
   { value: "claude-opus-4-8", key: "form.modelPowerful", label: "Claude Opus 4.8" },
 ];
@@ -41,7 +41,7 @@ export function AgentForm({ defaultValues, onSubmit, isLoading, error, submitLab
   const { t } = useT();
   const [name, setName] = useState(defaultValues?.name ?? "");
   const [systemPrompt, setSystemPrompt] = useState(defaultValues?.systemPrompt ?? "");
-  const [model, setModel] = useState(defaultValues?.model ?? "claude-sonnet-4-6");
+  const [model, setModel] = useState(defaultValues?.model ?? "claude-sonnet-5");
   const [memoryEnabled, setMemoryEnabled] = useState(defaultValues?.memoryEnabled ?? true);
   const [selectedTools, setSelectedTools] = useState<string[]>(
     (defaultValues?.toolsConfig as any[])?.map((t: any) => t.tool_id) ?? [],

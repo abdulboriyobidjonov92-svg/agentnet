@@ -136,7 +136,7 @@ export class TemplatesService {
       {
         name: loc(t.profession, lang),
         systemPrompt: buildSystemPrompt(t, lang),
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet-5',
         toolsConfig: tools,
         ...(t.vertical ? { vertical: t.vertical } : {}),
         description: loc(t.flagship, lang).slice(0, 300),

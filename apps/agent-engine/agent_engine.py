@@ -50,7 +50,7 @@ class AgentDefinition(BaseModel):
     system_prompt: str
     tools: list[ToolSpec] = Field(default_factory=list)
     memory_enabled: bool = True
-    model: str = "claude-sonnet-4-6"
+    model: str = "claude-sonnet-5"
     # Halal Filter har doim yoqilgan -- foydalanuvchi o'chira olmaydi.
     halal_filter_enabled: bool = True
 
@@ -129,7 +129,15 @@ class AgentEngine:
             )
         self.definition = definition
         self.registry = tool_registry
-        self.llm = ChatAnthropic(model=definition.model, temperature=0.3)
+        # Sonnet 5 NON-DEFAULT `temperature`ni rad etadi (400) — olib tashlandi.
+        # `thinking`ni universal extra_body orqali o'chiramiz (adaptiv fikrlash
+        # sukut bo'yicha yoqilishi eski SDK javob-parseriga muammo bo'lmasligi va
+        # xulq Sonnet 4.6 bilan bir xil qolishi uchun); max_tokens'ga zaxira.
+        self.llm = ChatAnthropic(
+            model=definition.model,
+            max_tokens=4096,
+            model_kwargs={"extra_body": {"thinking": {"type": "disabled"}}},
+        )
         self.graph = self._build_graph()
 
     def _build_graph(self):

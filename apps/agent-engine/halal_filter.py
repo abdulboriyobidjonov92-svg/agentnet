@@ -199,10 +199,15 @@ async def llm_layer(
 
     try:
         response = await client.messages.create(
-            model="claude-sonnet-4-6",
+            model="claude-sonnet-5",
             max_tokens=300,
             system=HALAL_CLASSIFIER_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_prompt}],
+            # MUHIM: halal filtr HAR bir xabarda (kirish+chiqish) chaqiriladi va
+            # max_tokens atigi 300. Sonnet 5'ning sukutdagi adaptiv fikrlashi bu
+            # byudjetni yeb, tasnif JSON'ini kesib qo'yishi (filtr buzilishi) va
+            # har xabarga token-narx qo'shishi mumkin — shuning uchun o'chiramiz.
+            extra_body={"thinking": {"type": "disabled"}},
         )
     except Exception:
         # LLM mavjud emas (API kaliti yo'q yoki demo rejim).

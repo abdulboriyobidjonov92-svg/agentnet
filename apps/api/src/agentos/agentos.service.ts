@@ -102,7 +102,7 @@ export class AgentOsService {
         data: {
           name: tpl.name,
           systemPrompt: tpl.systemPrompt,
-          model: 'claude-sonnet-4-6',
+          model: 'claude-sonnet-5',
           halalFilterEnabled: true,
           memoryEnabled: true,
           toolsConfig: tpl.tools.map((tool_id) => ({ tool_id, config: {} })),

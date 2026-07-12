@@ -162,7 +162,7 @@ model Agent {
   id                 String         @id @default(cuid())
   name               String
   systemPrompt       String
-  model              String         @default("claude-sonnet-4-6")
+  model              String         @default("claude-sonnet-5")
   halalFilterEnabled Boolean        @default(true)
   memoryEnabled      Boolean        @default(true)
   // JSON array of ToolSpec: [{ tool_id, config }]

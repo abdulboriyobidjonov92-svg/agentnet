@@ -398,7 +398,8 @@ export class MarketplaceService {
       balance_tiyin: balance._sum.amount ?? 0,
       balance_uzs: Math.round((balance._sum.amount ?? 0) / 100),
       revenue_share: { creator: CREATOR_SHARE, platform: 1 - CREATOR_SHARE },
-      payout_note: 'Payout processing is stubbed (Payme/Click merchant onboarding pending); the ledger accounting is real.',
+      payout_note: 'Pul yechish kanali (Payme/Click merchant payout) hali ulanmagan — balansingiz saqlanadi, ulanishi bilan yechib olasiz.',
+      payout_available: false,
       creatorBonus: {
         totalTiyin: bonusTotal._sum.bonusAmountTiyin ?? 0,
         totalSom: Math.round((bonusTotal._sum.bonusAmountTiyin ?? 0) / 100),
@@ -409,7 +410,16 @@ export class MarketplaceService {
     };
   }
 
-  /** Payout — balansni yopadigan manfiy yozuv (protsessing stub). */
+  /**
+   * Payout so'rovi. MUHIM (H2): Payme/Click merchant-payout hali ULANMAGAN.
+   * Ilgari bu yerda balansni NOLGA tushiradigan manfiy `payout` yozuvi
+   * yozilardi — pul YUBORILMASA HAM kreatorning ishlab topgani daftardan
+   * yo'qolardi (foydalanuvchi oldida "o'g'irlik"ka o'xshardi), ustiga
+   * aggregate-keyin-yozuv atomik emasligi sababli parallel so'rovlar balansni
+   * ikki marta "yechib" manfiyga tushirishi mumkin edi. To'lov kanali
+   * ulanmaguncha balansga TEGMAYMIZ: so'rovni faqat audit-jurnalga qayd etamiz
+   * va aniq "hozircha mavjud emas" javobini qaytaramiz. Balans butun saqlanadi.
+   */
   async requestPayout(user: User) {
     const balance = await this.prisma.creatorLedger.aggregate({
       where: { creatorId: user.id },
@@ -418,18 +428,25 @@ export class MarketplaceService {
     const amount = balance._sum.amount ?? 0;
     if (amount <= 0) throw new BadRequestException("Yechib olinadigan balans yo'q");
 
-    const entry = await this.prisma.creatorLedger.create({
-      data: {
-        creatorId: user.id,
-        kind: 'payout',
-        amount: -amount,
-        meta: { status: 'stub_pending', note: 'Payment rails not connected yet — request recorded, accounting closed.' },
-      },
-    });
+    // Balansga TEGMAYDI — faqat niyatni qayd etamiz (rails ulangach qayta ishlanadi).
     await this.audit.record({
-      actorId: user.id, action: 'marketplace.payout_request', resourceType: 'creator_ledger', resourceId: entry.id,
-      metadata: { amount_tiyin: amount },
+      actorId: user.id,
+      action: 'marketplace.payout_requested',
+      resourceType: 'creator_ledger',
+      resourceId: user.id,
+      metadata: { requestedTiyin: amount },
     });
-    return { requested_tiyin: amount, requested_uzs: Math.round(amount / 100), status: 'stub_pending', entryId: entry.id };
+
+    throw new HttpException(
+      {
+        message:
+          "Pul yechish hozircha mavjud emas — to'lov kanali (Payme/Click merchant payout) hali ulanmagan. " +
+          "Balansingiz saqlanib qoladi va kanal ulanishi bilan to'liq yechib olasiz.",
+        reason: 'payout_not_available',
+        balanceTiyin: amount,
+        balanceUzs: Math.round(amount / 100),
+      },
+      HttpStatus.SERVICE_UNAVAILABLE,
+    );
   }
 }

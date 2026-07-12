@@ -7,9 +7,10 @@ import { AuthModule } from '../auth/auth.module';
 import { ClerkGuard } from '../auth/clerk.guard';
 import { UsageModule } from '../usage/usage.module';
 import { ConnectorsModule } from '../connectors/connectors.module';
+import { BillingModule } from '../billing/billing.module';
 
 @Module({
-  imports: [HttpModule, AuthModule, UsageModule, ConnectorsModule],
+  imports: [HttpModule, AuthModule, UsageModule, ConnectorsModule, BillingModule],
   controllers: [AgentsController],
   providers: [AgentsService, AgentBillingService, ClerkGuard],
   exports: [AgentsService, AgentBillingService],

@@ -46,7 +46,7 @@ function makeSource(overrides: Record<string, any> = {}) {
     marketplacePrice: 1_000_000, // 10 000 so'm (tiyin)
     creationPriceTiyin: 1_000_000,
     monthlyPriceTiyin: 300_000,
-    systemPrompt: 'p', model: 'claude-sonnet-4-6',
+    systemPrompt: 'p', model: 'claude-sonnet-5',
     halalFilterEnabled: true, memoryEnabled: true, toolsConfig: [], vertical: null, description: null,
     ...overrides,
   };

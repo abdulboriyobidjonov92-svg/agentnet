@@ -15,7 +15,7 @@ from anthropic import AsyncAnthropic
 
 _client = AsyncAnthropic()  # ANTHROPIC_API_KEY env'dan
 
-DEFAULT_MODEL = "claude-sonnet-4-6"
+DEFAULT_MODEL = "claude-sonnet-5"
 
 
 async def llm_json(
@@ -32,6 +32,11 @@ async def llm_json(
             max_tokens=max_tokens,
             system=system,
             messages=[{"role": "user", "content": user_content}],
+            # Sonnet 5'da `thinking` berilmasa adaptiv fikrlash SUKUT BO'YICHA yoqiladi
+            # (Sonnet 4.6'da o'chiq edi) — har chaqiruvda qo'shimcha token sarflaydi va
+            # past max_tokens'da JSON javobni kesib qo'yishi mumkin. Xulqni bir xil
+            # saqlash uchun ochiq o'chiramiz (extra_body — eski SDK 0.43 ham qo'llaydi).
+            extra_body={"thinking": {"type": "disabled"}},
         )
         raw = response.content[0].text.strip()
         m = re.search(r"\{.*\}", raw, re.DOTALL)

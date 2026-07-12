@@ -161,8 +161,11 @@ FAQAT quyidagi JSON formatda javob ber:
 
 async def verify_with_claude_vision(event: SuspiciousEvent) -> bool:
     response = await claude.messages.create(
-        model="claude-sonnet-4-6",
+        model="claude-sonnet-5",
         max_tokens=200,
+        # Sonnet 5 adaptiv fikrlashi max_tokens=200'ni yeb qo'yishi mumkin —
+        # ha/yo'q tekshiruvi uchun o'chiramiz (xulq Sonnet 4.6 bilan bir xil).
+        extra_body={"thinking": {"type": "disabled"}},
         system=VERIFICATION_SYSTEM_PROMPT,
         messages=[
             {

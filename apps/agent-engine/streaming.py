@@ -51,7 +51,7 @@ async def stream_agent_response(
     history = conversation_history or []
     messages = history + [{"role": "user", "content": message}]
     system_prompt = agent_definition.get("system_prompt", "Sen foydali AI yordamchisisan.")
-    model = agent_definition.get("model", "claude-sonnet-4-6")
+    model = agent_definition.get("model", "claude-sonnet-5")
 
     # S3: Vertical Compliance Pack — agent vertikaliga qarab avtomatik yuklanadi.
     # Tizim-promptga majburiy xulq qoidalari qo'shiladi (HIPAA-style by default).
@@ -71,6 +71,10 @@ async def stream_agent_response(
             max_tokens=2048,
             system=system_prompt,
             messages=messages,
+            # Sonnet 5 adaptiv fikrlashni sukut bo'yicha yoqadi — chat oqimida
+            # bu javob token-byudjetini yeyishi va kechikish qo'shishi mumkin.
+            # Xulqni Sonnet 4.6 bilan bir xil saqlab, o'chirib qo'yamiz.
+            extra_body={"thinking": {"type": "disabled"}},
         ) as stream:
             async for text in stream.text_stream:
                 used_real_api = True

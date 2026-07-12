@@ -2,8 +2,13 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { installEngineAuthInterceptor } from './common/engine-auth';
 
 async function bootstrap() {
+  // agent-engine endi ichki token talab qiladi — barcha engine chaqiruvlariga
+  // `x-internal-token` qo'shadigan yagona axios interceptor'ni o'rnatamiz.
+  installEngineAuthInterceptor();
+
   const app = await NestFactory.create(AppModule);
 
   // CORS — dev'da har qanday localhost porti (3000 real app, 3100 preview, ...),
