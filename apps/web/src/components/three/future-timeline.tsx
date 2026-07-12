@@ -34,14 +34,14 @@ function Branch({
   const color = [NEON.cyan, NEON.emerald, NEON.violet, NEON.gold][index % 4];
 
   // Shoxlanuvchi egri chiziq: markazdan yuqori-o'ngga
-  const { curve, tube, endPos } = useMemo(() => {
+  const { tube, endPos } = useMemo(() => {
     const spread = (index - (total - 1) / 2) * 0.9;
     const start = new THREE.Vector3(-2.6, 0, 0);
     const mid = new THREE.Vector3(-0.6, spread * 0.6, 0);
     const end = new THREE.Vector3(2.2, spread * 1.25, 0);
     const curve = new THREE.CatmullRomCurve3([start, mid, end]);
     const tube = new THREE.TubeGeometry(curve, 40, 0.025, 8, false);
-    return { curve, tube, endPos: end };
+    return { tube, endPos: end };
   }, [index, total]);
 
   useFrame(({ clock }) => {

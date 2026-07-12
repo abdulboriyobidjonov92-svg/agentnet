@@ -35,7 +35,6 @@ export function TemplatePreviewStrip({ profession, tools, depth }: Props) {
   useEffect(() => {
     const id = setInterval(() => setI((prev) => (prev + 1) % frames.length), FRAME_MS);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [frames.length]);
 
   const Frame = frames[i];

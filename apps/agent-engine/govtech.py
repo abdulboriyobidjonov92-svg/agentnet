@@ -20,63 +20,8 @@ import json
 from typing import Any
 
 from llm_utils import lang_instruction, llm_json
-
-# ------------------------------------------------------------------
-# Mas'ul xizmatlar taksonomiyasi (kategoriya → idora)
-# ------------------------------------------------------------------
-
-SERVICES: dict[str, dict[str, Any]] = {
-    "utilities": {
-        "label": {"en": "Utilities (water/gas/power/heating)", "ru": "Коммунальные услуги", "uz": "Kommunal xizmatlar (suv/gaz/svet/issiqlik)"},
-        "office": {"en": "District utility provider + khokimiyat communal dept", "ru": "Районный поставщик + отдел ЖКХ хокимията", "uz": "Tuman ta'minotchisi + hokimlik kommunal bo'limi"},
-        "keywords": ["water", "suv", "вода", "gaz", "gas", "газ", "svet", "elektr", "электрич", "light", "issiqlik", "отоплен", "kanaliz", "канализац"],
-        "priority": "high",
-    },
-    "roads": {
-        "label": {"en": "Roads & public works", "ru": "Дороги и благоустройство", "uz": "Yo'l va obodonlashtirish"},
-        "office": {"en": "District khokimiyat public works dept", "ru": "Отдел благоустройства хокимията", "uz": "Tuman hokimligi obodonlashtirish bo'limi"},
-        "keywords": ["road", "yo'l", "дорог", "asphalt", "asfalt", "асфальт", "chuqur", "яма", "pothole", "svetofor", "светофор", "ko'cha", "улиц", "street light", "chiroq"],
-        "priority": "normal",
-    },
-    "documents": {
-        "label": {"en": "Documents & registry (passport, propiska, certificates)", "ru": "Документы и регистрация", "uz": "Hujjatlar va ro'yxatga olish (pasport, propiska, ma'lumotnoma)"},
-        "office": {"en": "Public service center (DXX) / my.gov.uz", "ru": "Центр госуслуг / my.gov.uz", "uz": "Davlat xizmatlari markazi / my.gov.uz"},
-        "keywords": ["passport", "pasport", "паспорт", "propiska", "прописк", "ro'yxat", "ma'lumotnoma", "справк", "certificate", "guvohnoma", "id karta", "metrika"],
-        "priority": "normal",
-    },
-    "social": {
-        "label": {"en": "Social support (benefits, pension, disability)", "ru": "Соцподдержка (пособия, пенсия)", "uz": "Ijtimoiy himoya (nafaqa, pensiya, nogironlik)"},
-        "office": {"en": "District social support agency + mahalla commission", "ru": "Отдел соцобеспечения + махаллинская комиссия", "uz": "Tuman ijtimoiy himoya bo'limi + mahalla komissiyasi"},
-        "keywords": ["nafaqa", "пособие", "benefit", "pensiya", "пенси", "pension", "nogiron", "инвалид", "disab", "kam ta'minlangan", "малообеспечен", "yordam puli", "temir daftar"],
-        "priority": "high",
-    },
-    "sanitation": {
-        "label": {"en": "Sanitation & waste", "ru": "Санитария и вывоз мусора", "uz": "Sanitariya va chiqindi"},
-        "office": {"en": "District sanitation service (Toza Hudud)", "ru": "Служба санитарной очистки (Toza Hudud)", "uz": "Toza Hudud tuman bo'limi"},
-        "keywords": ["musor", "chiqindi", "мусор", "waste", "trash", "axlat", "tozalash", "уборк"],
-        "priority": "normal",
-    },
-    "dispute": {
-        "label": {"en": "Neighborhood disputes & order", "ru": "Споры и общественный порядок", "uz": "Qo'shnichilik nizolari va tartib"},
-        "office": {"en": "Mahalla reconciliation commission / district police inspector", "ru": "Примирительная комиссия махалли / участковый", "uz": "Mahalla yarashtirish komissiyasi / profilaktika inspektori"},
-        "keywords": ["nizo", "спор", "dispute", "qo'shni", "сосед", "neighbor", "shovqin", "шум", "noise", "janjal", "конфликт"],
-        "priority": "normal",
-    },
-    "business": {
-        "label": {"en": "Business & licensing", "ru": "Бизнес и лицензии", "uz": "Tadbirkorlik va litsenziya"},
-        "office": {"en": "Public service center / soliq.uz / license.gov.uz", "ru": "ЦГУ / soliq.uz / license.gov.uz", "uz": "DXM / soliq.uz / license.gov.uz"},
-        "keywords": ["biznes", "бизнес", "business", "yatt", "ип ", "litsenziya", "лицензи", "license", "tadbirkor", "soliq", "налог", "tax", "do'kon ochish"],
-        "priority": "normal",
-    },
-    "other": {
-        "label": {"en": "Other / general", "ru": "Другое", "uz": "Boshqa / umumiy"},
-        "office": {"en": "District khokimiyat reception (single window)", "ru": "Приёмная хокимията (единое окно)", "uz": "Tuman hokimligi qabulxonasi (yagona darcha)"},
-        "keywords": [],
-        "priority": "normal",
-    },
-}
-
-_URGENT_HINTS = ["favqulodda", "авари", "emergency", "portla", "yong'in", "пожар", "flood", "suv bosdi", "затопил", "gaz hidi", "запах газа", "bolalar xavf", "опасно", "xavfli"]
+from govtech_services import SERVICES, URGENT_HINTS
+from govtech_guides import PROCESS_GUIDES
 
 _CLASSIFY_SYSTEM = """\
 You are a citizen-request intake specialist for a district (tuman) / mahalla
@@ -121,7 +66,7 @@ def _heuristic_classify(text: str, language: str) -> dict[str, Any]:
             best_cat, best_hits = cat, hits
 
     cfg = SERVICES[best_cat]
-    priority = "urgent" if any(h in lower for h in _URGENT_HINTS) else cfg["priority"]
+    priority = "urgent" if any(h in lower for h in URGENT_HINTS) else cfg["priority"]
 
     steps_by_lang = {
         "en": [
@@ -171,118 +116,6 @@ def _live_note(language: str) -> str:
 # Ko'p bosqichli jarayon navigatorlari
 # ------------------------------------------------------------------
 
-PROCESS_GUIDES: dict[str, dict[str, Any]] = {
-    "biometric_passport": {
-        "label": {"en": "Biometric passport / ID card", "ru": "Биометрический паспорт / ID-карта", "uz": "Biometrik pasport / ID-karta"},
-        "keywords": ["passport", "pasport", "паспорт", "id karta", "id card", "id-karta"],
-        "duration": "1-15 ish kuni (tarifga qarab)",
-        "where": "Migratsiya va fuqarolikni rasmiylashtirish bo'limi / DXM; my.gov.uz'da navbat",
-        "steps": [
-            "my.gov.uz yoki DXM orqali navbatga yoziling",
-            "Hujjatlar: eski pasport/metrika, fotosurat joyida olinadi, davlat boji kvitansiyasi",
-            "Biometrik ma'lumot topshirish (barmoq izi, surat) — shaxsan",
-            "Tayyor hujjatni olish (SMS xabar keladi)",
-        ],
-        "documents": ["Eski pasport yoki tug'ilganlik guvohnomasi", "Davlat boji to'lovi kvitansiyasi"],
-        "fee_note": "Boj tarifi muddatga qarab farq qiladi — my.gov.uz'da joriy stavkani tekshiring",
-    },
-    "propiska": {
-        "label": {"en": "Residence registration (propiska)", "ru": "Прописка / регистрация", "uz": "Doimiy/vaqtinchalik ro'yxatga olish (propiska)"},
-        "keywords": ["propiska", "прописк", "ro'yxatga olish", "registration", "yashash joyi"],
-        "duration": "1-3 ish kuni",
-        "where": "DXM / my.gov.uz (elektron), murakkab holatda migratsiya bo'limi",
-        "steps": [
-            "my.gov.uz'da 'yashash joyi bo'yicha ro'yxatga olish' xizmatini oching",
-            "Uy egasining roziligi (elektron imzo yoki shaxsan)",
-            "Hujjat: pasport, uy hujjati (kadastr/order), ariza",
-            "Elektron tasdiqni yuklab oling",
-        ],
-        "documents": ["Pasport/ID", "Uy-joy hujjati", "Uy egasining roziligi"],
-        "fee_note": "Ko'p holatda bepul yoki minimal boj",
-    },
-    "yatt_registration": {
-        "label": {"en": "Individual entrepreneur (YaTT) registration", "ru": "Регистрация ИП (ЯТТ)", "uz": "Yakka tartibdagi tadbirkor (YaTT) ro'yxatdan o'tkazish"},
-        "keywords": ["yatt", "tadbirkor", "ип", "entrepreneur", "biznes ochish", "бизнес открыть", "self-employ"],
-        "duration": "30 daqiqa - 1 kun (elektron)",
-        "where": "soliq.uz / my.gov.uz / DXM",
-        "steps": [
-            "Faoliyat turini (OKED) tanlang",
-            "soliq.uz'da elektron ariza (ERI bilan) yoki DXMga boring",
-            "Davlat boji to'lang (elektron arzonroq)",
-            "Guvohnoma elektron shaklda keladi; soliq rejimini tanlang (aylanma/QQS)",
-        ],
-        "documents": ["Pasport/ID", "ERI (elektron imzo) — tavsiya"],
-        "fee_note": "Boj BHM'ga bog'liq — soliq.uz'da joriy summani tekshiring",
-    },
-    "birth_certificate": {
-        "label": {"en": "Child birth registration", "ru": "Регистрация рождения", "uz": "Tug'ilganlikni ro'yxatga olish (metrika)"},
-        "keywords": ["tug'ilgan", "metrika", "рожден", "birth", "chaqaloq", "новорожден"],
-        "duration": "Tug'ruqxonada yoki FHDYo'da 1 kun",
-        "where": "FHDYo (ZAGS) / ko'p tug'ruqxonalarda joyida",
-        "steps": [
-            "Tug'ruqxona ma'lumotnomasini oling",
-            "Ota-ona pasportlari va nikoh guvohnomasi bilan FHDYo'ga",
-            "Guvohnoma bepul beriladi; my.gov.uz'da ham mavjud",
-        ],
-        "documents": ["Tug'ruqxona ma'lumotnomasi", "Ota-ona pasportlari", "Nikoh guvohnomasi (bo'lsa)"],
-        "fee_note": "Bepul",
-    },
-    "pension": {
-        "label": {"en": "Pension application", "ru": "Оформление пенсии", "uz": "Pensiya rasmiylashtirish"},
-        "keywords": ["pensiya", "пенси", "pension", "nafaqa yoshi"],
-        "duration": "10-15 ish kuni",
-        "where": "Pensiya jamg'armasi tuman bo'limi / my.gov.uz",
-        "steps": [
-            "Yosh/staj shartlarini tekshiring",
-            "Mehnat daftarchasi va ish staji hujjatlarini yig'ing",
-            "Pensiya jamg'armasiga ariza (yoki my.gov.uz)",
-            "Qaror va birinchi to'lov — plastik kartaga",
-        ],
-        "documents": ["Pasport", "Mehnat daftarchasi", "Ish haqi ma'lumotnomasi (kerak bo'lsa)"],
-        "fee_note": "Bepul",
-    },
-    "marriage": {
-        "label": {"en": "Marriage registration", "ru": "Регистрация брака", "uz": "Nikohni ro'yxatga olish"},
-        "keywords": ["nikoh", "брак", "marriage", "to'y", "fhdyo", "загс"],
-        "duration": "Ariza + 1 oy kutish (qisqartirilishi mumkin)",
-        "where": "FHDYo (ZAGS) / my.gov.uz'da ariza",
-        "steps": [
-            "Ikkala tomon pasporti bilan FHDYo'ga ariza (yoki elektron)",
-            "Tibbiy ko'rik ma'lumotnomalari",
-            "Belgilangan sanada ro'yxatdan o'tish",
-        ],
-        "documents": ["Pasportlar", "Tibbiy ko'rik ma'lumotnomasi", "Davlat boji kvitansiyasi"],
-        "fee_note": "Boj minimal — joriy stavkani FHDYo'da tekshiring",
-    },
-    "cadastre": {
-        "label": {"en": "Property cadastre / registration", "ru": "Кадастр недвижимости", "uz": "Ko'chmas mulk kadastri"},
-        "keywords": ["kadastr", "кадастр", "cadastre", "uy hujjat", "mulk", "недвижимост", "yer", "земл"],
-        "duration": "3-10 ish kuni",
-        "where": "Kadastr agentligi tuman bo'limi / my.gov.uz",
-        "steps": [
-            "Mulk hujjatlarini yig'ing (oldi-sotdi, meros, order)",
-            "Kadastr bo'limiga ariza (elektron mumkin)",
-            "Texnik pasport/o'lchov (kerak bo'lsa)",
-            "Kadastr hujjatini oling",
-        ],
-        "documents": ["Pasport", "Mulk asosi hujjati", "Avvalgi kadastr (bo'lsa)"],
-        "fee_note": "Xizmat turiga qarab — my.gov.uz'da kalkulyator bor",
-    },
-    "driving_license": {
-        "label": {"en": "Driving license", "ru": "Водительские права", "uz": "Haydovchilik guvohnomasi"},
-        "keywords": ["prava", "haydovchi", "водительск", "driving", "guvohnoma olish", "avtomaktab"],
-        "duration": "Kurs 2-3 oy + imtihon",
-        "where": "Avtomaktab + YHX imtihon markazi",
-        "steps": [
-            "Litsenziyalangan avtomaktabga yoziling",
-            "Tibbiy ma'lumotnoma oling",
-            "Nazariy va amaliy imtihon (YHX markazida)",
-            "Guvohnoma tayyorlanadi (plastik)",
-        ],
-        "documents": ["Pasport/ID", "Tibbiy ma'lumotnoma", "Avtomaktab sertifikati"],
-        "fee_note": "Avtomaktab narxi + davlat boji",
-    },
-}
 
 _GUIDE_SYSTEM = """\
 You are a government-service navigator for Uzbekistan. The user asks about a
