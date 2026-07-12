@@ -48,7 +48,6 @@ export default function RetailPage() {
   const api = useApiClient();
   const qc = useQueryClient();
   const { t, locale } = useT();
-  const [saleSku, setSaleSku] = useState("");
   const [visionType, setVisionType] = useState("shelf_empty");
   const [visionSku, setVisionSku] = useState("");
   const [cameraId, setCameraId] = useState("cam-1");

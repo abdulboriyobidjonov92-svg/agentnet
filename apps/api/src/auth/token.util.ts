@@ -30,7 +30,6 @@ function secret(): string {
   const g = globalThis as unknown as { __agentnetJwtFallback?: string };
   if (!g.__agentnetJwtFallback) {
     g.__agentnetJwtFallback = crypto.randomBytes(48).toString('hex');
-    // eslint-disable-next-line no-console
     console.warn(
       "[auth] AUTH_JWT_SECRET o'rnatilmagan — vaqtinchalik tasodifiy kalit ishlatilmoqda " +
         "(restartda barcha tokenlar bekor bo'ladi). Prod uchun .env ga AUTH_JWT_SECRET qo'ying.",

@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
         profession: body.profession ?? "",
       }),
     });
-  } catch (e: any) {
+  } catch {
     // Xizmat ko'rsatilmadi — to'langan pulni qaytaramiz
     fetch(`${apiUrl}/api/billing/refund`, {
       method: "POST",
