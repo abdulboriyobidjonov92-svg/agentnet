@@ -2,7 +2,6 @@
 Moliya vositalari — bank tranzaksiyalari va riba tahlili.
 """
 import os
-from datetime import datetime, timedelta
 
 # Sandbox/test tranzaksiyalar — haqiqiy bank API ulanganda almashtiriladi
 SAMPLE_TRANSACTIONS = [

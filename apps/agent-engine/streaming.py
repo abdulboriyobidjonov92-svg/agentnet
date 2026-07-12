@@ -16,7 +16,6 @@ from halal_filter import HalalFilter, Action
 
 import compliance_packs
 import knowledge_sync
-from agent_engine import registry
 from tools.islam_tools import prayer_times, quran_surah
 from tools.utility_tools import weather, currency_rates
 
