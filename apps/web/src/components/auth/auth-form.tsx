@@ -2,36 +2,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, ArrowRight, ArrowLeft, Mail, Phone, ShieldCheck } from "lucide-react";
 import { setClientSession } from "@/lib/session";
 import { useT } from "@/lib/i18n/client";
+import { IdentifyStep } from "./identify-step";
+import { CodeStep } from "./code-step";
+import { TwoFaStep } from "./two-fa-step";
+import { DIAL_CODE, RESEND_COOLDOWN_SEC, formatUzPhone, type Method, type Step } from "./auth-form-utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
-
-type Method = "email" | "phone";
-type Step = "identify" | "code" | "twofa";
-
-// O'zbekiston raqami: +998 prefiks + 9 ta raqam ("90 123 45 67" ko'rinishida)
-const DIAL_CODE = "+998";
-const formatUzPhone = (digits: string): string => {
-  const d = digits.slice(0, 9);
-  const parts = [d.slice(0, 2), d.slice(2, 5), d.slice(5, 7), d.slice(7, 9)].filter(Boolean);
-  return parts.join(" ");
-};
-
-const RESEND_COOLDOWN_SEC = 60;
-
-// Google'ning rasmiy 4-rangli "G" belgisi (brend aktivi — monoxrom istisno)
-function GoogleGlyph() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] opacity-50" aria-hidden>
-      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.76h3.56c2.08-1.92 3.28-4.74 3.28-8.09Z" />
-      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.56-2.76c-.98.66-2.23 1.06-3.72 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z" />
-      <path fill="#FBBC05" d="M5.84 14.11a6.6 6.6 0 0 1 0-4.22V7.05H2.18a11 11 0 0 0 0 9.9l3.66-2.84Z" />
-      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.05l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z" />
-    </svg>
-  );
-}
 
 export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const router = useRouter();
@@ -176,11 +154,6 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     setCode("");
   };
 
-  const inputCls =
-    "w-full rounded-lg border border-border bg-surface-2 px-3.5 py-3 text-[15px] text-foreground placeholder:text-muted-foreground/60 outline-none transition-colors";
-  const codeInputCls =
-    "nums w-full rounded-lg border border-border bg-surface-2 px-3.5 py-3 text-center text-[22px] font-semibold tracking-[0.4em] text-foreground placeholder:text-muted-foreground/40 outline-none transition-colors";
-
   return (
     <div className="w-full animate-in-up">
       {/* Editorial sarlavha — oversized, chapga tekislangan */}
@@ -216,196 +189,40 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
       )}
 
       {step === "identify" && (
-        <form onSubmit={submitIdentify}>
-          {/* Google — hozircha nofaol, chalg'ituvchi soxta OAuth o'rniga halol holat */}
-          <button
-            type="button"
-            disabled
-            title={t("auth.googleSoonHint")}
-            className="flex w-full cursor-not-allowed items-center justify-center gap-2.5 rounded-lg border border-border bg-surface-1 px-4 py-3 text-sm font-medium text-muted-foreground opacity-60"
-          >
-            <GoogleGlyph />
-            {t("auth.googleSoon")}
-          </button>
-
-          <div className="my-5 flex items-center gap-3">
-            <span className="h-px flex-1 bg-border" />
-            <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/70">
-              {t("auth.or")}
-            </span>
-            <span className="h-px flex-1 bg-border" />
-          </div>
-
-          {/* Segmented control — Email / Telefon (Filament active) */}
-          <div className="mb-5 grid grid-cols-2 gap-1 rounded-xl border border-border bg-surface-2 p-1">
-            {([
-              { k: "email" as Method, icon: Mail, label: t("auth.methodEmail") },
-              { k: "phone" as Method, icon: Phone, label: t("auth.methodPhone") },
-            ]).map(({ k, icon: Icon, label }) => {
-              const active = method === k;
-              return (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => {
-                    setMethod(k);
-                    setError("");
-                  }}
-                  aria-pressed={active}
-                  className={`relative flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                    active
-                      ? "bg-surface-1 text-foreground shadow-soft"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  {label}
-                  {active && <span className="absolute inset-x-3 -bottom-px h-px bg-line" />}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="space-y-4">
-            {isSignUp && (
-              <label className="filament block">
-                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("auth.name")}</span>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder={t("auth.namePlaceholder")}
-                  className={inputCls}
-                />
-              </label>
-            )}
-
-            {method === "email" ? (
-              <label className="filament block">
-                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("auth.email")}</span>
-                <input
-                  required
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder={t("auth.emailPlaceholder")}
-                  className={inputCls}
-                />
-              </label>
-            ) : (
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("auth.phone")}</span>
-                <div className="filament flex items-stretch overflow-hidden rounded-lg border border-border bg-surface-2 focus-within:border-[hsl(var(--accent-line)/0.75)]">
-                  <span className="flex select-none items-center gap-2 border-r border-border bg-surface-3 px-3.5">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">UZ</span>
-                    <span className="nums text-[15px] font-medium tracking-tight text-foreground">{DIAL_CODE}</span>
-                  </span>
-                  <input
-                    required
-                    type="tel"
-                    inputMode="numeric"
-                    autoComplete="tel-national"
-                    value={formatUzPhone(phoneDigits)}
-                    onChange={(e) => setPhoneDigits(e.target.value.replace(/\D/g, "").slice(0, 9))}
-                    placeholder={t("auth.phonePlaceholder")}
-                    className="nums w-full bg-transparent px-3.5 py-3 text-[15px] tracking-wide text-foreground placeholder:text-muted-foreground/60 outline-none"
-                  />
-                </div>
-                {phoneDigits.length > 0 && !phoneValid && (
-                  <span className="mt-1.5 block text-xs text-muted-foreground/70">{t("auth.phoneInvalid")}</span>
-                )}
-              </label>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            disabled={busy || !canSubmitIdentify}
-            className="group mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:opacity-90 disabled:opacity-40"
-          >
-            {busy ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <>
-                {t("auth.sendCodeBtn")}
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-              </>
-            )}
-          </button>
-        </form>
+        <IdentifyStep
+          isSignUp={isSignUp}
+          method={method}
+          onMethodChange={(m) => {
+            setMethod(m);
+            setError("");
+          }}
+          name={name}
+          setName={setName}
+          email={email}
+          setEmail={setEmail}
+          phoneDigits={phoneDigits}
+          setPhoneDigits={setPhoneDigits}
+          phoneValid={phoneValid}
+          canSubmitIdentify={canSubmitIdentify}
+          busy={busy}
+          onSubmit={submitIdentify}
+        />
       )}
 
       {step === "code" && (
-        <form onSubmit={submitCode}>
-          <label className="filament block">
-            <span className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("auth.otpCodeLabel")}</span>
-            <input
-              required
-              autoFocus
-              inputMode="numeric"
-              maxLength={6}
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              placeholder={t("auth.otpCodePlaceholder")}
-              className={codeInputCls}
-            />
-          </label>
-
-          <button
-            type="submit"
-            disabled={busy || code.length !== 6}
-            className="group mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:opacity-90 disabled:opacity-40"
-          >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("auth.otpVerifyBtn")}
-          </button>
-
-          <div className="mt-4 flex items-center justify-between text-sm">
-            <button
-              type="button"
-              onClick={goBack}
-              className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              {t("auth.otpBack")}
-            </button>
-            <button
-              type="button"
-              disabled={cooldown > 0 || busy}
-              onClick={requestCode}
-              className="text-muted-foreground hover:text-foreground disabled:opacity-40"
-            >
-              {cooldown > 0 ? `${t("auth.otpResend")} (${cooldown}s)` : t("auth.otpResend")}
-            </button>
-          </div>
-        </form>
+        <CodeStep
+          code={code}
+          setCode={setCode}
+          busy={busy}
+          cooldown={cooldown}
+          onSubmit={submitCode}
+          onBack={goBack}
+          onResend={requestCode}
+        />
       )}
 
       {step === "twofa" && (
-        <form onSubmit={submitTwoFa}>
-          <label className="filament block">
-            <span className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              {t("auth.twoFaLabel")}
-            </span>
-            <input
-              required
-              autoFocus
-              inputMode="numeric"
-              maxLength={6}
-              value={twoFaCode}
-              onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              placeholder={t("auth.twoFaPlaceholder")}
-              className={codeInputCls}
-            />
-          </label>
-
-          <button
-            type="submit"
-            disabled={busy || twoFaCode.length !== 6}
-            className="group mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:opacity-90 disabled:opacity-40"
-          >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("auth.twoFaVerifyBtn")}
-          </button>
-        </form>
+        <TwoFaStep twoFaCode={twoFaCode} setTwoFaCode={setTwoFaCode} busy={busy} onSubmit={submitTwoFa} />
       )}
 
       <p className="mt-8 text-sm text-muted-foreground">
