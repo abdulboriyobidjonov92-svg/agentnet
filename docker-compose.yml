@@ -1,8 +1,12 @@
 version: "3.9"
 
-# Lokal ishlab chiqish uchun Docker Compose
-# Faqat infra xizmatlari: Postgres + Redis
-# Next.js va NestJS lokal npm run dev orqali ishga tushiriladi.
+# Lokal ishlab chiqish uchun Docker Compose — faqat Postgres.
+# Next.js va NestJS lokal `npm run dev` orqali ishga tushiriladi.
+#
+# Eslatma: ilgari bu yerda Redis xizmati bor edi, lekin kodning HECH BIR joyida
+# Redis ishlatilmaydi (ThrottlerModule in-memory, render ham Redis provision
+# qilmaydi). Chalkashlik bo'lmasligi uchun "fantom" Redis olib tashlandi. Agar
+# kelajakda taqsimlangan rate-limit/kesh kerak bo'lsa, o'shanda qo'shiladi.
 
 services:
   postgres:
@@ -23,21 +27,6 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    container_name: agentnet_redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-
   # opsional: lokal agent-engine'ni ham konteynerda ishlatish uchun
   agent-engine:
     build:
@@ -49,19 +38,15 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://agentnet:password@postgres:5432/agentnet_dev
-      - REDIS_URL=redis://redis:6379
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     profiles:
       - full  # faqat: docker compose --profile full up
 
 volumes:
   postgres_data:
-  redis_data:
 
 networks:
   default:

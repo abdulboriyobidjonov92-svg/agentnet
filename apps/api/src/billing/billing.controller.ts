@@ -16,6 +16,7 @@ class TopupDto {
 
 class RefundDto {
   reason: string;
+  idempotencyKey?: string;
 }
 
 @ApiTags('billing')
@@ -77,7 +78,7 @@ export class BillingController {
   @ApiBearerAuth()
   @UseGuards(ClerkGuard, InternalTokenGuard)
   refund(@CurrentUser() user: User, @Body() dto: RefundDto) {
-    return this.billing.refund(user, dto.reason);
+    return this.billing.refund(user, dto.reason, dto.idempotencyKey);
   }
 
   /** Balansni to'ldirish — foydalanuvchi checkout'da Payme yoki Click'ni tanlaydi. */

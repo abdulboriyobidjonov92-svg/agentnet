@@ -3,14 +3,19 @@ import { BillingService } from './billing.service';
 import type { User } from '@prisma/client';
 
 function makeMock() {
-  return {
+  const prisma: any = {
     user: {
       updateMany: jest.fn(),
       findUniqueOrThrow: jest.fn(),
       update: jest.fn(),
     },
-    creditLedger: { create: jest.fn(async (a: any) => ({ id: 'ledger1', ...a.data })) },
+    creditLedger: {
+      create: jest.fn(async (a: any) => ({ id: 'ledger1', ...a.data })),
+      findUnique: jest.fn(async () => null),
+    },
   };
+  prisma.$transaction = jest.fn(async (fn: any) => fn(prisma));
+  return prisma;
 }
 
 function makeProviderMock(providerId: 'payme' | 'click') {
@@ -117,5 +122,33 @@ describe('BillingService.createTopupReceipt (Payme yoki Click orasida marshrutla
     expect(click.createTopupReceipt).toHaveBeenCalledWith(user, 5000);
     expect(payme.createTopupReceipt).not.toHaveBeenCalled();
     expect(res.provider).toBe('click');
+  });
+});
+
+describe('BillingService.refund (L12 — idempotent)', () => {
+  it('bir xil idempotencyKey bilan mavjud refund bo\'lsa -> yangi kreditlanmaydi (mavjud qaytadi)', async () => {
+    const prisma = makeMock();
+    prisma.creditLedger.findUnique.mockResolvedValue({ id: 'existing-refund', kind: 'refund' });
+    const svc = new BillingService(prisma as any, {} as any, {} as any);
+
+    const res = await svc.refund(user, 'stream_failed', 'req-key-1');
+
+    expect(res).toEqual(expect.objectContaining({ id: 'existing-refund' }));
+    expect(prisma.user.update).not.toHaveBeenCalled(); // balans OSHIRILMAYDI (double-credit yo'q)
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('yangi kalit bilan -> balans oshadi va refund yozuvi idempotencyKey bilan yoziladi', async () => {
+    const prisma = makeMock();
+    prisma.creditLedger.findUnique.mockResolvedValue(null);
+    prisma.user.update.mockResolvedValue({ balanceTiyin: 150_000 });
+    const svc = new BillingService(prisma as any, {} as any, {} as any);
+
+    await svc.refund(user, 'engine_error', 'req-key-2');
+
+    expect(prisma.user.update).toHaveBeenCalled(); // balans oshdi
+    expect(prisma.creditLedger.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ kind: 'refund', idempotencyKey: 'req-key-2' }) }),
+    );
   });
 });

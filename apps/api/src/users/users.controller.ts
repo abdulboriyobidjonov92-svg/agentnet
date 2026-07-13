@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Delete, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { ClerkGuard } from '../auth/clerk.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -25,6 +25,20 @@ export class UsersController {
   @Get('me/stats')
   getStats(@CurrentUser() user: User) {
     return this.users.getStats(user.id);
+  }
+
+  // ---- GDPR: ma'lumot eksporti va hisobni o'chirish (L13) ----
+
+  /** Foydalanuvchining barcha ma'lumotlarini JSON'da qaytaradi (sirlarsiz). */
+  @Get('me/export')
+  exportData(@CurrentUser() user: User) {
+    return this.users.exportData(user.id);
+  }
+
+  /** Hisobni va unga bog'liq barcha ma'lumotlarni butunlay o'chiradi. */
+  @Delete('me')
+  deleteAccount(@CurrentUser() user: User) {
+    return this.users.deleteAccount(user.id);
   }
 
   @Patch('me')

@@ -9,6 +9,16 @@
 # Cross-servis URL'lari Render'ning barqaror naqshidan foydalanadi:
 #   https://<service-name>.onrender.com
 # Agar servis nomlarini o'zgartirsangiz, quyidagi URL'larni ham yangilang.
+#
+# ⚠️ FREE-PLAN OGOHLANTIRISHI (H4) — hozir hamma servis `plan: free`:
+#   • Free Postgres ~90 KUNDAN keyin O'CHIRILADI (ma'lumot yo'qoladi). Jonli
+#     foydalanuvchilar oldidan `plan: starter`ga o'ting YOKI muntazam backup oling.
+#   • Web servislar harakatsizlikda spin-down bo'ladi -> birinchi so'rov 30-60s
+#     sovuq start; cron'lar (brifing/agent-billing) o'tkazib yuborilishi mumkin.
+#   • Free RAM 512MB. Engine'ning og'ir CV-kutubxonalari (torch) endi bazaviy
+#     o'rnatishdan chiqarilgan (requirements-camera.txt) — OOM xavfi kamaydi.
+#   Bularni to'liq bartaraf etish PULLIK planga o'tishni talab qiladi (sizning
+#   qaroringiz) — shuning uchun bu yerda `free` avtomatik o'zgartirilmadi.
 databases:
   - name: agentnet-db
     plan: free

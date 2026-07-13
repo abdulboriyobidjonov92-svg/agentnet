@@ -17,6 +17,18 @@ export async function POST(req: NextRequest) {
   if (!session.token) return new Response("Unauthorized", { status: 401 });
   const authHeader = `Bearer ${session.token}`;
 
+  // Refund idempotency (L12): shu so'rov uchun BITTA kalit. Barcha refund-yo'llari
+  // (limit/engine-uzilishi/oqim-xatosi) shu kalit bilan chaqiriladi — bir necha
+  // yo'l yoki qayta urinish bo'lsa ham balans FAQAT BIR MARTA qaytariladi.
+  const refundKey = crypto.randomUUID();
+  const postRefund = (reason: string) => {
+    fetch(`${apiUrl}/api/billing/refund`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: authHeader, "x-internal-token": internalToken },
+      body: JSON.stringify({ reason, idempotencyKey: refundKey }),
+    }).catch(() => {});
+  };
+
   // Rate limit / xarajat himoyasi — LLM'ga o'tishdan OLDIN kunlik+global limitni
   // NestJS'da tekshiramiz va hisoblaymiz. 429 bo'lsa oqim boshlanmaydi.
   // TARTIB (M6): avval PUL, keyin RATE-LIMIT. Ilgari `consume-chat` (kunlik+global
@@ -70,11 +82,7 @@ export async function POST(req: NextRequest) {
     });
     if (limitRes.status === 429) {
       const info = await limitRes.json().catch(() => ({}));
-      fetch(`${apiUrl}/api/billing/refund`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: authHeader, "x-internal-token": internalToken },
-        body: JSON.stringify({ reason: "rate_limited" }),
-      }).catch(() => {});
+      postRefund("rate_limited");
       return new Response(
         `data: ${JSON.stringify({ type: "rate_limit", message: info.message ?? "Limitga yetdingiz", reason: info.reason })}\n\n` +
           `data: ${JSON.stringify({ type: "done", demo_mode: false })}\n\n`,
@@ -107,11 +115,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (e: any) {
     // Xizmat ko'rsatilmadi — to'langan pulni qaytaramiz
-    fetch(`${apiUrl}/api/billing/refund`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: authHeader, "x-internal-token": internalToken },
-      body: JSON.stringify({ reason: "engine_unreachable" }),
-    }).catch(() => {});
+    postRefund("engine_unreachable");
     return new Response(
       `data: ${JSON.stringify({ type: "error", message: "Agent engine bilan aloqa yo'q" })}\n\n`,
       { status: 503, headers: { "Content-Type": "text/event-stream" } },
@@ -119,18 +123,36 @@ export async function POST(req: NextRequest) {
   }
 
   if (!upstream.ok || !upstream.body) {
-    fetch(`${apiUrl}/api/billing/refund`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: authHeader, "x-internal-token": internalToken },
-      body: JSON.stringify({ reason: "engine_error" }),
-    }).catch(() => {});
+    postRefund("engine_error");
     return new Response(
       `data: ${JSON.stringify({ type: "error", message: "Agent engine xatosi" })}\n\n`,
       { status: 500, headers: { "Content-Type": "text/event-stream" } },
     );
   }
 
-  return new Response(upstream.body, {
+  // L11: OQIM O'RTASIDA uzilish/xato — pulni qaytarish. Charge muvaffaqiyatli
+  // bo'lib, engine 200 bilan javob berib, keyin oqim O'RTASIDA yiqilsa (yoki
+  // `type:"error"` event yuborsa yoki `type:"done"`siz uzilsa) foydalanuvchi
+  // buzuq/qisman javob uchun pul to'lagan bo'lardi. Oqimni kuzatib, shunday
+  // holatda refund qilamiz (idempotency kaliti bilan — double-credit bo'lmaydi).
+  const decoder = new TextDecoder();
+  let tail = "";
+  let sawError = false;
+  let sawDone = false;
+  const monitor = new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      controller.enqueue(chunk); // mijozga o'zgarishsiz uzatamiz
+      tail = (tail + decoder.decode(chunk, { stream: true })).slice(-1024); // chunk-chegarasi bo'linishi uchun oyna
+      if (/"type"\s*:\s*"error"/.test(tail)) sawError = true;
+      if (/"type"\s*:\s*"done"/.test(tail)) sawDone = true;
+    },
+    flush() {
+      // Xato-event ko'rildi YOKI oqim `done`siz tugadi (erta uzilish) -> refund.
+      if (sawError || !sawDone) postRefund("stream_failed");
+    },
+  });
+
+  return new Response(upstream.body.pipeThrough(monitor), {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",

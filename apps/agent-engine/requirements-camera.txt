@@ -1,0 +1,16 @@
+# Kamera monitoring (S4 — RTSP -> YOLO+ByteTrack -> Claude Vision) uchun QO'SHIMCHA
+# og'ir kutubxonalar. BAZAVIY requirements.txt'ga kirmaydi (render free-plan 512MB
+# da torch OOM beradi, kamera esa ixtiyoriy/pauzada). Haqiqiy IP-kamera qo'shilganda:
+#
+#     pip install -r requirements.txt -r requirements-camera.txt
+#
+# main.py camera_router'ni himoyalangan import qiladi (M5) — bu paketlarsiz engine
+# baribir to'liq ishga tushadi, faqat /camera/* endpointlari o'chadi.
+#
+# Versiyalar Python 3.12 (prod Dockerfile) da mavjud numpy==2.2.1/pillow==11.1.0
+# pinlari bilan ziddiyatsiz o'rnatilishi tekshirilgan.
+opencv-python==5.0.0.93
+onvif-zeep==0.2.12
+ultralytics==8.4.92
+torch==2.13.0
+torchvision==0.28.0

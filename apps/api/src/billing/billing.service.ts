@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PaymeService } from './payme.service';
 import { ClickService } from './click.service';
 import type { PaymentProviderService } from './payment-provider.interface';
-import type { User } from '@prisma/client';
+import { Prisma, type User } from '@prisma/client';
 
 /**
  * Prepaid billing — foydalanuvchi o'zi uchun to'laydi, platforma emas.
@@ -150,23 +150,48 @@ export class BillingService {
     });
   }
 
-  /** Xarajat muvaffaqiyatsiz bo'lsa (masalan engine xatosi) — pulni qaytarish. */
-  async refund(user: User, reason: string) {
+  /**
+   * Xarajat muvaffaqiyatsiz bo'lsa (engine xatosi/limit/oqim uzilishi) — pulni
+   * qaytarish. `idempotencyKey` (L12) — berilsa, bir xil kalit bilan takror
+   * chaqiruv IKKINCHI marta kreditlamaydi (mavjud yozuvni qaytaradi). BFF har
+   * so'rovga bitta kalit beradi, shuning uchun bir necha refund-yo'li yoki qayta
+   * urinish bo'lsa ham balans faqat BIR MARTA oshadi. Balans-oshirish va ledger
+   * yozuvi bitta $transaction'da — P2002 (parallel bir xil kalit) da rollback.
+   */
+  async refund(user: User, reason: string, idempotencyKey?: string) {
     const amount = this.pricePerMessageTiyin;
-    const fresh = await this.prisma.user.update({
-      where: { id: user.id },
-      data: { balanceTiyin: { increment: amount } },
-      select: { balanceTiyin: true },
-    });
-    return this.prisma.creditLedger.create({
-      data: {
-        userId: user.id,
-        kind: 'refund',
-        amount,
-        balanceAfter: fresh.balanceTiyin,
-        meta: { reason },
-      },
-    });
+
+    if (idempotencyKey) {
+      const existing = await this.prisma.creditLedger.findUnique({ where: { idempotencyKey } });
+      if (existing) return existing;
+    }
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const fresh = await tx.user.update({
+          where: { id: user.id },
+          data: { balanceTiyin: { increment: amount } },
+          select: { balanceTiyin: true },
+        });
+        return tx.creditLedger.create({
+          data: {
+            userId: user.id,
+            kind: 'refund',
+            amount,
+            balanceAfter: fresh.balanceTiyin,
+            meta: { reason },
+            idempotencyKey: idempotencyKey ?? undefined,
+          },
+        });
+      });
+    } catch (e) {
+      // Parallel refund bir xil kalit bilan ulgurdi — o'sha yozuvni qaytaramiz (double-credit yo'q).
+      if (idempotencyKey && e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        const winner = await this.prisma.creditLedger.findUnique({ where: { idempotencyKey } });
+        if (winner) return winner;
+      }
+      throw e;
+    }
   }
 
   /** Balansni to'ldirish havolasi — foydalanuvchi Payme yoki Click'ni tanlaydi. */

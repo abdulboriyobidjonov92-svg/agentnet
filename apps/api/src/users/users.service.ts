@@ -64,4 +64,49 @@ export class UsersService {
     ]);
     return { agentCount, conversationCount };
   }
+
+  /**
+   * GDPR — foydalanuvchining barcha ma'lumotlarini eksport qiladi (L13).
+   * Sirlar (2FA sirlari, shifrlangan konnektor tokenlari) EKSPORT QILINMAYDI —
+   * faqat metama'lumot. Foydalanuvchi o'z ma'lumotini olib chiqish huquqiga ega.
+   */
+  async exportData(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Foydalanuvchi topilmadi');
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { twoFactorSecret, twoFactorSecretPending, ...safeUser } = user;
+
+    const [agents, conversations, creditLedger, connectors, feedback, usage] = await Promise.all([
+      this.prisma.agent.findMany({ where: { userId } }),
+      this.prisma.conversation.findMany({ where: { userId } }),
+      this.prisma.creditLedger.findMany({ where: { userId }, orderBy: { createdAt: 'asc' } }),
+      // Konnektor SIRLARI (shifrlangan `config`) eksport qilinmaydi — faqat metama'lumot.
+      this.prisma.connectorConfig.findMany({
+        where: { userId },
+        select: { connectorId: true, label: true, status: true, createdAt: true, lastUsedAt: true },
+      }),
+      this.prisma.feedback.findMany({ where: { userId } }),
+      this.prisma.usageCounter.findMany({ where: { userId } }),
+    ]);
+
+    return { exportedAt: new Date().toISOString(), user: safeUser, agents, conversations, creditLedger, connectors, feedback, usage };
+  }
+
+  /**
+   * GDPR — hisobni va unga bog'liq barcha ma'lumotlarni butunlay o'chiradi (L13).
+   * Uch bog'lanish (Agent.user, Conversation.user, AuditLog.actor) onDelete:Cascade
+   * EMAS (Restrict) — ular `user.delete`ni bloklaydi. Shuning uchun avval ularni
+   * ochiq o'chiramiz, keyin `user.delete` qolgan ~25 Cascade bog'lanishni (kredit
+   * daftari, konnektorlar, hisoblagichlar, to'lovlar...) avtomatik tozalaydi.
+   * Hammasi bitta $transaction'da — yarim-o'chirilgan holat qolmaydi.
+   */
+  async deleteAccount(userId: string) {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.auditLog.deleteMany({ where: { actorId: userId } });
+      await tx.conversation.deleteMany({ where: { userId } });
+      await tx.agent.deleteMany({ where: { userId } });
+      await tx.user.delete({ where: { id: userId } });
+    });
+    return { deleted: true };
+  }
 }
