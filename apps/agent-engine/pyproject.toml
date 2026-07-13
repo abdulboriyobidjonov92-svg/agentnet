@@ -15,8 +15,16 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
+# E501 (satr uzunligi) — sof uslubiy. Mavjud kod bazasida ~500 uzun satr bor;
+# ommaviy qayta-formatlash xavfli va foydasiz. Muhim tekshiruvlar (F = pyflakes:
+# ishlatilmagan/aniqlanmagan nomlar; I = import tartibi) kuchda qoladi.
+ignore = ["E501"]
 
 [tool.mypy]
-python_version = "3.11"
+# Prod Dockerfile python:3.12-slim'da ishlaydi — mypy maqsadi ham 3.12 (ilgari
+# 3.11 edi, prod bilan nomuvofiq). 3.12 semantikasi zamonaviy uchinchi-tomon
+# .pyi stublarini (PEP 695 `type`) ham to'g'ri o'qiydi; loyiha kodi 3.11/3.12
+# ikkalasiga ham mos.
+python_version = "3.12"
 strict = false
 ignore_missing_imports = true

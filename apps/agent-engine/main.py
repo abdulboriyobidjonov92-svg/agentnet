@@ -17,7 +17,6 @@ import agent_composer
 import agentos as agentos_engine
 import automation_planner
 import business_ops
-import camera_router
 import compliance_packs
 import ethics as ethics_engine
 import fusion as fusion_engine
@@ -33,15 +32,15 @@ from agent_engine import AgentDefinition, AgentEngine, registry
 from halal_filter import Action, HalalFilter
 from role_detection import detect_role, domain_profile, domains_summary
 from streaming import stream_agent_response
+from tools.automation_tools import connector_invoke, web_automate
+from tools.calendar_tools import get_events
+from tools.finance_tools import get_transactions
+from tools.health_tools import calorie_estimate, symptom_check
 
 # Tool larni register qilish
 from tools.islam_tools import prayer_times, quran_surah
-from tools.health_tools import symptom_check, calorie_estimate
-from tools.finance_tools import get_transactions
-from tools.calendar_tools import get_events
 from tools.messaging_tools import telegram_send
-from tools.utility_tools import weather, currency_rates
-from tools.automation_tools import connector_invoke, web_automate
+from tools.utility_tools import currency_rates, weather
 
 halal_filter = HalalFilter()
 
@@ -49,7 +48,6 @@ halal_filter = HalalFilter()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Async tool wrapper
-    import inspect
 
     def make_sync_wrapper(async_fn):
         def wrapper(config: dict) -> Any:
@@ -149,8 +147,19 @@ async def internal_token_guard(request: Request, call_next):
 
 
 # S4 qo'shimcha: haqiqiy IP-kamera monitoring (RTSP -> YOLO -> Claude Vision).
-# Ilgari camera_service.py yozilgan-u hech qayerga ulanmagan edi.
-app.include_router(camera_router.router)
+# MUHIM (M5): camera_router og'ir CV-kutubxonalarni (cv2/torch/ultralytics/onvif)
+# import qiladi. Ilgari bu top-level `import camera_router` edi — shu paketlardan
+# BIRORTASI o'rnatilmagan/buzilgan bo'lsa BUTUN engine ishga tushmasdi (barcha
+# chat o'lardi), garchi kameradan deyarli hech kim foydalanmasa ham. Endi import
+# himoyalangan: CV-stack bo'lmasa faqat /camera/* endpointlari o'chadi, engine
+# (chat, halal, intellekt modullari) baribir to'liq ishga tushadi.
+try:
+    import camera_router
+
+    app.include_router(camera_router.router)
+    print("Kamera monitoring endpointlari ulandi (/camera/*)")
+except Exception as exc:  # ImportError yoki CV-init xatosi
+    print(f"Kamera moduli o'chirilgan (CV kutubxonalari yo'q/buzilgan): {exc}")
 
 
 # ----------------------------------------------------------------

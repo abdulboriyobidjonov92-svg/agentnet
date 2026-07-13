@@ -98,7 +98,7 @@ def _render_context(goal: str, page_state: dict[str, Any] | None, history: list[
         f"title: {state.get('title', '')}\n"
         f"text excerpt: {str(state.get('text', ''))[:1500]}\n\n"
         f"INTERACTIVE ELEMENTS:\n" + ("\n".join(el_lines) or "(none)") + "\n\n"
-        f"HISTORY:\n" + ("\n".join(hist_lines) or "(first step)")
+        "HISTORY:\n" + ("\n".join(hist_lines) or "(first step)")
     )
 
 

@@ -12,13 +12,12 @@ import re
 from typing import AsyncIterator
 
 from anthropic import AsyncAnthropic
-from halal_filter import HalalFilter, Action
 
 import compliance_packs
 import knowledge_sync
-from agent_engine import registry
+from halal_filter import Action, HalalFilter
 from tools.islam_tools import prayer_times, quran_surah
-from tools.utility_tools import weather, currency_rates
+from tools.utility_tools import currency_rates, weather
 
 _anthropic = AsyncAnthropic()
 _halal = HalalFilter()

@@ -2,8 +2,8 @@
 Sog'liq vositalari — LLM asosida triage va kaloriya hisoblash.
 MUHIM: Bu vositalar tibbiy maslahat EMAS. Faqat ma'lumot beradi.
 """
-import base64
 import json
+
 from anthropic import AsyncAnthropic
 
 _client = AsyncAnthropic()

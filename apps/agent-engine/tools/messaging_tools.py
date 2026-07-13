@@ -1,5 +1,6 @@
 """Telegram xabar yuborish vositasi."""
 import os
+
 import httpx
 
 

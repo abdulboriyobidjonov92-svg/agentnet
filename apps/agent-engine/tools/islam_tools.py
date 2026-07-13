@@ -1,8 +1,9 @@
 """
 Islomiy vositalar — Aladhan API va AlQuran.cloud (API kaliti shart emas)
 """
-import httpx
 from datetime import date
+
+import httpx
 
 
 async def prayer_times(city: str = "Tashkent", country: str = "UZ", method: int = 2) -> dict:

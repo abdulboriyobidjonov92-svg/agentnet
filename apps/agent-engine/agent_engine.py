@@ -16,6 +16,7 @@ Talab qilinadigan paketlar:
 from __future__ import annotations
 
 import operator
+import os
 import uuid
 from typing import Annotated, Any, Callable, TypedDict
 
@@ -25,7 +26,7 @@ from pydantic import BaseModel, Field
 # Streaming yo'li (streaming.py) bularni ishlatmaydi, shuning uchun lazy import.
 try:
     from langchain_anthropic import ChatAnthropic  # noqa: F401
-    from langgraph.graph import StateGraph, END  # noqa: F401
+    from langgraph.graph import END, StateGraph  # noqa: F401
     _LANGGRAPH_AVAILABLE = True
 except ImportError:
     _LANGGRAPH_AVAILABLE = False
@@ -62,8 +63,6 @@ class AgentDefinition(BaseModel):
 
 # Xarajat himoyasi: bitta so'rov ichida reason→tool→reason sikli necha marta
 # aylanishi mumkin. Cheksiz loop = kutilmagan katta LLM hisobi. Env orqali sozlanadi.
-import os
-
 MAX_TOOL_ITERATIONS = int(os.getenv("AGENT_MAX_TOOL_ITERATIONS", "8"))
 
 
