@@ -220,7 +220,7 @@ async def llm_layer(
             layer="keyword-fallback",
         )
 
-    raw = response.content[0].text
+    raw = getattr(response.content[0], "text", "")
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError:

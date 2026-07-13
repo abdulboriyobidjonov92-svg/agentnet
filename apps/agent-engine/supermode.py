@@ -205,7 +205,7 @@ async def run(
     verdict_counts: dict[str, int] = {}
     for r in ethics_results:
         verdict_counts[r["verdict"]] = verdict_counts.get(r["verdict"], 0) + 1
-    report = T["report"].format(
+    report = T["report"].format(  # type: ignore[attr-defined]
         blocks=len(plan["blocks"]),
         deliverables=len(deliverables),
         ethics=len(ethics_results),

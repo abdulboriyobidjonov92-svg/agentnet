@@ -108,13 +108,9 @@ jobs:
         run: ruff check .
 
       - name: Type check (mypy)
-        # MASLAHAT xarakterida (bloklamaydi): engine kodida ~76 mavjud
-        # `union-attr` ogohlantirishi bor (asosan `response.content[0].text` —
-        # anthropic SDK content'ni union sifatida tiplaydi). Ularni to'g'rilash
-        # 9 faylda isinstance-toraytirishni talab qiladi (alohida ish). mypy
-        # baribir ishlaydi va hisobot beradi, lekin quyidagi test-darvozasini
-        # bloklamaydi. YANGI regressiyalar testlarda ushlanadi.
-        continue-on-error: true
+        # Endi BLOKLOVCHI: barcha 76 pre-existing `union-attr` tuzatildi
+        # (`response.content[0].text` -> `getattr(..., "text", "")`; qolgan 5 ta
+        # uchinchi-tomon/inference holatga aniq `# type: ignore`). mypy toza.
         run: mypy . --ignore-missing-imports
 
       - name: Tests

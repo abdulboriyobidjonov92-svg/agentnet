@@ -38,7 +38,7 @@ async def llm_json(
             # saqlash uchun ochiq o'chiramiz (extra_body — eski SDK 0.43 ham qo'llaydi).
             extra_body={"thinking": {"type": "disabled"}},
         )
-        raw = response.content[0].text.strip()
+        raw = getattr(response.content[0], "text", "").strip()
         m = re.search(r"\{.*\}", raw, re.DOTALL)
         if not m:
             return None

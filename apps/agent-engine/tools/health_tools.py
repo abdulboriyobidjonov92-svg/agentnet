@@ -56,7 +56,7 @@ async def symptom_check(simptomlar: list[str], yosh: int = 30, jinsi: str = "nom
             system=TRIAGE_PROMPT,
             messages=[{"role": "user", "content": prompt}],
         )
-        raw = res.content[0].text.strip()
+        raw = getattr(res.content[0], "text", "").strip()
         # JSON ni ajratib olish
         start = raw.find("{")
         end = raw.rfind("}") + 1
@@ -98,7 +98,7 @@ async def calorie_estimate(ovqat_tavsifi: str = "", rasm_base64: str = "") -> di
             system=CALORIE_PROMPT,
             messages=messages,
         )
-        raw = res.content[0].text.strip()
+        raw = getattr(res.content[0], "text", "").strip()
         start = raw.find("{")
         end = raw.rfind("}") + 1
         return json.loads(raw[start:end]) if start >= 0 else {"javob": raw}

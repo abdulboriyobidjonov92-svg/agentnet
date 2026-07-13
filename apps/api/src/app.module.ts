@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_FILTER } from '@nestjs/core';
+import { AllExceptionsFilter } from './common/all-exceptions.filter';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -68,6 +69,9 @@ import { HealthController } from './health.controller';
     // ya'ni limit AMALDA ishlamas edi. Server-to-server BFF endpointlari va
     // webhooklar controller darajasida @SkipThrottle bilan chiqarib tashlangan.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Global xato-filtri (observability) — har bir ishlov berilmagan xatoni
+    // strukturaviy loglaydi (5xx to'liq stack bilan). Render loglarida ko'rinadi.
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],
 })
 export class AppModule {}

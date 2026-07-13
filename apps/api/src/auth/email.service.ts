@@ -22,20 +22,27 @@ export class EmailService {
 
     if (apiKey && apiKey.trim()) {
       this.resend = new Resend(apiKey.trim());
-    } else if (isProd) {
-      throw new Error(
-        'RESEND_API_KEY production uchun SHART (email-OTP yetkazish). resend.com da API kalit yarating.',
-      );
     } else {
+      // Ilgari prod'da bu YER'da `throw` bo'lardi — bitta yetishmagan kalit BUTUN
+      // API'ni boot'da qulatardi (telefon-login sozlangan bo'lsa ham). Endi boot
+      // qulamaydi: validateEnv() kamida BITTA login-kanali (email YOKI telefon)
+      // borligini kafolatlaydi; email kanali yo'q bo'lsa bu servis jim turadi va
+      // faqat email-OTP so'ralganda aniq xato beradi (telefon-login ishlayveradi).
       this.resend = null;
       this.logger.warn(
-        'RESEND_API_KEY sozlanmagan — email yuborilmaydi, OTP kod faqat serverga log qilinadi (faqat dev).',
+        isProd
+          ? "RESEND_API_KEY yo'q — EMAIL orqali kirish o'chirilgan (telefon-login ishlashi mumkin)."
+          : 'RESEND_API_KEY sozlanmagan — email yuborilmaydi, OTP kod serverga log qilinadi (dev).',
       );
     }
   }
 
   async sendOtpCode(email: string, code: string): Promise<void> {
     if (!this.resend) {
+      if (process.env.NODE_ENV === 'production') {
+        this.logger.error(`Email-OTP so'raldi, lekin RESEND_API_KEY yo'q (${email}).`);
+        throw new Error('Email orqali kirish hozircha mavjud emas — iltimos telefon bilan kiring.');
+      }
       this.logger.warn(`[DEV OTP] ${email} -> ${code} (Resend sozlanmagani uchun yuborilmadi)`);
       return;
     }

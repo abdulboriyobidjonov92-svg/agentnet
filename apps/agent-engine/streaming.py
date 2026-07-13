@@ -69,7 +69,7 @@ async def stream_agent_response(
             model=model,
             max_tokens=2048,
             system=system_prompt,
-            messages=messages,
+            messages=messages,  # type: ignore[arg-type]
             # Sonnet 5 adaptiv fikrlashni sukut bo'yicha yoqadi — chat oqimida
             # bu javob token-byudjetini yeyishi va kechikish qo'shishi mumkin.
             # Xulqni Sonnet 4.6 bilan bir xil saqlab, o'chirib qo'yamiz.

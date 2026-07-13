@@ -99,10 +99,10 @@ class TheftDetectionEngine:
         results = self.model.track(frame, persist=True, classes=[0], verbose=False)  # class 0 = person
         events: list[SuspiciousEvent] = []
 
-        if results[0].boxes.id is None:
+        if results[0].boxes.id is None:  # type: ignore[union-attr]
             return events
 
-        for box, track_id in zip(results[0].boxes.xyxy.cpu(), results[0].boxes.id.int().cpu().tolist()):
+        for box, track_id in zip(results[0].boxes.xyxy.cpu(), results[0].boxes.id.int().cpu().tolist()):  # type: ignore[union-attr]
             history = self.tracks.setdefault(track_id, TrackHistory())
             x1, y1, x2, y2 = box.tolist()
             center = ((x1 + x2) / 2, (y1 + y2) / 2)
@@ -190,7 +190,7 @@ async def verify_with_claude_vision(event: SuspiciousEvent) -> bool:
     import json
 
     try:
-        parsed = json.loads(response.content[0].text)
+        parsed = json.loads(getattr(response.content[0], "text", ""))
         return bool(parsed.get("confirmed", False))
     except (json.JSONDecodeError, IndexError):
         return False  # xavfsiz tomonga og'ish -- noaniq holatda ogohlantirma

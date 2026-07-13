@@ -41,8 +41,8 @@ async def get_transactions(
         txs = SAMPLE_TRANSACTIONS.copy()
 
     riba_txs = [t for t in txs if t["riba_belgisi"]]
-    jami = sum(t["summa"] for t in txs)
-    riba_jami = sum(t["summa"] for t in riba_txs)
+    jami = sum(t["summa"] for t in txs)  # type: ignore[misc]
+    riba_jami = sum(t["summa"] for t in riba_txs)  # type: ignore[misc]
 
     return {
         "provayider": provayider,

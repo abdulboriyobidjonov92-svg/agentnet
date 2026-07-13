@@ -729,7 +729,7 @@ async def _detect_with_llm(text: str) -> RoleProfile | None:
             # kesib qo'yishi mumkin — xulqni bir xil saqlab, o'chiramiz.
             extra_body={"thinking": {"type": "disabled"}},
         )
-        raw = response.content[0].text.strip()
+        raw = getattr(response.content[0], "text", "").strip()
         # JSON'ni ajratib olish (LLM ba'zan atrofga matn qo'shishi mumkin)
         m = re.search(r"\{.*\}", raw, re.DOTALL)
         if not m:

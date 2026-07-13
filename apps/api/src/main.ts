@@ -1,15 +1,21 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { installEngineAuthInterceptor } from './common/engine-auth';
+import { validateEnv } from './common/validate-env';
 
 async function bootstrap() {
+  // Konfiguratsiya tekshiruvi — prod'da majburiy env yetishmasa aniq ro'yxat
+  // bilan fail-fast (sirli mid-construction crash o'rniga).
+  validateEnv();
+
   // agent-engine endi ichki token talab qiladi — barcha engine chaqiruvlariga
   // `x-internal-token` qo'shadigan yagona axios interceptor'ni o'rnatamiz.
   installEngineAuthInterceptor();
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bufferLogs: false });
 
   // CORS — dev'da har qanday localhost porti (3000 real app, 3100 preview, ...),
   // prod'da faqat aniq belgilangan origin. Login fetch shu ro'yxatdan o'tadi.
@@ -31,7 +37,11 @@ async function bootstrap() {
   // bermaydi, shuning uchun eng muhimlari: MIME-sniffing va clickjacking'ni
   // to'sish, referrer'ni yashirish, X-Powered-By'ni olib tashlash, prod'da HSTS.
   app.getHttpAdapter().getInstance().disable('x-powered-by');
-  app.use((_req: unknown, res: any, next: () => void) => {
+  app.use((req: any, res: any, next: () => void) => {
+    // Request-id — xato-loglarni bitta so'rov bo'yicha kuzatish uchun (observability).
+    const reqId = req.headers['x-request-id'] || randomUUID();
+    req.headers['x-request-id'] = reqId;
+    res.setHeader('X-Request-Id', reqId);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'no-referrer');

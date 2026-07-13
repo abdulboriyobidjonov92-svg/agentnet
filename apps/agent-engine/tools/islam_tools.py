@@ -19,7 +19,7 @@ async def prayer_times(city: str = "Tashkent", country: str = "UZ", method: int 
 
     async with httpx.AsyncClient(timeout=10) as client:
         try:
-            res = await client.get(url, params=params)
+            res = await client.get(url, params=params)  # type: ignore[arg-type]
             res.raise_for_status()
             data = res.json()
             timings = data["data"]["timings"]
