@@ -7,8 +7,6 @@ Uch bosqich:
   3. Past ishonch holatlarida Claude orqali JSON-formatdagi klassifikatsiya
 
 MUHIM: Bu texnik vosita -- rasmiy diniy fatvo manbai emas.
-Production'ga chiqishdan oldin Shariah kengashi tomonidan
-toifalar va chegara-holatlar tasdiqlanishi shart.
 
 Talab qilinadigan paketlar:
   pip install anthropic numpy pydantic

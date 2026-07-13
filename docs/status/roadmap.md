@@ -137,8 +137,8 @@ soni kamida bir necha mingga yetganda ma'noli. Keyinga. ~1 hafta texnik, lekin d
 Inson bilimi/xotirasini avlodga o'tkazish: ota-onaning hikoyalari, ustaning
 hunar sirlari agent sifatida saqlanadi va meros qilinadi.
 **Feasibility:** Texnik: TwinFact + suhbat arxivi + RAG — o'rta murakkablik.
-Asosiy masalalar axloqiy-huquqiy: vafotdan keyin egalik, rozilik, diniy jihatlar
-(Shariah maslahati shart). Ehtiyotkor dizayn talab qiladi. Texnik 2 hafta + fiqh/huquq ko'rigi.
+Asosiy masalalar axloqiy-huquqiy: vafotdan keyin egalik, rozilik.
+Ehtiyotkor dizayn talab qiladi. Texnik 2 hafta + huquq ko'rigi.
 
 ---
 

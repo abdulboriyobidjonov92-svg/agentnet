@@ -60,7 +60,6 @@ Bu haqiqiy oqim — avtomatlashtirib bo'lmaydi (real LLM + real to'lov):
 
 - [ ] **Payme/Click merchant onboarding** tugagan (real to'lov uchun) + marketplace
       kreator payout rails (hozir "kanal ulanmagan, balans saqlanadi" deb halol).
-- [ ] **Halal filtr** — Shariah kengashi toifalar/chegaralarni tasdiqlagan (kodda eslatma bor).
 - [ ] Maxfiylik siyosati / Foydalanish shartlari sahifalari (GDPR export/delete allaqachon bor).
 - [ ] (ixtiyoriy) **Sentry** — `AllExceptionsFilter` allaqachon strukturaviy loglaydi; DSN
       qo'shsangiz filter ichidan yuborishni ulash mumkin.

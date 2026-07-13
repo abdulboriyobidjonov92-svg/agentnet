@@ -291,7 +291,7 @@ tahlil qilib, quyidagilarni belgila:
   ogohlantirishi bilan.
 ```
 
-**Eslatma:** Halal Filter — texnik vosita, rasmiy diniy fatvo manbai emas. Production'ga chiqishdan oldin **malakali Shariah kengashi** bilan toifalar ro'yxati va chegara holatlari tasdiqlanishi zarur (xuddi Islomiy fintech kompaniyalari AAOIFI standartlariga moslashtirgani kabi).
+**Eslatma:** Halal Filter — texnik vosita, rasmiy diniy fatvo manbai emas.
 
 ---
 
@@ -299,11 +299,10 @@ tahlil qilib, quyidagilarni belgila:
 
 1. **Texnik:** Yuqoridagi `code/` papkasidagi 5 skeleton faylni asosida real repo (monorepo, Turborepo) tashkil qilish; Hafta-1 vazifalarini boshlash.
 2. **Huquqiy:** O'zbekiston shaxsiy ma'lumotlar qonuni (2026 yangilanishi) va Markaziy bank to'lov-tizim talablari bo'yicha huquqshunos bilan maslahatlashish — ayniqsa biometrik (kamera) ma'lumotlar saqlash joyi bo'yicha.
-3. **Diniy:** Halal Filter toifalari va chegara-holatlarini tasdiqlash uchun Shariah maslahatchi/kengash bilan ishlash.
-4. **Bank hamkorligi:** Payme Business va Click Merchant sandbox kalitlarini olish (ariza — ikkalasi ham tezkor onboarding taklif qiladi).
-5. **Pilot mijozlar:** 5–10 ta kichik do'kon bilan kamera-monitoring agentini pilot sifatida sinash (real ONVIF kamera muhitida aniqlik/yolg'on-signal ko'rsatkichini o'lchash).
-6. **Jamoa:** MVP uchun minimal jamoa — 1 full-stack (Next.js/NestJS), 1 AI/Python (LangGraph/CV), 1 dizayner/no-code UX — 8 haftalik rejani real bajarish uchun.
-7. **Moliyalashtirish/metrika:** Beta tugagach — agent yaratish/kun, agent ijro muvaffaqiyat foizi, Halal Filter false-positive darajasi, retention — keyingi bosqich uchun asosiy metrikalar sifatida kuzatish.
+3. **Bank hamkorligi:** Payme Business va Click Merchant sandbox kalitlarini olish (ariza — ikkalasi ham tezkor onboarding taklif qiladi).
+4. **Pilot mijozlar:** 5–10 ta kichik do'kon bilan kamera-monitoring agentini pilot sifatida sinash (real ONVIF kamera muhitida aniqlik/yolg'on-signal ko'rsatkichini o'lchash).
+5. **Jamoa:** MVP uchun minimal jamoa — 1 full-stack (Next.js/NestJS), 1 AI/Python (LangGraph/CV), 1 dizayner/no-code UX — 8 haftalik rejani real bajarish uchun.
+6. **Moliyalashtirish/metrika:** Beta tugagach — agent yaratish/kun, agent ijro muvaffaqiyat foizi, Halal Filter false-positive darajasi, retention — keyingi bosqich uchun asosiy metrikalar sifatida kuzatish.
 
 ---
 
