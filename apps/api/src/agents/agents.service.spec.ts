@@ -383,6 +383,20 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
       expect(billing.chargeForMessage).toHaveBeenCalled();
       expect(billing.refund).toHaveBeenCalledWith(user, 'agent_run_failed');
     });
+
+    // M6: avval PUL, keyin RATE-LIMIT — kunlik/global limitga urilsa (429) pul
+    // allaqachon yechilgani uchun QAYTARILADI, engine'ga so'rov ketmaydi.
+    it('kunlik limit (consumeChat 429) charge\'dan KEYIN -> pul qaytariladi, engine\'ga chiqmaydi', async () => {
+      const { prisma, http, audit, usage, agentBilling, billing } = makeMock();
+      prisma.agent.findUnique.mockResolvedValue(agent);
+      usage.consumeChat.mockRejectedValue(new HttpException({ reason: 'user_daily_cap' }, 429));
+      const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing);
+
+      await expect(svc.run('agent1', user, 'salom')).rejects.toBeInstanceOf(HttpException);
+      expect(billing.chargeForMessage).toHaveBeenCalled(); // pul avval yechildi
+      expect(billing.refund).toHaveBeenCalledWith(user, 'rate_limited'); // limit -> qaytarildi
+      expect(http.post).not.toHaveBeenCalled();
+    });
   });
 
   /**

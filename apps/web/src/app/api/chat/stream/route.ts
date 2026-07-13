@@ -19,30 +19,14 @@ export async function POST(req: NextRequest) {
 
   // Rate limit / xarajat himoyasi — LLM'ga o'tishdan OLDIN kunlik+global limitni
   // NestJS'da tekshiramiz va hisoblaymiz. 429 bo'lsa oqim boshlanmaydi.
-  try {
-    const limitRes = await fetch(`${apiUrl}/api/usage/consume-chat`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: authHeader,
-      },
-    });
-    if (limitRes.status === 429) {
-      const info = await limitRes.json().catch(() => ({}));
-      return new Response(
-        `data: ${JSON.stringify({ type: "rate_limit", message: info.message ?? "Limitga yetdingiz", reason: info.reason })}\n\n` +
-          `data: ${JSON.stringify({ type: "done", demo_mode: false })}\n\n`,
-        { status: 200, headers: { "Content-Type": "text/event-stream" } },
-      );
-    }
-  } catch {
-    // Usage API o'chik bo'lsa — chatni bloklamaymiz (soft-fail), lekin log qoladi
-    console.warn("[chat/stream] usage limit tekshiruvi o'tkazib yuborildi (API javob bermadi)");
-  }
+  // TARTIB (M6): avval PUL, keyin RATE-LIMIT. Ilgari `consume-chat` (kunlik+global
+  // hisoblagichni oshiradi) BIRINCHI chaqirilardi; agar keyin `charge-message` 402
+  // (balans yetmasa) qaytarsa, hisoblagich OSHIRILGANICHA qolardi — balanssiz
+  // foydalanuvchi har muvaffaqiyatsiz urinishda o'z kunlik kvotasini va GLOBAL LLM
+  // limitini yeb bitirishi (griefing) mumkin edi. Endi avval balans yechiladi:
+  // pul yetmasa 402 DARHOL to'xtaydi, hisoblagichga umuman tegilmaydi.
 
-  // Pul himoyasi — LLM chaqiruvidan OLDIN foydalanuvchi balansidan yechamiz.
-  // Balans yetarli bo'lmasa 402 qaytadi va Claude API'ga so'rov UMUMAN ketmaydi —
-  // platforma egasi hech qachon bu xarajatni ko'tarmaydi.
+  // 1) Pul himoyasi — LLM chaqiruvidan OLDIN balansdan yechamiz.
   const chargeRes = await fetch(`${apiUrl}/api/billing/charge-message`, {
     method: "POST",
     headers: {
@@ -71,6 +55,36 @@ export async function POST(req: NextRequest) {
       })}\n\n` + `data: ${JSON.stringify({ type: "done", demo_mode: false })}\n\n`,
       { status: 200, headers: { "Content-Type": "text/event-stream" } },
     );
+  }
+
+  // 2) Rate-limit (kunlik/global). Pul allaqachon yechilgani uchun, agar bu yerda
+  // 429 bo'lsa yechilgan pulni QAYTARAMIZ (aks holda limitga urilgan foydalanuvchi
+  // xizmat olmay pul yo'qotardi).
+  try {
+    const limitRes = await fetch(`${apiUrl}/api/usage/consume-chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authHeader,
+      },
+    });
+    if (limitRes.status === 429) {
+      const info = await limitRes.json().catch(() => ({}));
+      fetch(`${apiUrl}/api/billing/refund`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: authHeader, "x-internal-token": internalToken },
+        body: JSON.stringify({ reason: "rate_limited" }),
+      }).catch(() => {});
+      return new Response(
+        `data: ${JSON.stringify({ type: "rate_limit", message: info.message ?? "Limitga yetdingiz", reason: info.reason })}\n\n` +
+          `data: ${JSON.stringify({ type: "done", demo_mode: false })}\n\n`,
+        { status: 200, headers: { "Content-Type": "text/event-stream" } },
+      );
+    }
+  } catch {
+    // Usage API o'chik bo'lsa — chatni bloklamaymiz (soft-fail); pul yechilgan,
+    // oqim davom etadi (rate-limit vaqtincha tekshirilmaydi).
+    console.warn("[chat/stream] usage limit tekshiruvi o'tkazib yuborildi (API javob bermadi)");
   }
 
   let upstream: Response;

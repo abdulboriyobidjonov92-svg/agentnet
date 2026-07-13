@@ -58,7 +58,9 @@ services:
     plan: free
     dockerfilePath: ./apps/api/Dockerfile
     dockerContext: .
-    healthCheckPath: /api/docs
+    # Haqiqiy liveness endpoint (M7) — ilgari /api/docs (Swagger) edi, bu
+    # Swagger'ni prod'da doim ochiq turishga majbur qilardi.
+    healthCheckPath: /api/health
     envVars:
       - key: DATABASE_URL
         fromDatabase:

@@ -28,8 +28,10 @@ import { FeedbackModule } from './feedback/feedback.module';
 import { ShareModule } from './share/share.module';
 import { ReferralModule } from './referral/referral.module';
 import { BriefingModule } from './briefing/briefing.module';
+import { HealthController } from './health.controller';
 
 @Module({
+  controllers: [HealthController],
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),

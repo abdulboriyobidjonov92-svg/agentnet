@@ -389,16 +389,26 @@ export class AgentsService {
       }
     }
 
-    // LLM chaqiruvidan oldin kunlik/global limitni tekshiramiz
-    await this.usage.consumeChat(user);
-
     // PUL HIMOYASI — LLM chaqiruvidan OLDIN balansdan yechamiz (BFF stream
     // yo'li bilan bir xil prepaid model). Ilgari bu yo'l (`POST /agents/:id/run`
     // + Telegram bot) faqat consumeChat'ni chaqirar, chargeForMessage'ni EMAS —
     // ya'ni har qanday tokenli foydalanuvchi bepul LLM olishi mumkin edi
     // (billing butunlay chetlab o'tilardi). Balans yetmasa 402 tashlanadi va
     // engine'ga so'rov umuman ketmaydi. Xizmat bajarilmasa — pul qaytariladi.
+    //
+    // TARTIB (M6): avval PUL, keyin RATE-LIMIT. Ilgari consumeChat birinchi
+    // edi — charge 402 bo'lsa kunlik/global hisoblagich oshirilganicha qolardi
+    // (balanssiz foydalanuvchi kvota/global limitni bekorga yeb bitirardi).
     await this.billing.chargeForMessage(user, { agentId: agent.id, via: 'run' });
+
+    // Endi kunlik/global limit. Pul allaqachon yechilgani uchun, 429 bo'lsa
+    // yechilgan pulni qaytaramiz (foydalanuvchi xizmat olmay pul yo'qotmasin).
+    try {
+      await this.usage.consumeChat(user);
+    } catch (e) {
+      await this.billing.refund(user, 'rate_limited').catch(() => undefined);
+      throw e;
+    }
     const engineUrl = process.env.AGENT_ENGINE_URL ?? 'http://localhost:8000';
 
     let data: any;

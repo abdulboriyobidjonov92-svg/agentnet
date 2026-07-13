@@ -27,16 +27,34 @@ async function bootstrap() {
     },
     credentials: true,
   });
+  // Xavfsizlik sarlavhalari (M7) — helmet paketisiz, minimal to'plam. API HTML
+  // bermaydi, shuning uchun eng muhimlari: MIME-sniffing va clickjacking'ni
+  // to'sish, referrer'ni yashirish, X-Powered-By'ni olib tashlash, prod'da HSTS.
+  app.getHttpAdapter().getInstance().disable('x-powered-by');
+  app.use((_req: unknown, res: any, next: () => void) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('X-DNS-Prefetch-Control', 'off');
+    if (isProd) res.setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
+    next();
+  });
+
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('AgentNet API')
-    .setDescription('AgentNet (Baraka AI) — Core SaaS API')
-    .setVersion('0.1.0')
-    .addBearerAuth()
-    .build();
-  SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swaggerConfig));
+  // Swagger (/api/docs) — FAQAT dev'da (M7). Ilgari prod'da ham ochiq edi va
+  // render healthCheckPath ham shunga ishora qilardi (to'liq API sxemasini
+  // oshkor qilardi). Endi healthcheck /api/health'ga o'tdi, Swagger prod'da yopiq.
+  if (!isProd) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('AgentNet API')
+      .setDescription('AgentNet (Baraka AI) — Core SaaS API')
+      .setVersion('0.1.0')
+      .addBearerAuth()
+      .build();
+    SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swaggerConfig));
+  }
 
   await app.listen(process.env.PORT ?? 3001);
   console.log(`API running on http://localhost:${process.env.PORT ?? 3001}`);
