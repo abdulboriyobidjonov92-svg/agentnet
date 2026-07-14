@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ClerkGuard } from '../auth/clerk.guard';
+import { LlmQuotaGuard } from '../usage/llm-quota.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { OperationsService } from './operations.service';
 import type { User } from '@prisma/client';
@@ -30,6 +31,7 @@ export class OperationsController {
 
   // Jadval
   @Post('schedule/generate')
+  @UseGuards(LlmQuotaGuard) // engine LLM (jadval tuzish)
   generate(@CurrentUser() user: User, @Body() body: { instructions: string; weekStart?: string }) {
     return this.ops.generateSchedule(user, body.instructions, body.weekStart);
   }
@@ -73,6 +75,7 @@ export class OperationsController {
   }
 
   @Post('outbound/draft')
+  @UseGuards(LlmQuotaGuard) // engine LLM (xabar qoralamasi)
   draft(@CurrentUser() user: User, @Body() body: any) {
     return this.ops.draftOutbound(user, body);
   }

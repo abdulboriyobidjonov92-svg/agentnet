@@ -2,9 +2,7 @@ import {
   Body,
   Controller,
   Delete,
-  ForbiddenException,
   Get,
-  Headers,
   NotFoundException,
   Param,
   Post,
@@ -12,12 +10,11 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ClerkGuard } from '../auth/clerk.guard';
+import { InternalTokenGuard } from '../auth/internal-token.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConnectorsService } from './connectors.service';
 import type { User } from '@prisma/client';
-
-const INTERNAL_TOKEN = process.env.INTERNAL_API_TOKEN ?? 'agentnet-internal-dev';
 
 @ApiTags('connectors')
 @Controller('connectors')
@@ -69,13 +66,15 @@ export class ConnectorsController {
     return this.connectors.invoke(user, connectorId, body.action, body.params ?? {});
   }
 
-  /** Ichki: engine'dagi connector.invoke agent-vositasi uchun. */
+  /**
+   * Ichki: engine'dagi connector.invoke agent-vositasi uchun. InternalTokenGuard
+   * (doimiy-vaqtli + prod fail-closed) — oldingi raw `!==` o'rniga.
+   */
   @Post('internal/invoke')
+  @UseGuards(InternalTokenGuard)
   async internalInvoke(
-    @Headers('x-internal-token') token: string,
     @Body() body: { userId: string; connectorId: string; action: string; params?: Record<string, any> },
   ) {
-    if (token !== INTERNAL_TOKEN) throw new ForbiddenException('Internal token invalid');
     const user = await this.prisma.user.findUnique({ where: { id: body.userId } });
     if (!user) throw new NotFoundException('User topilmadi');
     return this.connectors.invoke(user, body.connectorId, body.action, body.params ?? {});

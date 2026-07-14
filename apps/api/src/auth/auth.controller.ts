@@ -4,10 +4,13 @@ import {
   Body,
   Headers,
   HttpCode,
+  Req,
   BadRequestException,
   ForbiddenException,
   UseGuards,
+  type RawBodyRequest,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { Webhook } from 'svix';
 import { ClerkSyncService, TwoFactorService } from './auth.service';
@@ -32,15 +35,19 @@ export class AuthController {
     @Headers('svix-id') svixId: string,
     @Headers('svix-timestamp') svixTimestamp: string,
     @Headers('svix-signature') svixSignature: string,
-    @Body() rawBody: Buffer,
+    // Imzo XOM baytlar ustida tekshiriladi — @Body() bu yerda ishlamaydi
+    // (parsed obyekt .toString() da "[object Object]" bo'lib, imzo doim
+    // yiqilardi). req.rawBody main.ts'dagi `rawBody: true` bilan to'ladi.
+    @Req() req: RawBodyRequest<Request>,
   ) {
     const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;
     if (!webhookSecret) throw new BadRequestException('Webhook secret sozlanmagan');
+    if (!req.rawBody) throw new BadRequestException('Xom so\'rov tanasi mavjud emas');
 
     const wh = new Webhook(webhookSecret);
     let event: any;
     try {
-      event = wh.verify(rawBody.toString(), {
+      event = wh.verify(req.rawBody.toString('utf8'), {
         'svix-id': svixId,
         'svix-timestamp': svixTimestamp,
         'svix-signature': svixSignature,

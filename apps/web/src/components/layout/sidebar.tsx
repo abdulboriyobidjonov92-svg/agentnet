@@ -82,8 +82,11 @@ export function Sidebar({ email, name, onNavigate }: { email?: string; name?: st
       return next;
     });
 
-  const signOut = () => {
+  const signOut = async () => {
+    // httpOnly token cookie'sini faqat server tozalay oladi; profil-cookie'ni
+    // esa darhol lokal tozalaymiz (server chaqiruvi yiqilsa ham UI chiqadi).
     clearClientSession();
+    await fetch("/api/session", { method: "DELETE" }).catch(() => {});
     router.push("/sign-in");
     router.refresh();
   };

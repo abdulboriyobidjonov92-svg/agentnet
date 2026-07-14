@@ -9,8 +9,11 @@ kalitisiz, deterministik yo'llarni qamraydi:
   - retail bashorat heuristikasi (sof matematik),
   - kasb/domain katalogi.
 """
+import asyncio
+
 from fastapi.testclient import TestClient
 
+import agent_tools
 import main
 import retail_forecast
 from halal_filter import Action, keyword_layer
@@ -105,3 +108,30 @@ def test_domains_summary_bosh_emas():
     domains = domains_summary()
     assert isinstance(domains, list)
     assert len(domains) > 0
+
+
+# ----------------------------------------------------------------
+# #11: real-rejim tool (function-calling) registri
+# ----------------------------------------------------------------
+
+def test_agent_tools_faqat_qollab_quvvatlanadigan_info_toollarni_beradi():
+    defs = agent_tools.build_tools(
+        ["islam.prayer_times", "utility.weather", "messaging.telegram_send", "bogus.x"]
+    )
+    names = {d["name"] for d in defs}
+    # Qo'llab-quvvatlanadigan info-toollar Claude uchun to'g'ri nom (nuqtasiz) oladi
+    assert "islam_prayer_times" in names
+    assert "utility_weather" in names
+    # Yon-ta'sirli / noma'lum toollar ATAYLAB chiqarilmaydi
+    assert "messaging_telegram_send" not in names
+    assert all("." not in n for n in names)  # Claude tool-nomi nuqta qabul qilmaydi
+
+
+def test_agent_tools_nomalum_tool_xato_beradi():
+    out = asyncio.run(agent_tools.run_tool("bogus_name", {}, "en", "Tashkent"))
+    assert "xato" in out
+
+
+def test_agent_tools_tool_result_json_seriyalanadi():
+    s = agent_tools.to_tool_result_content({"shahar": "Tashkent", "harorat_C": 20})
+    assert '"Tashkent"' in s and "20" in s

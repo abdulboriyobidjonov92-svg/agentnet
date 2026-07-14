@@ -6,9 +6,10 @@ import { OnboardingService } from './onboarding.service';
 import { AuthModule } from '../auth/auth.module';
 import { ClerkGuard } from '../auth/clerk.guard';
 import { TwinModule } from '../twin/twin.module';
+import { UsageModule } from '../usage/usage.module';
 
 @Module({
-  imports: [HttpModule, AuthModule, TwinModule],
+  imports: [HttpModule, AuthModule, TwinModule, UsageModule],
   controllers: [UsersController],
   providers: [UsersService, OnboardingService, ClerkGuard],
   exports: [UsersService],

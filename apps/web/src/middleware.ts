@@ -4,27 +4,55 @@ import { NextRequest, NextResponse } from "next/server";
 // /agentos-demo — ochiq ko'rgazma sahifasi (Living Interface demo, shaxsiy ma'lumot yo'q)
 const PUBLIC_PATHS = ["/", "/sign-in", "/sign-up", "/agentos-demo"];
 
-/**
- * Cookie'ni Edge-runtime'da dekodlab, tuzilishini tekshiradi (L10). Middleware
- * imzoni tasdiqlay olmaydi (AUTH_JWT_SECRET faqat API'da), lekin cookie base64-JSON
- * bo'lib, `userId` VA imzolangan `token` maydonlariga ega ekanini tekshira oladi.
- * Ilgari middleware faqat cookie BORLIGINI tekshirardi — soxta/buzuq cookie bilan
- * dashboard qobig'i yuklanib, keyin har API chaqiruvi 401 berardi (xunuk UX).
- * Endi yaroqsiz cookie darhol sign-in'ga yo'naltiriladi.
- */
-function hasValidSessionShape(raw: string | undefined): boolean {
-  if (!raw) return false;
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const TOKEN_COOKIE = "agentnet_token";
+const SESSION_COOKIE = "agentnet_user";
+const PROXY_PREFIX = "/api/backend/";
+
+/** Legacy sessiyalar (token profil-cookie ichida bo'lgan davr) uchun fallback. */
+function legacyToken(raw: string | undefined): string | null {
+  if (!raw) return null;
   try {
-    const json = decodeURIComponent(escape(atob(raw)));
-    const s = JSON.parse(json);
-    return typeof s?.userId === "string" && !!s.userId && typeof s?.token === "string" && !!s.token;
+    const s = JSON.parse(decodeURIComponent(escape(atob(raw))));
+    return typeof s?.token === "string" && s.token ? s.token : null;
   } catch {
-    return false;
+    return null;
   }
+}
+
+function resolveToken(request: NextRequest): string | null {
+  return (
+    request.cookies.get(TOKEN_COOKIE)?.value ||
+    legacyToken(request.cookies.get(SESSION_COOKIE)?.value)
+  );
+}
+
+/**
+ * Sessiya bormi? — endi asosiy belgi httpOnly token cookie'si. Middleware
+ * imzoni tasdiqlay olmaydi (AUTH_JWT_SECRET faqat API'da) — bu faqat UX-gate:
+ * cookie'siz foydalanuvchi darhol sign-in'ga yo'naltiriladi. Haqiqiy auth-qaror
+ * har API chaqiruvida NestJS guard'da (imzo tekshiruvi bilan) qabul qilinadi.
+ */
+function hasSession(request: NextRequest): boolean {
+  return !!resolveToken(request);
 }
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Same-origin API proxy: brauzer JS tokenni KO'RMAYDI (httpOnly cookie) —
+  // middleware uni shu yerda Authorization header sifatida qo'shib, so'rovni
+  // NestJS API'ga rewrite qiladi. api-client barcha chaqiruvlarni
+  // /api/backend/* orqali yuboradi.
+  if (pathname.startsWith(PROXY_PREFIX)) {
+    const target = new URL(
+      `${API_URL}/api/${pathname.slice(PROXY_PREFIX.length)}${request.nextUrl.search}`,
+    );
+    const headers = new Headers(request.headers);
+    const token = resolveToken(request);
+    if (token) headers.set("authorization", `Bearer ${token}`);
+    return NextResponse.rewrite(target, { request: { headers } });
+  }
 
   const isPublic =
     PUBLIC_PATHS.includes(pathname) ||
@@ -35,8 +63,7 @@ export function middleware(request: NextRequest) {
 
   if (isPublic) return NextResponse.next();
 
-  const session = request.cookies.get("agentnet_user")?.value;
-  if (!hasValidSessionShape(session)) {
+  if (!hasSession(request)) {
     const url = request.nextUrl.clone();
     url.pathname = "/sign-in";
     return NextResponse.redirect(url);

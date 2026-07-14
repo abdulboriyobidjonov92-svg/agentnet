@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { ClerkGuard } from '../auth/clerk.guard';
+import { LlmQuotaGuard } from '../usage/llm-quota.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { User } from '@prisma/client';
 
@@ -21,12 +22,17 @@ export class TradeController {
 
   constructor(private readonly http: HttpService) {}
 
+  // LlmQuotaGuard — bu 3 endpoint engine→Claude'ni chaqiradi (LLM xarajati),
+  // shuning uchun kunlik+global kvota bilan himoyalanadi. tracking/fx (tashqi
+  // arzon API) esa faqat ClerkGuard bilan qoladi.
   @Post('customs-docs')
+  @UseGuards(LlmQuotaGuard)
   docs(@CurrentUser() user: User, @Body() body: { shipment: Record<string, any> }) {
     return this.callEngine('/trade/customs-docs', { shipment: body.shipment ?? {}, language: user.preferredLanguage ?? 'en' });
   }
 
   @Post('tariff')
+  @UseGuards(LlmQuotaGuard)
   tariff(@CurrentUser() user: User, @Body() body: { goods: string; destination?: string }) {
     return this.callEngine('/trade/tariff', {
       goods: body.goods, destination: body.destination ?? 'Uzbekistan', language: user.preferredLanguage ?? 'en',
@@ -34,6 +40,7 @@ export class TradeController {
   }
 
   @Post('compliance')
+  @UseGuards(LlmQuotaGuard)
   compliance(@CurrentUser() user: User, @Body() body: { goods: string; origin?: string; destination?: string; counterparty?: string }) {
     return this.callEngine('/trade/compliance', {
       goods: body.goods, origin: body.origin ?? '', destination: body.destination ?? '',

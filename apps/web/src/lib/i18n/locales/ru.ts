@@ -282,6 +282,8 @@ const ru: Dict = {
     "chat.halalBlocked": "Заблокировано Ethics Guard",
     "chat.halalReview": "Требуется проверка",
     "chat.blockedMsg": "Это сообщение заблокировано Ethics Guard.",
+    "chat.demoBadge": "Демо-режим",
+    "chat.demoNotice": "Этот ответ сгенерирован в демо-режиме (не настоящий ответ ИИ) — плата за него не взималась.",
 
     // Onboarding (адаптивное ядро)
     "onb.title": "Расскажите о себе",

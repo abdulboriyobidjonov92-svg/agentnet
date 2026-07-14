@@ -52,7 +52,22 @@ export class BrowserBridge {
   private page: Page | null = null;
 
   async open(): Promise<void> {
-    this.browser = await chromium.launch({ headless: true });
+    try {
+      this.browser = await chromium.launch({ headless: true });
+    } catch (e: any) {
+      // Playwright chromium o'rnatilmagan bo'lsa (Dockerfile'da `playwright
+      // install` bajarilmagan) — raw stack o'rniga aniq, harakatga chorlaydigan
+      // xato. Bu holat prod'da bo'lmasligi kerak (Dockerfile chromium'ni
+      // o'rnatadi), lekin lokal/noto'g'ri muhitda tashxis oson bo'lsin.
+      const msg = String(e?.message ?? e);
+      if (/Executable doesn.?t exist|playwright install|browserType\.launch/i.test(msg)) {
+        throw new Error(
+          "Brauzer-avtomatlashtirish mavjud emas: Playwright chromium o'rnatilmagan " +
+            "(`npx playwright install chromium`).",
+        );
+      }
+      throw e;
+    }
     this.page = await this.browser.newPage({ viewport: { width: 1280, height: 900 } });
     // SSRF himoyasi tarmoq qatlamida: hujjat/navigatsiya so'rovlari (jumladan
     // sahifa REDIRECT'lari va havola-bosishlar) ichki IP'ga ketsa abort qilinadi

@@ -13,6 +13,7 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ClerkGuard } from '../auth/clerk.guard';
 import { InternalTokenGuard } from '../auth/internal-token.guard';
+import { LlmQuotaGuard } from '../usage/llm-quota.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { RetailService } from './retail.service';
@@ -68,7 +69,7 @@ export class RetailController {
   // Bashorat: har tovar necha kunda tugaydi (savdo trendidan)
   @Get('forecast')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
+  @UseGuards(ClerkGuard, LlmQuotaGuard) // engine LLM (trend xulosasi)
   forecast(@CurrentUser() user: User) {
     return this.retail.forecast(user);
   }
@@ -135,7 +136,7 @@ export class RetailController {
   // Kamera-vision webhook (simulyator UI shu yerga uradi — foydalanuvchi o'zi sinov uchun)
   @Post('vision-events')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
+  @UseGuards(ClerkGuard, LlmQuotaGuard) // ingest → engine Vision/assess (LLM)
   vision(@CurrentUser() user: User, @Body() body: any) {
     return this.retail.ingestVisionEvent(user, body ?? {});
   }

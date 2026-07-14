@@ -2,6 +2,7 @@ import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { ClerkGuard } from '../auth/clerk.guard';
+import { LlmQuotaGuard } from '../usage/llm-quota.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AgentOsService } from './agentos.service';
 import type { User } from '@prisma/client';
@@ -49,6 +50,7 @@ export class AgentOsController {
   }
 
   @Post('command')
+  @UseGuards(LlmQuotaGuard) // orkestrator → engine LLM (C-suite ijrosi)
   command(@CurrentUser() user: User, @Body() dto: CommandDto) {
     return this.agentos.runCommand(user, dto.command);
   }

@@ -2,6 +2,7 @@ import {
   Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, HttpCode,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { ClerkGuard } from '../auth/clerk.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AgentsService } from './agents.service';
@@ -10,8 +11,17 @@ import { UpdateAgentDto } from './dto/update-agent.dto';
 import { ComposeAgentDto } from './dto/compose-agent.dto';
 import type { User } from '@prisma/client';
 
+// Dekoratorlar SHART: global ValidationPipe whitelist:true dekoratorsiz
+// maydonlarni o'chirib yuboradi — ilgari message/conversationId server'ga
+// umuman yetib kelmasdi (bo'sh xabar bilan engine chaqirilardi).
 class RunAgentDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(8000)
   message: string;
+
+  @IsOptional()
+  @IsString()
   conversationId?: string;
 }
 

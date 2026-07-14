@@ -8,11 +8,13 @@ Aks holda — DEMO REJIM: haqiqiy halal filter (keyword) + haqiqiy tool'lar
 """
 import asyncio
 import json
+import os
 import re
 from typing import AsyncIterator
 
 from anthropic import AsyncAnthropic
 
+import agent_tools
 import compliance_packs
 import knowledge_sync
 from halal_filter import Action, HalalFilter
@@ -21,6 +23,9 @@ from tools.utility_tools import currency_rates, weather
 
 _anthropic = AsyncAnthropic()
 _halal = HalalFilter()
+
+# Bitta so'rov ichida tool→javob aylanishlarining maksimal soni (loop/xarajat himoyasi).
+_MAX_TOOL_ROUNDS = 4
 
 
 async def stream_agent_response(
@@ -48,7 +53,7 @@ async def stream_agent_response(
         yield _sse({"type": "halal_warning", "reason": input_check.reasoning})
 
     history = conversation_history or []
-    messages = history + [{"role": "user", "content": message}]
+    messages: list[dict] = history + [{"role": "user", "content": message}]
     system_prompt = agent_definition.get("system_prompt", "Sen foydali AI yordamchisisan.")
     model = agent_definition.get("model", "claude-sonnet-5")
 
@@ -56,40 +61,93 @@ async def stream_agent_response(
     # Tizim-promptga majburiy xulq qoidalari qo'shiladi (HIPAA-style by default).
     vertical = agent_definition.get("vertical")
     language = agent_definition.get("language", "en")
+    city = agent_definition.get("city", "Tashkent")
     pack_addendum = compliance_packs.system_addendum(vertical)
     if pack_addendum:
         system_prompt = f"{system_prompt}\n\n{pack_addendum}"
 
+    # #11: agentga biriktirilgan jonli info-toollar (namoz-vaqti/ob-havo/valyuta/
+    # qidiruv) — real rejimda Claude ularni HAQIQATAN chaqiradi. Ilgari real yo'l
+    # faqat matn oqimi edi; toollar faqat DEMO rejimda "ishlagandek" ko'rinardi.
+    tool_ids = [t.get("tool_id") for t in agent_definition.get("tools", []) if t.get("tool_id")]
+    tool_defs = agent_tools.build_tools(tool_ids)
+
     full_response = ""
     used_real_api = False
 
-    # 2. Haqiqiy Claude streaming'ni sinash
+    # 2. Haqiqiy Claude streaming'ni sinash (tool-use loop bilan)
     try:
-        async with _anthropic.messages.stream(
-            model=model,
-            max_tokens=2048,
-            system=system_prompt,
-            messages=messages,  # type: ignore[arg-type]
-            # Sonnet 5 adaptiv fikrlashni sukut bo'yicha yoqadi — chat oqimida
-            # bu javob token-byudjetini yeyishi va kechikish qo'shishi mumkin.
-            # Xulqni Sonnet 4.6 bilan bir xil saqlab, o'chirib qo'yamiz.
-            extra_body={"thinking": {"type": "disabled"}},
-        ) as stream:
-            async for text in stream.text_stream:
-                used_real_api = True
-                full_response += text
-                yield _sse({"type": "token", "content": text})
+        # Agentic loop: model tool so'rasa — ijro etamiz, natijani qaytaramiz,
+        # yakuniy matngacha davom etamiz. Chegara xarajat/loopdan himoya.
+        for _ in range(_MAX_TOOL_ROUNDS):
+            stream_kwargs: dict = {
+                "model": model,
+                "max_tokens": 2048,
+                "system": system_prompt,
+                "messages": messages,
+                # Sonnet 5 adaptiv fikrlashni sukut bo'yicha yoqadi — chat oqimida
+                # bu javob token-byudjetini yeyishi mumkin; Sonnet 4.6 bilan bir xil
+                # xulq uchun o'chiramiz.
+                "extra_body": {"thinking": {"type": "disabled"}},
+            }
+            if tool_defs:
+                stream_kwargs["tools"] = tool_defs
+
+            async with _anthropic.messages.stream(**stream_kwargs) as stream:  # type: ignore[arg-type]
+                async for text in stream.text_stream:
+                    used_real_api = True
+                    full_response += text
+                    yield _sse({"type": "token", "content": text})
+                final = await stream.get_final_message()
+
+            # Tool so'ralmagan bo'lsa — javob tugadi.
+            if not tool_defs or final.stop_reason != "tool_use":
+                break
+
+            # Model tool(lar)ni chaqirdi: assistant xabarini qo'shamiz, har toolni
+            # ijro etamiz va natijani `tool_result` sifatida qaytaramiz.
+            messages.append({"role": "assistant", "content": final.content})
+            tool_results: list[dict] = []
+            for block in final.content:
+                if getattr(block, "type", None) != "tool_use":
+                    continue
+                # getattr — content-block union'i (ThinkingBlock, ...) uchun mypy
+                # union-attr xatolarini oldini oladi; ish paytida faqat tool_use
+                # bloklariga yetib kelamiz (yuqoridagi tekshiruv).
+                b_name = getattr(block, "name", "")
+                b_input = getattr(block, "input", None) or {}
+                b_id = getattr(block, "id", "")
+                yield _sse({"type": "tool_result", "result": {"tool": b_name, "calling": b_input}})
+                out = await agent_tools.run_tool(b_name, dict(b_input), language, city)
+                tool_results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": b_id,
+                        "content": agent_tools.to_tool_result_content(out),
+                    }
+                )
+            messages.append({"role": "user", "content": tool_results})
+            # keyingi aylanada model tool natijalari asosida yakuniy javob beradi
     except Exception:
-        # API mavjud emas — demo rejimga o'tamiz (hech qanday token chiqmagan bo'lsa)
-        if not used_real_api:
-            async for ev in _demo_stream(message, agent_definition, user_id):
-                if ev.startswith("__TEXT__"):
-                    full_response += ev[len("__TEXT__"):]
-                else:
-                    yield ev
-        else:
+        if used_real_api:
             yield _sse({"type": "error", "message": "Stream uzildi"})
             return
+        # MUHIM FARQ: kalit SOZLANGAN bo'lsa, chaqiruv yiqilishi haqiqiy xato —
+        # demo-javob berib "muvaffaqiyat" (done) ko'rsatish foydalanuvchidan
+        # konserva-javob uchun pul olishga olib kelardi. Error-event BFF'da
+        # refund'ni ishga tushiradi. Demo rejim FAQAT kalit umuman yo'q
+        # (ataylab demo-instans) bo'lganda ishlaydi.
+        if os.getenv("ANTHROPIC_API_KEY", "").strip():
+            yield _sse({
+                "type": "error",
+                "message": "AI xizmatida vaqtinchalik uzilish — birozdan so'ng qayta urinib ko'ring",
+            })
+            return
+        async for ev in _demo_stream(message, agent_definition, user_id):
+            if ev.startswith("__TEXT__"):
+                full_response += ev[len("__TEXT__"):]
+            else:
+                yield ev
 
     # 3. Halal filter — chiqish tekshiruvi
     if full_response.strip():
@@ -236,12 +294,13 @@ async def _demo_stream(message: str, agent_definition: dict, user_id: str = "") 
 
     # --- Umumiy demo javob ---
     if not parts:
+        # Foydalanuvchiga ichki sozlash detali (.env, kalit nomi) ko'rsatilmaydi.
         parts.append(
             f"Assalomu alaykum! Men **{name}**man. \n\n"
             f"Siz yozgan xabar: _\"{message}\"_\n\n"
-            "Hozir **demo rejimda** ishlayapman — haqiqiy Claude javoblari uchun "
-            "`.env` faylga `ANTHROPIC_API_KEY` qo'shish kerak. "
-            "Lekin halal filter va vositalar (namoz vaqtlari, Qur'on) allaqachon **to'liq ishlayapti**! ✅"
+            "Hozir **demo rejimda** ishlayapman — to'liq AI javoblari bu muhitda "
+            "vaqtincha yoqilmagan. Lekin halal filter va jonli vositalar (namoz "
+            "vaqtlari, ob-havo, valyuta kurslari) **to'liq ishlaydi**! ✅"
         )
 
     # Token-token oqim simulyatsiyasi

@@ -4,7 +4,10 @@ langgraph==0.2.62
 langchain-anthropic==0.3.3
 pydantic==2.10.4
 pydantic-settings==2.7.1
-anthropic==0.43.0
+# Lokal .venv bilan BIR XIL versiya — ilgari 0.43.0 pin qilingan edi, ya'ni
+# lokalda test qilingan SDK-xulqi prod Docker'dagidan farq qilardi.
+# langchain-anthropic 0.3.3 talabi (anthropic>=0.41,<1) bilan mos.
+anthropic==0.113.0
 numpy==2.2.1
 httpx==0.28.1
 sse-starlette==2.1.3

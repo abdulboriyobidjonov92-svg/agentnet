@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ClerkGuard } from '../auth/clerk.guard';
+import { LlmQuotaGuard } from '../usage/llm-quota.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { GovtechService } from './govtech.service';
 import type { User } from '@prisma/client';
@@ -17,7 +18,7 @@ export class GovtechController {
 
   @Post('requests')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
+  @UseGuards(ClerkGuard, LlmQuotaGuard) // intake → engine tasnifi (LLM)
   intake(@CurrentUser() user: User, @Body() body: { text: string; fullName?: string; contact?: string }) {
     return this.govtech.intake(user, body);
   }
@@ -38,7 +39,7 @@ export class GovtechController {
 
   @Post('guide')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
+  @UseGuards(ClerkGuard, LlmQuotaGuard) // guide → engine LLM navigatori
   guide(@CurrentUser() user: User, @Body() body: { query: string }) {
     return this.govtech.guide(user, body.query);
   }

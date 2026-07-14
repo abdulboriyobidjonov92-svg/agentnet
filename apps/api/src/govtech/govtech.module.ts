@@ -4,9 +4,10 @@ import { GovtechController } from './govtech.controller';
 import { GovtechService } from './govtech.service';
 import { AuthModule } from '../auth/auth.module';
 import { ClerkGuard } from '../auth/clerk.guard';
+import { UsageModule } from '../usage/usage.module';
 
 @Module({
-  imports: [HttpModule, AuthModule],
+  imports: [HttpModule, AuthModule, UsageModule],
   controllers: [GovtechController],
   providers: [GovtechService, ClerkGuard],
 })

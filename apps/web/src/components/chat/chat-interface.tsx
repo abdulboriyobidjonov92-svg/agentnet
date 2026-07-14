@@ -12,6 +12,9 @@ interface Message {
   role: "user" | "assistant" | "system";
   content: string;
   halalFlag?: string;
+  // Engine demo rejimda javob berdi (real Claude emas) — foydalanuvchiga
+  // ochiq ko'rsatiladi, pul BFF tomonidan avtomatik qaytariladi.
+  demoMode?: boolean;
   timestamp: string;
 }
 
@@ -114,59 +117,84 @@ export function ChatInterface({ agentId, agentDefinition }: ChatInterfaceProps) 
       const decoder = new TextDecoder();
       let fullContent = "";
       let halalFlag = "ALLOW";
+      let demoMode = false;
       let newConvId = conversationId;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      // Bitta SSE `data:` satrini qayta ishlaydi.
+      const handleEvent = (event: any) => {
+        if (event.type === "token") {
+          fullContent += event.content;
+          setStreamingContent(fullContent);
+        } else if (event.type === "rate_limit") {
+          fullContent = `⏳ ${event.message}`;
+          halalFlag = "ALLOW";
+        } else if (event.type === "insufficient_balance") {
+          fullContent = `💳 ${event.message}`;
+          halalFlag = "ALLOW";
+        } else if (event.type === "error") {
+          // Engine yoki BFF xatosi (stream uzildi / to'lov tasdig'i o'tmadi).
+          // Bo'sh "pufak" o'rniga xabarni ko'rsatamiz; qisman javob bo'lsa saqlaymiz.
+          const note = `⚠️ ${event.message ?? "Xatolik yuz berdi — birozdan keyin urinib ko'ring."}`;
+          fullContent = fullContent ? `${fullContent}\n\n${note}` : note;
+          setStreamingContent(fullContent);
+        } else if (event.type === "halal_block") {
+          fullContent = `🚫 ${t("chat.blockedMsg")}\n\n_${event.reason}_`;
+          halalFlag = "BLOCK";
+        } else if (event.type === "replace") {
+          // Chiqish (javob) Halal Filter tomonidan bloklandi — engine to'liq
+          // matn o'rniga almashtiruv-xabar yuboradi. Oqimda ko'rsatilgan
+          // matn BUTUNLAY almashtiriladi (bloklangan kontent qolmaydi).
+          fullContent = `🚫 ${t("chat.blockedMsg")}`;
+          halalFlag = "BLOCK";
+          setStreamingContent(fullContent);
+        } else if (event.type === "disclaimer") {
+          // S3: vertikal compliance disclaimeri javob oxiriga ulanadi
+          fullContent += `\n\n${event.content}`;
+          setStreamingContent(fullContent);
+        } else if (event.type === "done") {
+          halalFlag = event.halal_flag ?? "ALLOW";
+          if (event.demo_mode) demoMode = true;
+          if (event.conversation_id) newConvId = event.conversation_id;
+        }
+      };
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
+      // MUHIM: SSE eventi ikki tarmoq-chunk chegarasida bo'linishi mumkin —
+      // shuning uchun to'liq satrlargina qayta ishlanadi, tugallanmagan qoldiq
+      // `buffer`da saqlanib keyingi chunk bilan birlashadi (ilgari `chunk.split`
+      // to'g'ridan-to'g'ri ishlangani uchun bo'lingan JSON tashlab yuborilardi —
+      // token yo'qolishi / done o'tkazib yuborilishi = noto'g'ri refund).
+      let buffer = "";
+      const drain = (flush = false) => {
+        const parts = buffer.split("\n");
+        buffer = flush ? "" : parts.pop() ?? "";
+        for (const line of parts) {
           if (!line.startsWith("data: ")) continue;
           const raw = line.slice(6).trim();
           if (!raw) continue;
           try {
-            const event = JSON.parse(raw);
-            if (event.type === "token") {
-              fullContent += event.content;
-              setStreamingContent(fullContent);
-            } else if (event.type === "rate_limit") {
-              fullContent = `⏳ ${event.message}`;
-              halalFlag = "ALLOW";
-            } else if (event.type === "insufficient_balance") {
-              fullContent = `💳 ${event.message}`;
-              halalFlag = "ALLOW";
-            } else if (event.type === "error") {
-              // Engine yoki BFF xatosi (stream uzildi / to'lov tasdig'i o'tmadi).
-              // Bo'sh "pufak" o'rniga xabarni ko'rsatamiz; qisman javob bo'lsa saqlaymiz.
-              const note = `⚠️ ${event.message ?? "Xatolik yuz berdi — birozdan keyin urinib ko'ring."}`;
-              fullContent = fullContent ? `${fullContent}\n\n${note}` : note;
-              setStreamingContent(fullContent);
-            } else if (event.type === "halal_block") {
-              fullContent = `🚫 ${t("chat.blockedMsg")}\n\n_${event.reason}_`;
-              halalFlag = "BLOCK";
-            } else if (event.type === "disclaimer") {
-              // S3: vertikal compliance disclaimeri javob oxiriga ulanadi
-              fullContent += `\n\n${event.content}`;
-              setStreamingContent(fullContent);
-            } else if (event.type === "done") {
-              halalFlag = event.halal_flag ?? "ALLOW";
-              if (event.conversation_id) newConvId = event.conversation_id;
-            }
+            handleEvent(JSON.parse(raw));
           } catch {
-            // invalid JSON satri — o'tkazib yuborish
+            // yaroqsiz JSON satri — o'tkazib yuborish
           }
         }
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        drain();
       }
+      buffer += decoder.decode(); // yakuniy flush (multibayt qoldiq)
+      drain(true);
 
       if (newConvId) setConversationId(newConvId);
 
       const assistantMsg: Message = {
         role: "assistant",
-        content: fullContent,
+        content: demoMode ? `${fullContent}\n\n_${t("chat.demoNotice")}_` : fullContent,
         halalFlag,
+        demoMode,
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, assistantMsg]);
@@ -313,6 +341,14 @@ function MessageBubble({ message }: { message: Message }) {
             </div>
           )}
         </div>
+
+        {/* Demo rejim belgisi — real Claude javobi emasligi ochiq ko'rsatiladi */}
+        {message.demoMode && !isUser && (
+          <div className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
+            <ShieldAlert className="h-3 w-3" />
+            {t("chat.demoBadge")}
+          </div>
+        )}
 
         {/* Halal flag */}
         {message.halalFlag && message.halalFlag !== "ALLOW" && (

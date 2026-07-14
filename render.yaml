@@ -11,17 +11,19 @@
 # Agar servis nomlarini o'zgartirsangiz, quyidagi URL'larni ham yangilang.
 #
 # ⚠️ FREE-PLAN OGOHLANTIRISHI (H4) — hozir hamma servis `plan: free`:
-#   • Free Postgres ~90 KUNDAN keyin O'CHIRILADI (ma'lumot yo'qoladi). Jonli
-#     foydalanuvchilar oldidan `plan: starter`ga o'ting YOKI muntazam backup oling.
-#   • Web servislar harakatsizlikda spin-down bo'ladi -> birinchi so'rov 30-60s
-#     sovuq start; cron'lar (brifing/agent-billing) o'tkazib yuborilishi mumkin.
+#   • Postgres endi `starter` (pullik, ~$7/oy) — free-plan DB ~90 kunda
+#     O'CHIRILAR edi (barcha akkaunt/balans yo'qolardi). Jonli foydalanuvchilar
+#     uchun bu majburiy xarajat. Baribir muntazam backup tavsiya etiladi.
+#   • Web servislar hali `free`: harakatsizlikda spin-down -> birinchi so'rov
+#     30-60s sovuq start; cron'lar (brifing/agent-billing/goals) o'tkazib
+#     yuborilishi mumkin. Jonli trafik oldidan API'ni ham starter'ga o'tkazing.
 #   • Free RAM 512MB. Engine'ning og'ir CV-kutubxonalari (torch) endi bazaviy
 #     o'rnatishdan chiqarilgan (requirements-camera.txt) — OOM xavfi kamaydi.
-#   Bularni to'liq bartaraf etish PULLIK planga o'tishni talab qiladi (sizning
-#   qaroringiz) — shuning uchun bu yerda `free` avtomatik o'zgartirilmadi.
 databases:
   - name: agentnet-db
-    plan: free
+    # DIQQAT: free emas — free Postgres 90 kunda o'chib, BARCHA foydalanuvchi
+    # ma'lumotlari yo'qolardi. Starter — launch uchun minimal xavfsiz daraja.
+    plan: starter
     databaseName: agentnet
     user: agentnet
 

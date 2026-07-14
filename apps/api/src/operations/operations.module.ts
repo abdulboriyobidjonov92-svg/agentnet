@@ -5,9 +5,10 @@ import { OperationsService } from './operations.service';
 import { AuthModule } from '../auth/auth.module';
 import { ClerkGuard } from '../auth/clerk.guard';
 import { ConnectorsModule } from '../connectors/connectors.module';
+import { UsageModule } from '../usage/usage.module';
 
 @Module({
-  imports: [HttpModule, AuthModule, ConnectorsModule],
+  imports: [HttpModule, AuthModule, ConnectorsModule, UsageModule],
   controllers: [OperationsController],
   providers: [OperationsService, ClerkGuard],
 })

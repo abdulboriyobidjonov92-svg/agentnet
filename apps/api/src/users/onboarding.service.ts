@@ -4,6 +4,8 @@ import { firstValueFrom } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../auth/auth.service';
 import { TwinService } from '../twin/twin.service';
+import { UsageService } from '../usage/usage.service';
+import { AGENT_CREATE_LOCK_NS } from '../agents/agents.service';
 import type { User } from '@prisma/client';
 import { OnboardingDto, InstallRecommendationsDto } from './dto/onboarding.dto';
 
@@ -34,6 +36,7 @@ export class OnboardingService {
     private readonly http: HttpService,
     private readonly audit: AuditLogService,
     private readonly twin: TwinService,
+    private readonly usage: UsageService,
   ) {}
 
   async completeOnboarding(user: User, dto: OnboardingDto) {
@@ -147,38 +150,60 @@ export class OnboardingService {
     }
   }
 
-  /** Tanlangan tavsiya agentlarni bir bosishda yaratadi. */
+  /**
+   * Tanlangan tavsiya agentlarni bir bosishda yaratadi.
+   *
+   * MUHIM (tarif-chegarasi): ilgari bu yo'l `assertCanCreateAgent`ni CHETLAB
+   * o'tardi — DTO ixtiyoriy nom/prompt/tool qabul qilgani uchun foydalanuvchi
+   * bu endpointni takror chaqirib (yoki soxta agent-ro'yxati bilan) 5-agent
+   * (free) chegarasini cheksiz buzishi mumkin edi. Endi butun partiya bitta
+   * $transaction'da, foydalanuvchi bo'yicha advisory-lock ostida (AgentsService
+   * bilan AYNAN bir xil kalit — manual-create bilan ham seriyalashadi) va HAR
+   * agent yaratishdan oldin `assertCanCreateAgent` bilan atomik tekshiriladi.
+   */
   async installRecommendations(user: User, dto: InstallRecommendationsDto) {
-    const created = [];
-    for (const tpl of dto.agents) {
-      const exists = await this.prisma.agent.findFirst({
-        where: { userId: user.id, name: tpl.name },
-      });
-      if (exists) {
-        created.push({ id: exists.id, name: exists.name, alreadyExisted: true });
-        continue;
+    const created = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${AGENT_CREATE_LOCK_NS}::int, hashtext(${user.id}))`;
+      const out: Array<{ id: string; name: string; alreadyExisted: boolean }> = [];
+      for (const tpl of dto.agents) {
+        const exists = await tx.agent.findFirst({
+          where: { userId: user.id, name: tpl.name },
+        });
+        if (exists) {
+          out.push({ id: exists.id, name: exists.name, alreadyExisted: true });
+          continue;
+        }
+        // Chegara tekshiruvi lock ostida — parallel install/create oshib ketolmaydi.
+        await this.usage.assertCanCreateAgent(user, tx);
+        const agent = await tx.agent.create({
+          data: {
+            name: tpl.name,
+            systemPrompt: tpl.systemPrompt,
+            model: 'claude-sonnet-5',
+            halalFilterEnabled: true, // har doim yoqiq
+            memoryEnabled: true,
+            toolsConfig: (tpl.toolsConfig ?? []) as object,
+            // S3: vertikal compliance pack avtomatik biriktiriladi
+            vertical: DOMAIN_TO_VERTICAL[user.domain ?? ''] ?? null,
+            userId: user.id,
+          },
+        });
+        out.push({ id: agent.id, name: agent.name, alreadyExisted: false });
       }
-      const agent = await this.prisma.agent.create({
-        data: {
-          name: tpl.name,
-          systemPrompt: tpl.systemPrompt,
-          model: 'claude-sonnet-5',
-          halalFilterEnabled: true, // har doim yoqiq
-          memoryEnabled: true,
-          toolsConfig: (tpl.toolsConfig ?? []) as object,
-          // S3: vertikal compliance pack avtomatik biriktiriladi
-          vertical: DOMAIN_TO_VERTICAL[user.domain ?? ''] ?? null,
-          userId: user.id,
-        },
-      });
-      await this.audit.record({
-        actorId: user.id,
-        action: 'agent.install_recommended',
-        resourceType: 'agent',
-        resourceId: agent.id,
-        metadata: { domain: user.domain ?? 'general' },
-      });
-      created.push({ id: agent.id, name: agent.name, alreadyExisted: false });
+      return out;
+    });
+
+    // Audit-yozuvlar transaksiyadan tashqarida (best-effort — chegara-mantiqni bloklamaydi).
+    for (const c of created) {
+      if (!c.alreadyExisted) {
+        await this.audit.record({
+          actorId: user.id,
+          action: 'agent.install_recommended',
+          resourceType: 'agent',
+          resourceId: c.id,
+          metadata: { domain: user.domain ?? 'general' },
+        });
+      }
     }
     return { agents: created };
   }

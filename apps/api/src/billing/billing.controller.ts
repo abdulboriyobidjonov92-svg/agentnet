@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, Headers, UseGuards } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { IsIn, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
 import { ClerkGuard } from '../auth/clerk.guard';
 import { InternalTokenGuard } from '../auth/internal-token.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -9,13 +10,27 @@ import { PaymeService } from './payme.service';
 import { UsageService } from '../usage/usage.service';
 import type { User } from '@prisma/client';
 
+// MUHIM: global ValidationPipe whitelist:true — dekoratorSIZ maydonlarni
+// butunlay O'CHIRIB yuboradi. Ilgari bu ikkala DTO dekoratorsiz edi, ya'ni
+// amountSom/reason/idempotencyKey server'ga umuman yetib kelmasdi:
+// refund-idempotency (L12) himoyasi jimgina ishlamay qolgan edi.
 class TopupDto {
+  @IsNumber()
   amountSom: number;
+
+  @IsOptional()
+  @IsIn(['payme', 'click'])
   provider?: 'payme' | 'click';
 }
 
 class RefundDto {
+  @IsString()
+  @MaxLength(100)
   reason: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
   idempotencyKey?: string;
 }
 

@@ -13,6 +13,13 @@ COPY apps/api ./apps/api
 WORKDIR /app/apps/api
 RUN npm install --no-audit --no-fund
 
+# web.automate (Web Operator agenti) uchun Playwright chromium + OS-bog'liqliklari.
+# MUHIM: busiz prod'da HAR brauzer-yurgizish "Executable doesn't exist" bilan
+# yiqilardi — feature marketingda bor edi-yu, deploy'da umuman ishlamasdi.
+# `--with-deps` kerakli apt paketlarini ham o'rnatadi (image ~400MB kattalashadi;
+# Web Operator uchun zarur). Playwright versiyasi package.json bilan mos keladi.
+RUN npx playwright install --with-deps chromium
+
 # Prisma schema'ni Postgres'ga moslash + client generatsiya
 RUN sed 's/provider = "sqlite"/provider = "postgresql"/' prisma/schema.prisma > prisma/schema.prod.prisma \
     && npx prisma generate --schema=prisma/schema.prod.prisma

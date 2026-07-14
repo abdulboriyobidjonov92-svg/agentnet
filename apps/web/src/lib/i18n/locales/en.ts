@@ -291,6 +291,8 @@ const en: Dict = {
     "chat.halalBlocked": "Blocked by Ethics Guard",
     "chat.halalReview": "Review required",
     "chat.blockedMsg": "This message was blocked by the Ethics Guard.",
+    "chat.demoBadge": "Demo mode",
+    "chat.demoNotice": "This reply was generated in demo mode (not a real AI response) — you were not charged for it.",
 
     // Onboarding (adaptive core)
     "onb.title": "Tell us about yourself",

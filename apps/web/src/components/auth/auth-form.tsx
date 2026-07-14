@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, ArrowRight, ArrowLeft, Mail, Phone, ShieldCheck } from "lucide-react";
-import { setClientSession } from "@/lib/session";
 import { useT } from "@/lib/i18n/client";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -76,7 +75,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     }, 1000);
   };
 
-  const finishLogin = (data: {
+  const finishLogin = async (data: {
     userId: string;
     email: string;
     phone?: string | null;
@@ -84,13 +83,20 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     token: string;
     isNewUser?: boolean;
   }) => {
-    setClientSession({
-      userId: data.userId,
-      email: data.email,
-      phone: data.phone ?? undefined,
-      name: data.name || name.trim() || undefined,
-      token: data.token,
+    // Token httpOnly cookie'ga FAQAT server tomonda yoziladi (XSS o'g'irlay
+    // olmasligi uchun) — shu route ikkala cookie'ni (token + profil) o'rnatadi.
+    const res = await fetch("/api/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: data.userId,
+        email: data.email,
+        phone: data.phone ?? undefined,
+        name: data.name || name.trim() || undefined,
+        token: data.token,
+      }),
     });
+    if (!res.ok) throw new Error("Sessiyani o'rnatib bo'lmadi — qayta urinib ko'ring");
     router.push(isSignUp || data.isNewUser ? "/onboarding" : "/dashboard");
     router.refresh();
   };
@@ -140,7 +146,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         setStep("twofa");
         setTwoFaCode("");
       } else {
-        finishLogin(data);
+        await finishLogin(data);
       }
     } catch (err: any) {
       setError(err.message || "Error");
@@ -162,7 +168,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || "Error");
-      finishLogin(data);
+      await finishLogin(data);
     } catch (err: any) {
       setError(err.message || "Error");
     } finally {

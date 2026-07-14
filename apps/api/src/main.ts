@@ -15,12 +15,24 @@ async function bootstrap() {
   // `x-internal-token` qo'shadigan yagona axios interceptor'ni o'rnatamiz.
   installEngineAuthInterceptor();
 
-  const app = await NestFactory.create(AppModule, { bufferLogs: false });
+  // rawBody: true — svix (Clerk webhook) imzo tekshiruvi XOM baytlar ustida
+  // ishlashi shart. Busiz @Body() parsed-JSON obyekt beradi va imzo tekshiruvi
+  // HAR DOIM yiqilar edi (auth.controller'dagi req.rawBody shunga tayanadi).
+  const app = await NestFactory.create(AppModule, { bufferLogs: false, rawBody: true });
 
-  // CORS — dev'da har qanday localhost porti (3000 real app, 3100 preview, ...),
-  // prod'da faqat aniq belgilangan origin. Login fetch shu ro'yxatdan o'tadi.
   const explicitOrigin = process.env.NEXT_PUBLIC_APP_URL;
   const isProd = process.env.NODE_ENV === 'production';
+
+  // TRUST PROXY (kritik) — Render/reverse-proxy ortida `req.ip` aks holda HAR
+  // DOIM proxy IP'sini qaytaradi → ThrottlerGuard VA @Throttle (OTP/login
+  // rate-limit) BARCHA foydalanuvchilarni BITTA IP-bucket'ga soladi: bitta
+  // odam limitni yoqsa hamma bloklanadi (launch kuni login butunlay sinadi).
+  // Bir hop (`1`) — Render'ning yagona proxy qatlami; `true` X-Forwarded-For
+  // spoofing'ga yo'l ochardi, shuning uchun aniq son. Faqat prod'da (dev'da
+  // to'g'ridan-to'g'ri ulanish, proxy yo'q).
+  if (isProd) {
+    app.getHttpAdapter().getInstance().set('trust proxy', 1);
+  }
   app.enableCors({
     origin: (origin, callback) => {
       // Server-to-server yoki curl (origin yo'q) — ruxsat

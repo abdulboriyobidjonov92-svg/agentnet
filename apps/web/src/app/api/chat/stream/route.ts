@@ -1,9 +1,20 @@
 import { NextRequest } from "next/server";
-import { decodeSession, SESSION_COOKIE } from "@/lib/session";
+import { decodeSession, tokenPayload, SESSION_COOKIE, TOKEN_COOKIE } from "@/lib/session";
 
 export async function POST(req: NextRequest) {
-  const session = decodeSession(req.cookies.get(SESSION_COOKIE)?.value);
-  if (!session) return new Response("Unauthorized", { status: 401 });
+  // Token endi httpOnly cookie'da (XSS himoyasi); legacy sessiyalar uchun eski
+  // profil-cookie ichidagi token fallback sifatida qabul qilinadi.
+  const token =
+    req.cookies.get(TOKEN_COOKIE)?.value ||
+    decodeSession(req.cookies.get(SESSION_COOKIE)?.value)?.token;
+  if (!token) return new Response("Unauthorized", { status: 401 });
+
+  // user_id IMZOLANGAN token ichidan olinadi — ilgari profil-cookie'dagi userId
+  // ishlatilardi, uni esa har kim o'zgartira olardi (o'z tokeni bilan boshqa
+  // foydalanuvchi nomidan engine'ga borish mumkin edi). Imzo o'zi quyidagi
+  // charge-message chaqiruvida API tomonidan tekshiriladi (fail-closed).
+  const payload = tokenPayload(token);
+  if (!payload?.sub) return new Response("Unauthorized", { status: 401 });
 
   const body = await req.json();
   const engineUrl = process.env.AGENT_ENGINE_URL ?? "http://localhost:8000";
@@ -12,10 +23,7 @@ export async function POST(req: NextRequest) {
   // uchun InternalTokenGuard bilan himoyalangan; faqat shu BFF chaqira oladi.
   const internalToken = process.env.INTERNAL_API_TOKEN ?? "agentnet-internal-dev";
 
-  // Imzolangan token — barcha API (usage/billing) chaqiruvlari uchun. Token
-  // bo'lmasa foydalanuvchi qayta kirishi kerak (eski, imzosiz sessiya).
-  if (!session.token) return new Response("Unauthorized", { status: 401 });
-  const authHeader = `Bearer ${session.token}`;
+  const authHeader = `Bearer ${token}`;
 
   // Refund idempotency (L12): shu so'rov uchun BITTA kalit. Barcha refund-yo'llari
   // (limit/engine-uzilishi/oqim-xatosi) shu kalit bilan chaqiriladi — bir necha
@@ -106,7 +114,7 @@ export async function POST(req: NextRequest) {
       headers: { "Content-Type": "application/json", "x-internal-token": internalToken },
       body: JSON.stringify({
         agent_definition: body.agentDefinition,
-        user_id: session.userId,
+        user_id: payload.sub,
         message: body.message,
         conversation_id: body.conversationId ?? null,
         conversation_history: body.conversationHistory ?? null,
@@ -139,16 +147,24 @@ export async function POST(req: NextRequest) {
   let tail = "";
   let sawError = false;
   let sawDone = false;
+  let sawDemo = false;
   const monitor = new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, controller) {
       controller.enqueue(chunk); // mijozga o'zgarishsiz uzatamiz
       tail = (tail + decoder.decode(chunk, { stream: true })).slice(-1024); // chunk-chegarasi bo'linishi uchun oyna
       if (/"type"\s*:\s*"error"/.test(tail)) sawError = true;
       if (/"type"\s*:\s*"done"/.test(tail)) sawDone = true;
+      // Demo-javob (ANTHROPIC_API_KEY sozlanmagan instans) — real Claude javobi
+      // emas, shuning uchun bunga PUL OLINMAYDI. Bu regex faqat engine'ning
+      // `{"type":"done","demo_mode":true}` eventiga mos keladi (BFF'ning o'z
+      // sintetik eventlari doim demo_mode:false yuboradi).
+      if (/"demo_mode"\s*:\s*true/.test(tail)) sawDemo = true;
     },
     flush() {
-      // Xato-event ko'rildi YOKI oqim `done`siz tugadi (erta uzilish) -> refund.
+      // Xato-event ko'rildi YOKI oqim `done`siz tugadi (erta uzilish) YOKI
+      // javob demo rejimda berildi (xizmat real ko'rsatilmadi) -> refund.
       if (sawError || !sawDone) postRefund("stream_failed");
+      else if (sawDemo) postRefund("demo_mode");
     },
   });
 

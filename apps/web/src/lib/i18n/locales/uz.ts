@@ -282,6 +282,8 @@ const uz: Dict = {
     "chat.halalBlocked": "Ethics Guard blokladi",
     "chat.halalReview": "Tekshiruv talab qilinadi",
     "chat.blockedMsg": "Bu xabar Ethics Guard tomonidan bloklandi.",
+    "chat.demoBadge": "Demo rejim",
+    "chat.demoNotice": "Bu javob demo rejimda yaratildi (haqiqiy AI javobi emas) — buning uchun pul olinmadi.",
 
     // Onboarding (adaptiv yadro)
     "onb.title": "O'zingiz haqingizda aytib bering",

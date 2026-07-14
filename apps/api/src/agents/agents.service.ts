@@ -23,7 +23,10 @@ import { Prisma, type User } from '@prisma/client';
 
 // Agent-yaratish advisory-lock nommaydoni (foydalanuvchi bo'yicha kalit bilan
 // birga ishlatiladi — bir foydalanuvchining parallel yaratishlari seriyalashadi).
-const AGENT_CREATE_LOCK_NS = 4772;
+// EXPORT: onboarding'ning installRecommendations() ham AYNAN shu lock bilan
+// seriyalashadi — aks holda manual create + batch-install parallel ishlab
+// agent-chegarasidan oshib ketishi mumkin edi.
+export const AGENT_CREATE_LOCK_NS = 4772;
 // Suhbatga xabar qo'shishni bir suhbat bo'yicha seriyalash uchun (parallel
 // xabarlar JSON massivda bir-birini o'chirib yubormasligi uchun).
 const CONVERSATION_APPEND_LOCK_NS = 4779;

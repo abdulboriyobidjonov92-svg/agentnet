@@ -1,8 +1,11 @@
 "use client";
 import { useCallback } from "react";
-import { getClientSession } from "@/lib/session";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+// Barcha API chaqiruvlari same-origin /api/backend/* orqali boradi — middleware
+// httpOnly cookie'dagi tokenni Authorization header sifatida qo'shib, so'rovni
+// NestJS API'ga proxy qiladi. Brauzer JS'i tokenni umuman ko'rmaydi (XSS
+// himoyasi); shu sabab bu yerda getClientSession/Authorization YO'Q.
+const API_BASE = "/api/backend";
 
 interface ApiErrorPayload {
   reason?: string;
@@ -43,12 +46,10 @@ export function blockedMessage(
 export function useApiClient() {
   const request = useCallback(
     async <T>(path: string, options: RequestInit = {}): Promise<T> => {
-      const session = getClientSession();
-      const res = await fetch(`${API_URL}/api${path}`, {
+      const res = await fetch(`${API_BASE}${path}`, {
         ...options,
         headers: {
           "Content-Type": "application/json",
-          ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
           ...options.headers,
         },
       });
@@ -74,7 +75,7 @@ export function useApiClient() {
       // `request` bilan bir xil xato-ishlovi: non-OK javob DATA sifatida
       // qaytmasligi kerak (aks holda React Query uni "muvaffaqiyat" deb bilib,
       // keyin `.map` render'da yiqiladi va sahifa oqarib qoladi).
-      const res = await fetch(`${API_URL}/api${path}`);
+      const res = await fetch(`${API_BASE}${path}`);
       if (!res.ok) {
         const err = await res.json().catch(() => ({ message: res.statusText }));
         const e = new Error(err.message ?? err.reason ?? "API xatosi") as Error & {

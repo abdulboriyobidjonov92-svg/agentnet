@@ -1,21 +1,19 @@
 import {
   Body,
   Controller,
-  ForbiddenException,
   Get,
-  Headers,
   NotFoundException,
   Post,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ClerkGuard } from '../auth/clerk.guard';
+import { InternalTokenGuard } from '../auth/internal-token.guard';
+import { LlmQuotaGuard } from '../usage/llm-quota.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { AutomationService } from './automation.service';
 import type { User } from '@prisma/client';
-
-const INTERNAL_TOKEN = process.env.INTERNAL_API_TOKEN ?? 'agentnet-internal-dev';
 
 @ApiTags('automation')
 @Controller('automation')
@@ -27,7 +25,7 @@ export class AutomationController {
 
   @Post('run')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
+  @UseGuards(ClerkGuard, LlmQuotaGuard) // ko'p-qadamli engine LLM loop — kvota bilan
   run(@CurrentUser() user: User, @Body() body: { goal: string; startUrl?: string; language?: string }) {
     return this.automation.run(user, body.goal, body.startUrl, body.language);
   }
@@ -46,14 +44,15 @@ export class AutomationController {
 
   /**
    * Ichki endpoint — engine'dagi web.automate agent-vositasi chaqiradi.
-   * Auth: x-internal-token (servislararo), user esa body'dagi userId orqali.
+   * Auth: InternalTokenGuard (doimiy-vaqtli solishtirish + prod'da fail-closed —
+   * oldingi raw `!==` timing-xavfli edi VA prod-default kalitni qabul qilardi).
+   * User esa body'dagi userId orqali.
    */
   @Post('internal/run')
+  @UseGuards(InternalTokenGuard)
   async internalRun(
-    @Headers('x-internal-token') token: string,
     @Body() body: { goal: string; startUrl?: string; userId: string; language?: string },
   ) {
-    if (token !== INTERNAL_TOKEN) throw new ForbiddenException('Internal token invalid');
     const user = await this.prisma.user.findUnique({ where: { id: body.userId } });
     if (!user) throw new NotFoundException('User topilmadi');
     return this.automation.run(user, body.goal, body.startUrl, body.language);
