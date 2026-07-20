@@ -1,0 +1,48 @@
+# AgentNet — FastAPI agent-engine (orkestrator) uchun Fly.io konfiguratsiyasi
+# render.yaml'dagi `agentnet-engine` servisining Fly.io ekvivalenti.
+#
+# DEPLOY (repo ILDIZIDAN — build-konteksti apps/agent-engine bo'lishi kerak,
+# chunki Dockerfile `COPY . .` bilan shu papkani nusxalaydi):
+#   fly deploy --config apps/agent-engine/fly.toml --dockerfile apps/agent-engine/Dockerfile apps/agent-engine
+#
+# Engine — ICHKI servis: uni faqat NestJS API va Next.js BFF chaqiradi.
+# Ommaviy .fly.dev URL'da tursa ham, HAR so'rov `x-internal-token` bilan
+# himoyalangan (INTERNAL_API_TOKEN sekret — API va web bilan AYNAN bir xil).
+
+app = "agentnet-engine"
+primary_region = "fra"
+
+[build]
+  dockerfile = "apps/agent-engine/Dockerfile"
+
+[env]
+  # ENV=production → engine ichki-auth guardini fail-closed rejimga o'tkazadi
+  # (commlik default token bilan ochiq qolmaydi). render.yaml bilan bir xil.
+  ENV = "production"
+  PORT = "8000"
+  # web.automate / connector.invoke uchun API'ga ichki chaqiruv manzili
+  API_URL = "https://agentnet-api.fly.dev"
+  AGENT_MAX_TOOL_ITERATIONS = "8"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  # "Uxlamaslik" — engine ham doim yonib tursin (API'ning stream chaqiruvlari
+  # sovuq startda uzilib qolmasin).
+  auto_stop_machines = 'off'
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  # Healthcheck — FastAPI `/health` (render healthCheckPath bilan bir xil, token talab qilmaydi)
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "20s"
+    method = "get"
+    path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  cpus = 1
