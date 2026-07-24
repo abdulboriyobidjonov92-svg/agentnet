@@ -3,8 +3,9 @@
 #
 # DEPLOY (repo ILDIZIDAN ishga tushiring — build-konteksti monorepo ildizi
 # bo'lishi SHART, chunki Dockerfile `packages/` va `apps/api` ni ildizdan
-# nusxalaydi):
-#   fly deploy --config apps/api/fly.toml --dockerfile apps/api/Dockerfile .
+# nusxalaydi). `dockerfile` yo'li fly.toml joylashgan papkaga (apps/api)
+# nisbatan hisoblanadi — shuning uchun pastda faqat "Dockerfile":
+#   fly deploy --config apps/api/fly.toml .
 #
 # Sirlar (DATABASE_URL, kalitlar, ANTHROPIC_API_KEY ...) `fly secrets set`
 # orqali beriladi — pastdagi [env] blokida FAQAT maxfiy BO'LMAGAN qiymatlar.
@@ -13,7 +14,7 @@ app = "agentnet-api"
 primary_region = "fra"   # Frankfurt — O'zbekiston/Yevropa uchun eng yaqin
 
 [build]
-  dockerfile = "apps/api/Dockerfile"
+  dockerfile = "Dockerfile"
 
 # Maxfiy BO'LMAGAN muhit-o'zgaruvchilar (render.yaml'dagi `value:` larga mos).
 # Maxfiylar (sync:false / generateValue) `fly secrets set` orqali kiritiladi.
