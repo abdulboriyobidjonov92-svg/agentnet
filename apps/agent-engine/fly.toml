@@ -1,9 +1,11 @@
 # AgentNet — FastAPI agent-engine (orkestrator) uchun Fly.io konfiguratsiyasi
 # render.yaml'dagi `agentnet-engine` servisining Fly.io ekvivalenti.
 #
-# DEPLOY (repo ILDIZIDAN — build-konteksti apps/agent-engine bo'lishi kerak,
-# chunki Dockerfile `COPY . .` bilan shu papkani nusxalaydi):
-#   fly deploy --config apps/agent-engine/fly.toml --dockerfile apps/agent-engine/Dockerfile apps/agent-engine
+# DEPLOY — shu papka (apps/agent-engine) ICHIDA turib:
+#   cd apps/agent-engine
+#   fly deploy
+# (Dockerfile va build-konteksti — shu papkaning o'zi, chunki Dockerfile
+# `COPY . .` bilan joriy papkani nusxalaydi.)
 #
 # Engine — ICHKI servis: uni faqat NestJS API va Next.js BFF chaqiradi.
 # Ommaviy .fly.dev URL'da tursa ham, HAR so'rov `x-internal-token` bilan
@@ -13,7 +15,7 @@ app = "agentnet-engine"
 primary_region = "fra"
 
 [build]
-  dockerfile = "apps/agent-engine/Dockerfile"
+  dockerfile = "Dockerfile"
 
 [env]
   # ENV=production → engine ichki-auth guardini fail-closed rejimga o'tkazadi
