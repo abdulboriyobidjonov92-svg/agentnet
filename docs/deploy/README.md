@@ -33,9 +33,11 @@ bajarsa bo'ladigan darajada sodda. Batafsil izohlar uchun:
 3. **Vercel hisob**: https://vercel.com → Continue with GitHub.
 4. **Resend hisob** (email-OTP login uchun SHART): https://resend.com → API key
    yarating (`re_...`). Busiz API server ishga tushmaydi.
-5. **(ixtiyoriy) Anthropic**: real Claude javoblari uchun `ANTHROPIC_API_KEY`.
+5. **Supabase hisob** (baza — bepul): https://supabase.com → GitHub bilan kiring.
+   Baza sozlash → [`SUPABASE_DB.md`](./SUPABASE_DB.md).
+6. **(ixtiyoriy) Anthropic**: real Claude javoblari uchun `ANTHROPIC_API_KEY`.
    Bo'lmasa platforma demo/heuristik rejimda ishlaydi.
-6. **(ixtiyoriy) Payme sandbox**: to'lov oqimini test qilish uchun
+7. **(ixtiyoriy) Payme sandbox**: to'lov oqimini test qilish uchun
    `PAYME_MERCHANT_ID` + `PAYME_SECRET_KEY` (test rejim).
 
 ### flyctl CLI o'rnatish
@@ -51,16 +53,18 @@ fly auth login
 > Barcha buyruqlar repo **ildizida** (`agentnet/`) turib bajariladi.
 
 ```bash
-# 1.1 Postgres (1 kichik node)
-fly postgres create --name agentnet-db --region fra \
-  --initial-cluster-size 1 --vm-size shared-cpu-1x --volume-size 1
+# 1.1 Baza — Fly Postgres O'RNIGA Supabase (bepul) ishlatamiz.
+#     Supabase'da baza brauzerda yaratiladi (pastdagi SUPABASE_DB.md).
+#     U yerdan "Session pooler" ulanish satrini (DATABASE_URL) olasiz.
 
 # 1.2 Ikkala app'ni yaratamiz
 fly apps create agentnet-api
 fly apps create agentnet-engine
 
-# 1.3 Postgres'ni API'ga ulaymiz (DATABASE_URL avtomatik sekret bo'ladi)
-fly postgres attach agentnet-db --app agentnet-api
+# 1.3 Supabase DATABASE_URL'ni API'ga sekret qilib qo'yamiz
+#     (Supabase → Connect → "Session pooler" (port 5432) satrini nusxalang;
+#      [YOUR-PASSWORD] o'rniga haqiqiy parolni qo'ying)
+fly secrets set DATABASE_URL="postgresql://postgres.XXXX:PAROL@aws-0-REGION.pooler.supabase.com:5432/postgres" --app agentnet-api
 
 # 1.4 UMUMIY ichki token — uchala joyda bir xil bo'ladi (shu qiymatni saqlang!)
 TOKEN=$(openssl rand -hex 32)

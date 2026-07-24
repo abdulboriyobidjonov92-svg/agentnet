@@ -22,7 +22,7 @@ Yaratilgan fayllar:
 | `sync: false` (maxfiy) | `fly secrets set KEY=...` |
 | `generateValue: true` | `fly secrets set KEY=$(openssl rand -hex 32)` |
 | `fromGroup` (umumiy sir) | bir xil qiymatni HAR IKKALA app'ga `fly secrets set` |
-| `fromDatabase` (DATABASE_URL) | `fly postgres attach` — DATABASE_URL'ni avtomatik sekret qiladi |
+| `fromDatabase` (DATABASE_URL) | Supabase (bepul Postgres) → `fly secrets set DATABASE_URL=...` |
 
 **Muhim:** `INTERNAL_API_TOKEN` — API va engine'da **AYNAN bir xil** bo'lishi
 SHART (aks holda ichki chaqiruvlar 401 bo'ladi). Bir marta generatsiya qilib,
@@ -52,22 +52,12 @@ fly auth login
 
 ---
 
-## 1) Postgres yaratish (bepul-darajaga yaqin, 1 ta kichik instance)
+## 1) Baza — Supabase (bepul Postgres)
 
-```bash
-fly postgres create \
-  --name agentnet-db \
-  --region fra \
-  --initial-cluster-size 1 \
-  --vm-size shared-cpu-1x \
-  --volume-size 1
-```
-- `--initial-cluster-size 1` → bitta node (arzon, launch uchun yetarli).
-- `--volume-size 1` → 1GB disk (eng kichik).
-- So'ralganda `Development` (single node) presetini tanlang.
-
-> Bu buyruq bergan **postgres parolini bir joyga saqlab qo'ying** — keyin
-> kerak bo'lishi mumkin (garchi `attach` DATABASE_URL'ni avtomatik bersa ham).
+Fly Postgres O'RNIGA **Supabase**'ning bepul bazasidan foydalanamiz — batafsil
+[`SUPABASE_DB.md`](./SUPABASE_DB.md). Qisqacha: Supabase'da loyiha yaratib,
+**"Session pooler" (port 5432)** ulanish satrini (`DATABASE_URL`) olasiz.
+Bu sekret 4-bosqichda `fly secrets set` bilan kiritiladi.
 
 ---
 
@@ -88,11 +78,12 @@ fly apps create agentnet-engine
 
 ---
 
-## 3) Postgres'ni API'ga ulash (DATABASE_URL avtomatik sekret bo'ladi)
+## 3) Supabase DATABASE_URL'ni API'ga sekret qilib qo'yish
 
 ```bash
-fly postgres attach agentnet-db --app agentnet-api
+fly secrets set DATABASE_URL="postgresql://postgres.XXXX:PAROL@aws-0-REGION.pooler.supabase.com:5432/postgres" --app agentnet-api
 ```
+(Supabase → Connect → "Session pooler" satri; `[YOUR-PASSWORD]` o'rniga haqiqiy parol.)
 Bu `agentnet-api` app'iga `DATABASE_URL` sekretini avtomatik qo'shadi.
 (Engine'ga DB kerak emas — u faqat API orqali ishlaydi.)
 
