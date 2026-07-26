@@ -29,6 +29,7 @@ import { FeedbackModule } from './feedback/feedback.module';
 import { ShareModule } from './share/share.module';
 import { ReferralModule } from './referral/referral.module';
 import { BriefingModule } from './briefing/briefing.module';
+import { AdminModule } from './admin/admin.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -62,6 +63,7 @@ import { HealthController } from './health.controller';
     ShareModule,
     ReferralModule,
     BriefingModule,
+    AdminModule,
   ],
   providers: [
     // Global rate-limiting: har IP uchun 60s ichida 100 so'rov (ThrottlerModule

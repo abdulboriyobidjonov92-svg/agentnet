@@ -180,6 +180,41 @@ export function RingGauge({ value, accent = "emerald", size = 132, label }: { va
   );
 }
 
+/** Gorizontal bar-ro'yxat — reyting/kategoriya taqsimoti kabi diskret qiymatlar uchun. */
+export function BarList({
+  items,
+  accent = "cyan",
+  valueFormatter,
+}: {
+  items: { label: string; value: number }[];
+  accent?: Accent;
+  valueFormatter?: (v: number) => string;
+}) {
+  const a = ACCENTS[accent];
+  const max = Math.max(...items.map((i) => i.value), 1);
+  if (items.length === 0) return null;
+  return (
+    <div className="space-y-2.5">
+      {items.map((item) => (
+        <div key={item.label} className="flex items-center gap-3">
+          <span className="w-28 shrink-0 truncate text-xs text-muted-foreground" title={item.label}>
+            {item.label}
+          </span>
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full transition-all duration-700"
+              style={{ width: `${Math.max((item.value / max) * 100, 3)}%`, background: a.stroke }}
+            />
+          </div>
+          <span className="w-12 shrink-0 text-right text-xs font-semibold tabular-nums">
+            {valueFormatter ? valueFormatter(item.value) : item.value.toLocaleString()}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** Ko'p qatorli chiziqli chart (bir necha metrikани solishtirish uchun). */
 export function MultiLine({ series, height = 180, className }: { series: { data: number[]; accent: Accent }[]; height?: number; className?: string }) {
   const [w, setW] = useState(600);
