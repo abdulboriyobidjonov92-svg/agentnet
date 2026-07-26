@@ -15,6 +15,7 @@ import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { Webhook } from 'svix';
 import { ClerkSyncService, TwoFactorService } from './auth.service';
 import { OtpService } from './otp.service';
+import { GoogleAuthService } from './google.service';
 import { ClerkGuard } from './clerk.guard';
 import { CurrentUser } from './current-user.decorator';
 import type { User } from '@prisma/client';
@@ -25,6 +26,7 @@ export class AuthController {
     private readonly clerkSync: ClerkSyncService,
     private readonly twoFactor: TwoFactorService,
     private readonly otp: OtpService,
+    private readonly google: GoogleAuthService,
   ) {}
 
   /** Clerk webhook — foydalanuvchi yaratish/o'chirish eventlarini qabul qiladi */
@@ -92,6 +94,18 @@ export class AuthController {
   @HttpCode(200)
   async verifyOtp(@Body() body: { email?: string; phone?: string; code: string; name?: string; ref?: string }) {
     return this.otp.verifyOtp(body);
+  }
+
+  /**
+   * Google bilan kirish — frontend Google Identity Services'dan olgan
+   * `credential` (ID token) ni yuboradi, biz uni Google'da tekshirib
+   * sessiya beramiz. Email tasdiqlangani uchun OTP talab qilinmaydi.
+   */
+  @Post('google')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(200)
+  async googleLogin(@Body() body: { credential: string }) {
+    return this.google.loginWithIdToken(body?.credential);
   }
 
   /** 2FA yoqilgan hisoblar uchun login'ning yakuniy qadami — TOTP kodni tekshiradi */
