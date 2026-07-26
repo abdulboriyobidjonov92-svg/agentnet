@@ -5,11 +5,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Bot, Store, Settings, LogOut, Plus, CircleUserRound, Target, Sparkles, Building2, Globe, Plug, Camera, CalendarClock, Ship, Landmark, ChevronDown, Gem, LayoutTemplate } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { LayoutDashboard, Bot, Store, Settings, LogOut, Plus, CircleUserRound, Target, Sparkles, Building2, Globe, Plug, Camera, CalendarClock, Ship, Landmark, ChevronDown, Gem, LayoutTemplate, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { clearClientSession } from "@/lib/session";
 import { useT } from "@/lib/i18n/client";
+import { useApiClient } from "@/lib/api-client";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Magnetic } from "@/components/neuro/magnetic";
 
@@ -19,6 +21,16 @@ export function Sidebar({ email, name, onNavigate }: { email?: string; name?: st
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useT();
+  const api = useApiClient();
+
+  // Faqat super-admin (OWNER) uchun — nav'da ko'rinishi UI qulayligi, haqiqiy
+  // himoya backend'da (AdminGuard). "profile" query-key settings sahifasi bilan
+  // bir xil — react-query keshi orqali qo'shimcha so'rovsiz baham ko'riladi.
+  const { data: profile } = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => api.get<{ role?: string }>("/users/me"),
+  });
+  const isOwner = profile?.role === "OWNER";
 
   // 14 band -> 4 mantiqiy guruh; yig'ilish holati localStorage'da saqlanadi
   const GROUPS = [
@@ -60,6 +72,8 @@ export function Sidebar({ email, name, onNavigate }: { email?: string; name?: st
         { href: "/marketplace", label: t("nav.marketplace"), icon: Store },
         { href: "/pricing", label: t("nav.pricing"), icon: Gem },
         { href: "/settings", label: t("nav.settings"), icon: Settings },
+        // Faqat super-admin (OWNER)
+        ...(isOwner ? [{ href: "/admin", label: t("nav.admin"), icon: ShieldCheck }] : []),
       ],
     },
   ];

@@ -188,6 +188,9 @@ model Agent {
   user               User           @relation(fields: [userId], references: [id])
   orgId              String?
   org                Org?           @relation(fields: [orgId], references: [id])
+  // Admin panelidan boshqariladigan marketplace kategoriyasi (ixtiyoriy).
+  categoryId         String?
+  category           Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   conversations      Conversation[]
   isPublished        Boolean        @default(false)
   marketplacePrice   Int?           // UZS tiyin, null = bepul
@@ -227,6 +230,49 @@ model Agent {
   @@index([isPublished])
   @@index([sourceAgentId])
   @@index([templateId])
+  @@index([categoryId])
+}
+
+// --- Admin panel: kategoriyalar va tovarlar kataloghi ---
+// Super-admin (User.role == "OWNER") tomonidan boshqariladi. Bitta Category
+// modeli ikkala turni ham qamrab oladi ("type" bilan ajratiladi) — marketplace
+// agentlarini va tovar kataloghini alohida taksonomiya bilan ikki barobar
+// qilmaslik uchun.
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  type        String    @default("product") // agent | product
+  icon        String?
+  description String?
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  products    Product[]
+  agents      Agent[]
+
+  @@index([type])
+}
+
+// Admin panelidan boshqariladigan global tovar kataloghi. RetailProduct'dan
+// FARQLI — bu har bir do'kon-egasi foydalanuvchining shaxsiy inventari emas,
+// platforma darajasidagi (masalan marketplace uchun) yagona katalog.
+model Product {
+  id          String    @id @default(cuid())
+  name        String
+  sku         String    @unique
+  description String?
+  priceTiyin  Int       @default(0) // UZS tiyin
+  stock       Int       @default(0)
+  imageUrl    String?
+  isActive    Boolean   @default(true)
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([categoryId])
 }
 
 model Conversation {
