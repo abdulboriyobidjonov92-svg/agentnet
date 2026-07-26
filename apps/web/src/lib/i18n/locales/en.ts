@@ -116,7 +116,7 @@ const en: Dict = {
     "landing.bizP1": "AI C-suite orchestration",
     "landing.bizP2": "Ethics Guard + audit log",
     "landing.bizP3": "Real-time operations",
-    "landing.stat1": "Agents deployed",
+    "landing.stat1": "Specialized AI capabilities",
     "landing.stat2": "Languages",
     "landing.stat3": "Uptime",
     "landing.trusted": "Powered by Claude · Ethics-verified execution",
@@ -694,7 +694,7 @@ const en: Dict = {
     "pricing.pt.ent.f2": "Compliance packs + dedicated support",
 
     // Cinematic hero screens
-    "hero.welcome": "Welcome back, Alex!",
+    "hero.welcome": "Welcome back!",
     "hero.today": "Today",
     "hero.easy": "Easy",
     "hero.medium": "Medium",

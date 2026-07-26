@@ -88,7 +88,7 @@ export default async function HomePage() {
         {/* Stats — sahna ostida */}
         <div className="relative z-10 mx-auto grid max-w-3xl grid-cols-3 border-t border-white/10 px-4 pb-10 pt-6 sm:px-6">
           {[
-            { v: <Counter to={1200} suffix="+" />, l: t("landing.stat1") },
+            { v: <Counter to={5} suffix="+" />, l: t("landing.stat1") },
             { v: "3", l: t("landing.stat2") },
             { v: "99.9%", l: t("landing.stat3") },
           ].map((s, i) => (

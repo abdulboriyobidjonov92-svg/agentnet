@@ -113,7 +113,7 @@ const ru: Dict = {
     "landing.bizP1": "Оркестрация C-suite",
     "landing.bizP2": "Ethics Guard + аудит",
     "landing.bizP3": "Операции в реальном времени",
-    "landing.stat1": "Агентов развёрнуто",
+    "landing.stat1": "Спец. AI-возможностей",
     "landing.stat2": "Языка",
     "landing.stat3": "Аптайм",
     "landing.trusted": "На базе Claude · Исполнение с проверкой этики",
@@ -682,7 +682,7 @@ const ru: Dict = {
     "pricing.pt.ent.f2": "Пакеты Compliance + выделенная поддержка",
 
     // Cinematic hero экраны
-    "hero.welcome": "С возвращением, Азиза!",
+    "hero.welcome": "С возвращением!",
     "hero.today": "Сегодня",
     "hero.easy": "Просто",
     "hero.medium": "Средне",
