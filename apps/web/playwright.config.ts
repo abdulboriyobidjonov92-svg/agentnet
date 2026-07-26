@@ -13,8 +13,8 @@ export default defineConfig({
   timeout: 45_000,
   expect: { timeout: 10_000 },
   fullyParallel: false, // bitta test foydalanuvchisi/DB holatiga tayanadi
-  retries: 0,
-  reporter: [['list']],
+  retries: process.env.CI ? 1 : 0,
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['list']],
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'retain-on-failure',
@@ -29,14 +29,18 @@ export default defineConfig({
       cwd: path.resolve(__dirname, '../api'),
       url: 'http://localhost:3001/api/docs', // Swagger UI — 2xx qaytaradigan yagona ochiq GET yo'l
       reuseExistingServer: !process.env.CI,
-      timeout: 60_000,
+      timeout: 120_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
     },
     {
       command: 'npm run dev',
       cwd: __dirname,
       url: 'http://localhost:3000',
       reuseExistingServer: !process.env.CI,
-      timeout: 60_000,
+      timeout: 120_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
     },
   ],
 });
