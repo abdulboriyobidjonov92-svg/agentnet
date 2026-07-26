@@ -28,3 +28,10 @@ ignore = ["E501"]
 python_version = "3.12"
 strict = false
 ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+# LLM-first modullar (halal_filter/ethics/role_detection/...) async — testlar
+# ham shuni sinaydi. `asyncio_mode = "auto"` har bir `async def test_*`ni
+# `@pytest.mark.asyncio` yozmasdan ishga tushiradi (pytest-asyncio, CI'da
+# `pip install ... pytest-asyncio` bilan o'rnatiladi — faqat test-vaqti kerak).
+asyncio_mode = "auto"

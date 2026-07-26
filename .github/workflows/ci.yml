@@ -105,7 +105,10 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Install dev tools
-        run: pip install ruff mypy pytest
+        # pytest-asyncio: LLM-first modullar (halal_filter/ethics/role_detection/
+        # main endpointlari) uchun `async def test_*` to'plamlarini ishga tushiradi
+        # (pyproject.toml'dagi `asyncio_mode = "auto"` shunga tayanadi).
+        run: pip install ruff mypy pytest pytest-asyncio
 
       - name: Lint (ruff)
         run: ruff check .
