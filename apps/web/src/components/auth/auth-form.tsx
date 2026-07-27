@@ -142,20 +142,31 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     let cancelled = false;
     const render = () => {
       const g = (window as any).google;
-      if (cancelled || !g?.accounts?.id || !googleBtnRef.current) return;
-      g.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: (resp: { credential?: string }) => {
-          if (resp?.credential) googleHandlerRef.current(resp.credential);
-        },
-      });
-      g.accounts.id.renderButton(googleBtnRef.current, {
-        theme: "filled_black",
-        size: "large",
-        width: 320,
-        text: isSignUp ? "signup_with" : "signin_with",
-      });
-      setGoogleReady(true);
+      const host = googleBtnRef.current;
+      if (cancelled || !g?.accounts?.id || !host) return;
+      try {
+        // Effect qayta ishga tushsa (masalan step o'zgarib qaytsa) GIS yana
+        // bitta tugma qo'shib qo'ymasligi uchun konteynerni tozalaymiz.
+        // Bu tugunlar GIS'niki — React ularni kuzatmaydi, xavfsiz.
+        host.innerHTML = "";
+        g.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: (resp: { credential?: string }) => {
+            if (resp?.credential) googleHandlerRef.current(resp.credential);
+          },
+        });
+        g.accounts.id.renderButton(host, {
+          theme: "filled_black",
+          size: "large",
+          width: 320,
+          text: isSignUp ? "signup_with" : "signin_with",
+        });
+        setGoogleReady(true);
+      } catch {
+        // GIS yuklanmasa yoki origin ruxsat etilmagan bo'lsa — Google
+        // tugmasisiz davom etamiz (email/telefon baribir ishlaydi).
+        setGoogleReady(false);
+      }
     };
 
     if ((window as any).google?.accounts?.id) {
@@ -311,15 +322,27 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
           {/* Google — client ID sozlangan bo'lsa GIS chizadi; sozlanmagan
               bo'lsa soxta tugma o'rniga halol "tez orada" holati. */}
           {GOOGLE_CLIENT_ID ? (
-            <div className="flex justify-center">
-              {/* GIS shu konteynerga o'z tugmasini chizadi */}
+            // MUHIM: GIS tugmani DOM'ga O'ZI joylashtiradi. Shu sabab
+            // konteyner yonida SHARTLI (mount/unmount bo'ladigan) element
+            // bo'lmasligi kerak — React uni o'chirmoqchi bo'lganda GIS
+            // qo'shgan tugunlar bilan to'qnashib "removeChild" xatosi beradi
+            // (butun sahifa qulaydi). Shuning uchun ikkala element ham DOIM
+            // mount holatida, faqat CSS bilan yashiriladi.
+            <div className="flex min-h-[44px] items-center justify-center">
+              {/* GIS shu konteynerga o'z tugmasini chizadi — React uning
+                  ichidagi tugunlarga TEGMAYDI (React bolasi yo'q). */}
               <div ref={googleBtnRef} />
-              {!googleReady && (
-                <div className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-border bg-surface-1 px-4 py-3 text-sm font-medium text-muted-foreground opacity-60">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Google
-                </div>
-              )}
+              <div
+                aria-hidden={googleReady}
+                className={
+                  googleReady
+                    ? "hidden"
+                    : "flex w-full items-center justify-center gap-2.5 rounded-lg border border-border bg-surface-1 px-4 py-3 text-sm font-medium text-muted-foreground opacity-60"
+                }
+              >
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Google
+              </div>
             </div>
           ) : (
             <button
