@@ -9,10 +9,28 @@ import "./globals.css";
 // Bitta oila — Geist. Display, UI va mono (raqamlar) uchun.
 // CDN'siz (next/font orqali o'z-o'zidan hosting) — yuklanish xavfi yo'q.
 
+const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://agentnet-web.vercel.app";
+const title = "AgentNet — Sovereign AI Operations";
+const description =
+  "Command an autonomous AI workforce. Life Twin, autonomous goals, cross-domain agent fusion and an enterprise C-suite — a real operations platform.";
+
 export const metadata: Metadata = {
-  title: "AgentNet — Sovereign AI Operations",
-  description:
-    "Command an autonomous AI workforce. Life Twin, autonomous goals, cross-domain agent fusion and an enterprise C-suite — a real operations platform.",
+  metadataBase: new URL(siteUrl),
+  title: { default: title, template: "%s — AgentNet" },
+  description,
+  openGraph: {
+    title,
+    description,
+    url: siteUrl,
+    siteName: "AgentNet",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+  },
+  robots: { index: true, follow: true },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

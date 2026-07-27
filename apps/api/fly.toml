@@ -1,0 +1,66 @@
+# AgentNet — NestJS API (Core SaaS) uchun Fly.io konfiguratsiyasi
+# render.yaml'dagi `agentnet-api` servisining Fly.io ekvivalenti.
+#
+# DEPLOY (repo ILDIZIDAN ishga tushiring — build-konteksti monorepo ildizi
+# bo'lishi SHART, chunki Dockerfile `packages/` va `apps/api` ni ildizdan
+# nusxalaydi). `dockerfile` yo'li fly.toml joylashgan papkaga (apps/api)
+# nisbatan hisoblanadi — shuning uchun pastda faqat "Dockerfile":
+#   fly deploy --config apps/api/fly.toml .
+#
+# Sirlar (DATABASE_URL, kalitlar, ANTHROPIC_API_KEY ...) `fly secrets set`
+# orqali beriladi — pastdagi [env] blokida FAQAT maxfiy BO'LMAGAN qiymatlar.
+
+app = "agentnet-api"
+primary_region = "fra"   # Frankfurt — O'zbekiston/Yevropa uchun eng yaqin
+
+[build]
+  dockerfile = "Dockerfile"
+
+# Maxfiy BO'LMAGAN muhit-o'zgaruvchilar (render.yaml'dagi `value:` larga mos).
+# Maxfiylar (sync:false / generateValue) `fly secrets set` orqali kiritiladi.
+[env]
+  NODE_ENV = "production"
+  PORT = "3001"
+  # Engine'ning Fly.io ichki-manzili. Public .fly.dev ham ishlaydi (token bilan
+  # himoyalangan); ichki tarmoq uchun "http://agentnet-engine.internal:8000"
+  # ham qo'yish mumkin. Boshlash uchun public URL soddaroq:
+  AGENT_ENGINE_URL = "https://agentnet-engine.fly.dev"
+  # CORS origin — Vercel frontend manzili. Vercel'da real domen olingach
+  # `fly secrets set NEXT_PUBLIC_APP_URL=...` bilan yangilang (yoki shu yerda).
+  NEXT_PUBLIC_APP_URL = "https://agentnet-web.vercel.app"
+  # Rate-limit / xarajat himoyasi (render.yaml bilan bir xil)
+  USAGE_FREE_CHAT_PER_DAY = "20"
+  USAGE_FREE_AGENTS_MAX = "5"
+  USAGE_GLOBAL_LLM_PER_DAY = "2000"
+  # Prepaid billing
+  BILLING_PRICE_PER_MESSAGE_TIYIN = "50000"
+  BILLING_PRO_MONTH_TIYIN = "2500000"
+  PAYME_TEST_MODE = "true"
+  RESEND_FROM_EMAIL = "AgentNet <login@agentnet.app>"
+  ESKIZ_SMS_FROM = "4546"
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+  # ── "UXLAMASLIK" (task talabi) ──────────────────────────────────
+  # auto_stop_machines = 'off' + min_machines_running = 1 → mashina
+  # harakatsizlikda HECH QACHON to'xtamaydi (sovuq start / uxlab qolish yo'q).
+  auto_stop_machines = 'off'
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  # Liveness healthcheck — NestJS `/api/health` (render healthCheckPath bilan bir xil)
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "20s"
+    method = "get"
+    path = "/api/health"
+
+[[vm]]
+  # 512MB — render free-plan bilan bir xil. Web Operator (Playwright chromium)
+  # og'ir yuk berса OOM bo'lsa 1024mb ga oshiring (kichik xarajat boshlanadi).
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  cpus = 1

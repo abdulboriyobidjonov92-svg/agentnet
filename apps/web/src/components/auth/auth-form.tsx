@@ -6,6 +6,9 @@ import { Loader2, ArrowRight, ArrowLeft, Mail, Phone, ShieldCheck } from "lucide
 import { useT } from "@/lib/i18n/client";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+// Google Identity Services — client ID bo'lmasa Google tugmasi umuman
+// ko'rsatilmaydi (soxta/ishlamaydigan tugma o'rniga halol holat).
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
 
 type Method = "email" | "phone";
 type Step = "identify" | "code" | "twofa";
@@ -100,6 +103,99 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     router.push(isSignUp || data.isNewUser ? "/onboarding" : "/dashboard");
     router.refresh();
   };
+
+  // --- Google bilan kirish (Google Identity Services) ---
+  const googleBtnRef = useRef<HTMLDivElement | null>(null);
+  const [googleReady, setGoogleReady] = useState(false);
+  // GIS callback komponent hayoti davomida bir marta ro'yxatdan o'tadi, lekin
+  // ichida eng SO'NGGI finishLogin/refCode kerak — shuning uchun ref orqali.
+  const googleHandlerRef = useRef<(credential: string) => void>(() => {});
+
+  googleHandlerRef.current = async (credential: string) => {
+    setError("");
+    setBusy(true);
+    try {
+      const res = await fetch(`${API_URL}/api/auth/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Google orqali kirib bo'lmadi");
+      if (data.needsTwoFactor) {
+        setUserId(data.userId);
+        setStep("twofa");
+        setTwoFaCode("");
+      } else {
+        await finishLogin(data);
+      }
+    } catch (err: any) {
+      setError(err.message || "Google orqali kirib bo'lmadi");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || step !== "identify") return;
+
+    let cancelled = false;
+    const render = () => {
+      const g = (window as any).google;
+      const host = googleBtnRef.current;
+      if (cancelled || !g?.accounts?.id || !host) return;
+      try {
+        // Effect qayta ishga tushsa (masalan step o'zgarib qaytsa) GIS yana
+        // bitta tugma qo'shib qo'ymasligi uchun konteynerni tozalaymiz.
+        // Bu tugunlar GIS'niki — React ularni kuzatmaydi, xavfsiz.
+        host.innerHTML = "";
+        g.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: (resp: { credential?: string }) => {
+            if (resp?.credential) googleHandlerRef.current(resp.credential);
+          },
+        });
+        g.accounts.id.renderButton(host, {
+          theme: "filled_black",
+          size: "large",
+          width: 320,
+          text: isSignUp ? "signup_with" : "signin_with",
+        });
+        setGoogleReady(true);
+      } catch {
+        // GIS yuklanmasa yoki origin ruxsat etilmagan bo'lsa — Google
+        // tugmasisiz davom etamiz (email/telefon baribir ishlaydi).
+        setGoogleReady(false);
+      }
+    };
+
+    if ((window as any).google?.accounts?.id) {
+      render();
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const existing = document.getElementById("gis-script") as HTMLScriptElement | null;
+    if (existing) {
+      existing.addEventListener("load", render);
+      return () => {
+        cancelled = true;
+        existing.removeEventListener("load", render);
+      };
+    }
+
+    const s = document.createElement("script");
+    s.id = "gis-script";
+    s.src = "https://accounts.google.com/gsi/client";
+    s.async = true;
+    s.defer = true;
+    s.onload = render;
+    document.head.appendChild(s);
+    return () => {
+      cancelled = true;
+    };
+  }, [step, isSignUp]);
 
   const requestCode = async () => {
     if (!canSubmitIdentify || busy) return;
@@ -223,16 +319,42 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
 
       {step === "identify" && (
         <form onSubmit={submitIdentify}>
-          {/* Google — hozircha nofaol, chalg'ituvchi soxta OAuth o'rniga halol holat */}
-          <button
-            type="button"
-            disabled
-            title={t("auth.googleSoonHint")}
-            className="flex w-full cursor-not-allowed items-center justify-center gap-2.5 rounded-lg border border-border bg-surface-1 px-4 py-3 text-sm font-medium text-muted-foreground opacity-60"
-          >
-            <GoogleGlyph />
-            {t("auth.googleSoon")}
-          </button>
+          {/* Google — client ID sozlangan bo'lsa GIS chizadi; sozlanmagan
+              bo'lsa soxta tugma o'rniga halol "tez orada" holati. */}
+          {GOOGLE_CLIENT_ID ? (
+            // MUHIM: GIS tugmani DOM'ga O'ZI joylashtiradi. Shu sabab
+            // konteyner yonida SHARTLI (mount/unmount bo'ladigan) element
+            // bo'lmasligi kerak — React uni o'chirmoqchi bo'lganda GIS
+            // qo'shgan tugunlar bilan to'qnashib "removeChild" xatosi beradi
+            // (butun sahifa qulaydi). Shuning uchun ikkala element ham DOIM
+            // mount holatida, faqat CSS bilan yashiriladi.
+            <div className="flex min-h-[44px] items-center justify-center">
+              {/* GIS shu konteynerga o'z tugmasini chizadi — React uning
+                  ichidagi tugunlarga TEGMAYDI (React bolasi yo'q). */}
+              <div ref={googleBtnRef} />
+              <div
+                aria-hidden={googleReady}
+                className={
+                  googleReady
+                    ? "hidden"
+                    : "flex w-full items-center justify-center gap-2.5 rounded-lg border border-border bg-surface-1 px-4 py-3 text-sm font-medium text-muted-foreground opacity-60"
+                }
+              >
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Google
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled
+              title={t("auth.googleSoonHint")}
+              className="flex w-full cursor-not-allowed items-center justify-center gap-2.5 rounded-lg border border-border bg-surface-1 px-4 py-3 text-sm font-medium text-muted-foreground opacity-60"
+            >
+              <GoogleGlyph />
+              {t("auth.googleSoon")}
+            </button>
+          )}
 
           <div className="my-5 flex items-center gap-3">
             <span className="h-px flex-1 bg-border" />

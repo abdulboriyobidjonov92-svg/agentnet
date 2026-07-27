@@ -113,7 +113,7 @@ const uz: Dict = {
     "landing.bizP1": "C-suite orkestratsiyasi",
     "landing.bizP2": "Ethics Guard + audit",
     "landing.bizP3": "Real vaqt operatsiyalari",
-    "landing.stat1": "Agent joylashtirilgan",
+    "landing.stat1": "Maxsus AI imkoniyat",
     "landing.stat2": "Til",
     "landing.stat3": "Ishlash vaqti",
     "landing.trusted": "Claude asosida · Etika bilan tekshirilgan bajarish",
@@ -682,7 +682,7 @@ const uz: Dict = {
     "pricing.pt.ent.f2": "Compliance paketlar + maxsus qo'llab-quvvatlash",
 
     // Cinematic hero ekranlari
-    "hero.welcome": "Xush kelibsiz, Aziza!",
+    "hero.welcome": "Xush kelibsiz!",
     "hero.today": "Bugun",
     "hero.easy": "Oson",
     "hero.medium": "O'rtacha",

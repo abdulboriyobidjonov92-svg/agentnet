@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
@@ -33,14 +33,53 @@ async function bootstrap() {
   if (isProd) {
     app.getHttpAdapter().getInstance().set('trust proxy', 1);
   }
+  // Ruxsat etilgan origin'lar. NEXT_PUBLIC_APP_URL vergul bilan bir nechta
+  // qiymat qabul qiladi (masalan asosiy domen + eski domen).
+  const allowedOrigins = (explicitOrigin ?? '')
+    .split(',')
+    .map((o) => o.trim().replace(/\/+$/, '')) // oxiridagi '/' ni olib tashlaymiz
+    .filter(Boolean);
+
+  // Vercel/preview deploy'lari HAR safar yangi tasodifiy subdomen oladi
+  // (agentnet-<hash>-<team>.vercel.app), shuning uchun ularni aniq ro'yxatga
+  // yozib bo'lmaydi. CORS_ORIGIN_SUFFIXES — vergul bilan ajratilgan SUFFIKS
+  // ro'yxati (masalan "-svgs-projects.vercel.app"). Suffiks o'z jamoangizga
+  // xos bo'lishi SHART — ".vercel.app" kabi umumiy qiymat butun Vercel'ni
+  // ochib yuboradi, shuning uchun bunday kengligi tekshiriladi va rad etiladi.
+  const originSuffixes = (process.env.CORS_ORIGIN_SUFFIXES ?? '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter((s) => {
+      if (!s) return false;
+      // Xavfsizlik: juda keng suffikslar (butun .vercel.app / .com va h.k.) taqiqlanadi.
+      const tooBroad = /^\.?(vercel\.app|netlify\.app|fly\.dev|com|net|org|app|io)$/.test(
+        s.replace(/^\./, ''),
+      );
+      if (tooBroad) {
+        new Logger('Bootstrap').error(
+          `CORS_ORIGIN_SUFFIXES: "${s}" juda keng — e'tiborsiz qoldirildi. ` +
+            `Jamoangizga xos suffiks bering (masalan "-mening-jamoam.vercel.app").`,
+        );
+        return false;
+      }
+      return true;
+    });
+
   app.enableCors({
     origin: (origin, callback) => {
       // Server-to-server yoki curl (origin yo'q) — ruxsat
       if (!origin) return callback(null, true);
+      const clean = origin.replace(/\/+$/, '');
       // Localhost (har qanday port) — FAQAT dev'da. Prod'da faqat aniq
       // belgilangan origin (credentials:true bilan localhost'ni ochiq qoldirmaslik uchun).
-      const isLocalhost = !isProd && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-      if (isLocalhost || (explicitOrigin && origin === explicitOrigin)) return callback(null, true);
+      const isLocalhost = !isProd && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(clean);
+      const isAllowedExact = allowedOrigins.includes(clean);
+      // Suffiks mosligi faqat https origin'lar uchun (http preview yo'q).
+      const isAllowedSuffix =
+        clean.startsWith('https://') &&
+        originSuffixes.some((suffix) => clean.toLowerCase().endsWith(suffix));
+
+      if (isLocalhost || isAllowedExact || isAllowedSuffix) return callback(null, true);
       return callback(new Error(`CORS: ${origin} ruxsat etilmagan`), false);
     },
     credentials: true,
