@@ -5,7 +5,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Bot, Store, Settings, LogOut, Plus, CircleUserRound, Target, Sparkles, Building2, Globe, Plug, Camera, CalendarClock, Ship, Landmark, ChevronDown, Gem, LayoutTemplate } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { LayoutDashboard, Bot, Store, Settings, LogOut, Plus, CircleUserRound, Target, Sparkles, Building2, Globe, Plug, Camera, CalendarClock, Ship, Landmark, ChevronDown, Gem, LayoutTemplate, MonitorSmartphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { clearClientSession } from "@/lib/session";
@@ -15,13 +16,23 @@ import { Magnetic } from "@/components/neuro/magnetic";
 
 const COLLAPSE_KEY = "agentnet_nav_collapsed";
 
+interface NavItem {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  /** Pricing sahifasiga havola bilan "Pro" belgisi */
+  enterprise?: boolean;
+  /** "Beta" belgisi — hali sinov bosqichidagi funksiya */
+  beta?: boolean;
+}
+
 export function Sidebar({ email, name, onNavigate }: { email?: string; name?: string; onNavigate?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useT();
 
   // 14 band -> 4 mantiqiy guruh; yig'ilish holati localStorage'da saqlanadi
-  const GROUPS = [
+  const GROUPS: { id: string; label: string; items: NavItem[] }[] = [
     {
       id: "main",
       label: t("nav.groupMain"),
@@ -39,6 +50,7 @@ export function Sidebar({ email, name, onNavigate }: { email?: string; name?: st
       items: [
         { href: "/fusion", label: t("nav.fusion"), icon: Sparkles },
         { href: "/automation", label: t("nav.automation"), icon: Globe },
+        { href: "/device-control", label: t("nav.deviceControl"), icon: MonitorSmartphone, beta: true },
         { href: "/connectors", label: t("nav.connectors"), icon: Plug },
       ],
     },
@@ -140,7 +152,7 @@ export function Sidebar({ email, name, onNavigate }: { email?: string; name?: st
               </button>
               {isOpen && (
                 <div className="mt-1 space-y-0.5">
-                  {group.items.map(({ href, label, icon: Icon, enterprise }) => {
+                  {group.items.map(({ href, label, icon: Icon, enterprise, beta }) => {
                     const active = pathname === href || pathname.startsWith(href + "/");
                     return (
                       <Link
@@ -196,6 +208,11 @@ export function Sidebar({ email, name, onNavigate }: { email?: string; name?: st
                             className="vein-text ml-auto font-mono text-[10px] font-bold uppercase tracking-widest transition hover:opacity-80"
                           >
                             Pro
+                          </span>
+                        )}
+                        {beta && (
+                          <span className="ml-auto rounded-full bg-amber-500/15 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-amber-600">
+                            Beta
                           </span>
                         )}
                       </Link>
