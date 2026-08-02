@@ -8,19 +8,26 @@
  * (Gemini vision), bajarish shu yerda. Har amal DevicePermission bilan cheklangan.
  *
  * ISHGA TUSHIRISH:
- *   node companion.mjs <PAIRING_CODE>          # dashboard'dagi 6-xonali kod
- *   API_URL=http://localhost:3001 node companion.mjs 306751
+ *   node companion.mjs <PAIRING_CODE>          # dashboard'dagi 12-belgili kod
+ *   API_URL=http://localhost:3001 node companion.mjs A1B2C3D4E5F6
  *
  * HOLAT (halol): juftlash + poll-loop + computer-use loop TO'LIQ ishlaydi.
  * Ekran-olish va kiritish-boshqaruvi NATIV kutubxona talab qiladi — pastda
  * aniq belgilangan JOY (screenshotDesktop / performAction). MVP'da ular
  * `@nut-tree/nut-js` bilan ulanadi (`npm i @nut-tree/nut-js screenshot-desktop`).
  * Kutubxona bo'lmasa dastur baribir ishlaydi (stub) — buyruqlarni ko'rsatadi.
+ *
+ * SEC-01 (Engineering Contract, Phase 1): token 30 kunda rotatsiya qilinadi.
+ * Server hard cutoff qo'ymaydi (companion vaqtincha oflayn bo'lsa qulflanib
+ * qolmasligi uchun) — shuning uchun rotatsiyani BOSHLASH shu klientning
+ * o'zi zimmasida: muddat yaqinlashganda (29 kun — 1 kunlik zaxira bilan)
+ * /companion/refresh chaqiradi.
  */
 
 const API = (process.env.API_URL ?? 'http://localhost:3001') + '/api';
 const CODE = process.argv[2];
 const POLL_MS = 2000;
+const REFRESH_AFTER_MS = 29 * 24 * 60 * 60 * 1000; // 29 kun (30 kunlik siyosatga 1 kun zaxira)
 
 if (!CODE) {
   console.error('Foydalanish: node companion.mjs <PAIRING_CODE>');
@@ -28,6 +35,7 @@ if (!CODE) {
 }
 
 let TOKEN = null;
+let TOKEN_ISSUED_AT = null;
 
 async function pair() {
   const r = await fetch(`${API}/device/companion/pair`, {
@@ -38,10 +46,27 @@ async function pair() {
   if (!r.ok) throw new Error(`Juftlash muvaffaqiyatsiz: ${r.status} ${await r.text()}`);
   const d = await r.json();
   TOKEN = d.token;
+  TOKEN_ISSUED_AT = Date.now();
   console.log(`✔ Juftlandi (${d.kind}). Companion ishlamoqda — buyruqlar kutilmoqda…`);
 }
 
 const ct = () => ({ 'Content-Type': 'application/json', 'x-companion-token': TOKEN });
+
+/** SEC-01 AC#6 — token muddati yaqinlashganda yangilaydi. Xato bo'lsa eski
+ * token bilan davom etadi (keyingi tsiklda qayta urinadi). */
+async function refreshTokenIfDue() {
+  if (!TOKEN_ISSUED_AT || Date.now() - TOKEN_ISSUED_AT < REFRESH_AFTER_MS) return;
+  try {
+    const r = await fetch(`${API}/device/companion/refresh`, { method: 'POST', headers: ct() });
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    const d = await r.json();
+    TOKEN = d.token;
+    TOKEN_ISSUED_AT = Date.now();
+    console.log('✔ Token yangilandi (30-kunlik rotatsiya).');
+  } catch (e) {
+    console.warn('   Token yangilanmadi (keyingi tsiklda qayta urinadi):', e.message);
+  }
+}
 
 async function poll() {
   const r = await fetch(`${API}/device/companion/poll`, { method: 'POST', headers: ct() });
@@ -128,6 +153,7 @@ async function performAction(action) {
 async function main() {
   await pair();
   for (;;) {
+    await refreshTokenIfDue();
     const cmd = await poll().catch(() => null);
     if (cmd) await handle(cmd);
     await new Promise((r) => setTimeout(r, POLL_MS));
