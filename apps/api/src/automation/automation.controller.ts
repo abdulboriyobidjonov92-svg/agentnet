@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   NotFoundException,
+  Param,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -40,6 +42,26 @@ export class AutomationController {
   @Get('capabilities')
   capabilities() {
     return this.automation.capabilities();
+  }
+
+  // ---- BOSQICH 0: brauzer sessiyalari (saqlash/ko'rish/o'chirish) ----
+  // Sessiya QO'LGA KIRITISH endpointlari (connect/start,finish,cancel) ADR-010
+  // bo'yicha OLIB TASHLANDI — headful (ko'rinadigan) brauzerni serverda ochish
+  // hosted muhitda (Render — displey yo'q) ishlamaydi. Ko'rish/o'chirish qoladi
+  // (BrowserSession jadvali va shifrlash o'zi rad etilmagan — faqat shu usul).
+
+  @Get('sessions')
+  @ApiBearerAuth()
+  @UseGuards(ClerkGuard)
+  listSessions(@CurrentUser() user: User) {
+    return this.automation.listSessions(user);
+  }
+
+  @Delete('sessions/:id')
+  @ApiBearerAuth()
+  @UseGuards(ClerkGuard)
+  deleteSession(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.automation.deleteSession(user, id);
   }
 
   /**
