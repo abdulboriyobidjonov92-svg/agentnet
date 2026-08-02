@@ -1,6 +1,34 @@
 import { Logger } from '@nestjs/common';
-import { chromium, Browser, Page } from 'playwright';
+import { chromium, Browser, BrowserContext, Page } from 'playwright';
 import { urlBlockedReason } from '../common/ssrf';
+
+/** Playwright storageState — cookie + localStorage. Sessiya-in'ektsiya uchun. */
+export type StorageState = {
+  cookies?: any[];
+  origins?: { origin: string; localStorage?: { name: string; value: string }[] }[];
+};
+
+/**
+ * Bir nechta storageState'ni bittaga birlashtiradi — foydalanuvchining BARCHA
+ * ulangan sessiyalari (Instagram, YouTube, Gmail, ...) bitta run kontekstiga
+ * in'ektsiya qilinadi. Shunda agent qaysi saytga o'tsa ham, foydalanuvchi o'sha
+ * yerda login qilgan bo'lsa — sessiya tayyor (universal).
+ * Dedupe: cookie (name+domain+path bo'yicha, oxirgisi yutadi), origin bo'yicha.
+ */
+export function mergeStorageStates(states: StorageState[]): StorageState | undefined {
+  if (!states.length) return undefined;
+  const cookieMap = new Map<string, any>();
+  const originMap = new Map<string, { origin: string; localStorage?: { name: string; value: string }[] }>();
+  for (const s of states) {
+    for (const c of s.cookies ?? []) {
+      cookieMap.set(`${c.name} ${c.domain} ${c.path}`, c);
+    }
+    for (const o of s.origins ?? []) {
+      originMap.set(o.origin, o);
+    }
+  }
+  return { cookies: [...cookieMap.values()], origins: [...originMap.values()] };
+}
 
 /**
  * S1: Browser Bridge — Playwright ustidagi past darajali primitivlar.
@@ -49,9 +77,15 @@ const INTERACTIVE_SELECTOR =
 export class BrowserBridge {
   private readonly logger = new Logger(BrowserBridge.name);
   private browser: Browser | null = null;
+  private context: BrowserContext | null = null;
   private page: Page | null = null;
 
-  async open(): Promise<void> {
+  /**
+   * Brauzerni ochadi. `storageState` berilsa (shifrsizlantirilgan Playwright
+   * holati — cookie+localStorage), kontekstga in'ektsiya qilinadi va agent
+   * foydalanuvchining LOGIN-sessiyasida ishlaydi (BrowserSession'dan keladi).
+   */
+  async open(storageState?: StorageState): Promise<void> {
     try {
       this.browser = await chromium.launch({ headless: true });
     } catch (e: any) {
@@ -68,24 +102,33 @@ export class BrowserBridge {
       }
       throw e;
     }
-    this.page = await this.browser.newPage({ viewport: { width: 1280, height: 900 } });
+    this.context = await this.browser.newContext({
+      viewport: { width: 1280, height: 900 },
+      // Playwright's own StorageState type is structurally compatible but
+      // declared in a different module; a plain cast (not `any`) avoids
+      // duplicating its shape here without silencing type-checking entirely.
+      storageState: storageState as import('playwright').BrowserContextOptions['storageState'],
+    });
     // SSRF himoyasi tarmoq qatlamida: hujjat/navigatsiya so'rovlari (jumladan
     // sahifa REDIRECT'lari va havola-bosishlar) ichki IP'ga ketsa abort qilinadi
     // — bu `navigate` amalidagi tekshiruvni chetlab o'tib bo'lmasligini ta'minlaydi.
     // Subresurslar (rasm/CSS/JS) tekshirilmaydi (har biriga DNS = sekin); asosiy
-    // eksfiltratsiya vektori LLM o'qiydigan hujjatning o'zi.
-    await this.page.route('**/*', async (route) => {
+    // eksfiltratsiya vektori LLM o'qiydigan hujjatning o'zi. Route kontekstda —
+    // shu kontekstda ochilgan har qanday sahifaga (jumladan yangi tab) tegishli.
+    await this.context.route('**/*', async (route) => {
       const req = route.request();
       if (req.resourceType() === 'document' || req.isNavigationRequest()) {
         if (await urlBlockedReason(req.url())) return route.abort('blockedbyclient');
       }
       return route.continue();
     });
+    this.page = await this.context.newPage();
   }
 
   async close(): Promise<void> {
     await this.browser?.close().catch(() => null);
     this.browser = null;
+    this.context = null;
     this.page = null;
   }
 
@@ -171,5 +214,22 @@ export class BrowserBridge {
         .evaluate(() => document.body?.innerText ?? '')
         .catch(() => '')) as string
     ).replace(/\n{3,}/g, '\n\n');
+  }
+
+  /**
+   * Joriy sahifaning JPEG skrinshoti (base64 data-URL). Qadam-tekshiruvi
+   * asosan DOM-o'qish orqali (getState) — bu qo'shimcha: UI "agent nimani
+   * ko'ryapti"ni ko'rsatishi yoki og'ir sahifalarda vizual tasdiq uchun.
+   * Sifat pasaytirilgan (SSE orqali yuborish yengil bo'lsin).
+   */
+  async screenshot(): Promise<string | null> {
+    const page = this.page;
+    if (!page || page.url() === 'about:blank') return null;
+    try {
+      const buf = await page.screenshot({ type: 'jpeg', quality: 45 });
+      return `data:image/jpeg;base64,${buf.toString('base64')}`;
+    } catch {
+      return null;
+    }
   }
 }
