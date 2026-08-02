@@ -161,7 +161,13 @@ describe('TwoFactorService', () => {
       expect(ok).toBe(true);
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'u1' },
-        data: { twoFactorSecret: `enc:${secret}`, twoFactorSecretPending: null, twoFactorEnabled: true },
+        data: {
+          twoFactorSecret: `enc:${secret}`,
+          twoFactorSecretPending: null,
+          twoFactorEnabled: true,
+          // SEC-03: 2FA yoqilishi barcha mavjud tokenlarni bekor qiladi.
+          tokenVersion: { increment: 1 },
+        },
       });
       expect(audit.record).toHaveBeenCalledWith(
         expect.objectContaining({ actorId: 'u1', action: '2fa.enable', resourceType: 'user', resourceId: 'u1' }),
@@ -291,6 +297,39 @@ describe('ClerkSyncService', () => {
       expect(res.isNewUser).toBe(false);
       expect(res.userId).toBe('u9');
       expect(prisma.user.create).not.toHaveBeenCalled();
+    });
+  });
+
+  // SEC-03
+  describe('issueSession', () => {
+    it('token payload joriy tokenVersion\'ni tv sifatida oladi', () => {
+      const { svc } = makeSvc();
+      const res = svc.issueSession(
+        { id: 'u1', email: 'a@b.com', phone: null, role: 'MEMBER', name: null, tokenVersion: 3 },
+        false,
+      );
+      expect(verifyToken(res.token)?.tv).toBe(3);
+    });
+
+    it('tokenVersion 0 bo\'lganda ham tv=0 sifatida to\'g\'ri qo\'yiladi (falsy qiymat yo\'qolmaydi)', () => {
+      const { svc } = makeSvc();
+      const res = svc.issueSession(
+        { id: 'u1', email: 'a@b.com', phone: null, role: 'MEMBER', name: null, tokenVersion: 0 },
+        false,
+      );
+      expect(verifyToken(res.token)?.tv).toBe(0);
+    });
+  });
+
+  describe('refreshSession', () => {
+    it('joriy tokenVersion bilan yangi token beradi', () => {
+      const { svc } = makeSvc();
+      const res = svc.refreshSession({ id: 'u1', email: 'a@b.com', tokenVersion: 2 });
+      const payload = verifyToken(res.token);
+      expect(payload?.sub).toBe('u1');
+      expect(payload?.tv).toBe(2);
+      // Yangi token yangi 7-kunlik TTL bilan (SEC-03 sukut TTL)
+      expect(payload!.exp - payload!.iat).toBe(60 * 60 * 24 * 7);
     });
   });
 });

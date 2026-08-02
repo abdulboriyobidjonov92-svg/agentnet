@@ -159,6 +159,9 @@ export class TwoFactorService {
         twoFactorSecret: user.twoFactorSecretPending,
         twoFactorSecretPending: null,
         twoFactorEnabled: true,
+        // SEC-03: 2FA yoqilishi — barcha mavjud tokenlarni bekor qiladi
+        // (ClerkGuard payload.tv'ni User.tokenVersion bilan solishtiradi).
+        tokenVersion: { increment: 1 },
       },
     });
 
@@ -241,7 +244,7 @@ export class ClerkSyncService {
 
   /** Har bir muvaffaqiyatli login imzolangan token bilan qaytadi. */
   issueSession(
-    u: { id: string; email: string; phone: string | null; role: string; name: string | null },
+    u: { id: string; email: string; phone: string | null; role: string; name: string | null; tokenVersion: number },
     isNewUser: boolean,
   ) {
     return {
@@ -251,8 +254,19 @@ export class ClerkSyncService {
       name: u.name,
       role: u.role,
       isNewUser,
-      token: signToken({ sub: u.id, email: u.email }),
+      token: signToken({ sub: u.id, email: u.email, tv: u.tokenVersion }),
     };
+  }
+
+  /**
+   * SEC-03 AC#5 — joriy sessiyani yangi 7-kunlik token bilan almashtiradi
+   * ("jimgina yangilanish"). tokenVersion o'ZGARMAYDI (refresh — bekor qilish
+   * emas, faqat muddatni uzaytirish); chaqiruvchi controller ClerkGuard bilan
+   * himoyalangan, shuning uchun bu yerga faqat joriy `tv` allaqachon mos
+   * kelgan (ya'ni bekor qilinmagan) foydalanuvchi yetib keladi.
+   */
+  refreshSession(u: { id: string; email: string; tokenVersion: number }) {
+    return { token: signToken({ sub: u.id, email: u.email, tv: u.tokenVersion }) };
   }
 
   /**
@@ -263,7 +277,15 @@ export class ClerkSyncService {
     input: { email?: string; phone?: string; name?: string },
     opts: { action: string },
   ): Promise<{
-    user: { id: string; email: string; phone: string | null; role: string; name: string | null; twoFactorEnabled: boolean };
+    user: {
+      id: string;
+      email: string;
+      phone: string | null;
+      role: string;
+      name: string | null;
+      twoFactorEnabled: boolean;
+      tokenVersion: number;
+    };
     isNewUser: boolean;
   }> {
     const name = input.name?.trim() || undefined;
