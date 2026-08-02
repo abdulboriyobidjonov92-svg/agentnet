@@ -1,0 +1,14 @@
+{
+  "name": "@agentnet/companion-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AgentNet Desktop Companion (BOSQICH 2, beta) — pairing + poll-loop + computer-use executor. Screenshot/input-control deps are optional: the script degrades to stub warnings if they aren't installed.",
+  "type": "module",
+  "scripts": {
+    "start": "node companion.mjs"
+  },
+  "optionalDependencies": {
+    "screenshot-desktop": "^2.2.3",
+    "@nut-tree/nut-js": "^3.1.2"
+  }
+}
