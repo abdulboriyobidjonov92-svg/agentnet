@@ -117,4 +117,16 @@ export class AuthController {
     const ok = await this.twoFactor.verifyAndEnable(user.id, body.token);
     return { success: ok };
   }
+
+  /**
+   * SEC-03 AC#5 — joriy sessiyani jimgina (bir marta) yangilaydi: yangi
+   * 7-kunlik token qaytaradi, tokenVersion o'zgarmaydi. ClerkGuard bilan
+   * himoyalangan — joriy token allaqachon bekor qilingan (tv mos kelmagan)
+   * bo'lsa bu yerga umuman yetib kelmaydi (401 guard darajasida).
+   */
+  @Post('session/refresh')
+  @UseGuards(ClerkGuard)
+  refreshSession(@CurrentUser() user: User) {
+    return this.clerkSync.refreshSession(user);
+  }
 }

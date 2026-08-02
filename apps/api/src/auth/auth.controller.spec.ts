@@ -33,3 +33,17 @@ describe('AuthController.devLogin — production gate', () => {
     expect(clerkSync.devLogin).toHaveBeenCalledWith({ email: 'a@b.com' });
   });
 });
+
+// SEC-03
+describe('AuthController.refreshSession', () => {
+  it('joriy foydalanuvchi bilan clerkSync.refreshSession chaqiradi va uning natijasini qaytaradi', async () => {
+    const clerkSync = { refreshSession: jest.fn(() => ({ token: 'fresh-token' })) } as any;
+    const controller = new AuthController(clerkSync, {} as any, {} as any);
+    const user = { id: 'u1', email: 'a@b.com', tokenVersion: 2 } as any;
+
+    const res = controller.refreshSession(user);
+
+    expect(clerkSync.refreshSession).toHaveBeenCalledWith(user);
+    expect(res).toEqual({ token: 'fresh-token' });
+  });
+});
