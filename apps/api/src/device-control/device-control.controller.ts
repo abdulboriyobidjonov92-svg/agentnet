@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { IsBoolean, IsIn, IsObject, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import type { Response } from 'express';
 import { ClerkGuard } from '../auth/clerk.guard';
@@ -227,9 +228,26 @@ export class DeviceControlController {
 
   // --- Companion ilovasi (ClerkGuard YO'Q — juftlash-kodi / token bilan auth) ---
 
+  /**
+   * SEC-01: 12-belgili base32 maydoni (32^12) o'zi brute-force'ni amaliy
+   * jihatdan imkonsiz qiladi; `@Throttle` shu ustiga IP darajasida qattiq
+   * chegara qo'yadi (bir daqiqada 5tadan ortiq urinish 429 bilan rad
+   * etiladi) — ikkalasi birga "muvaffaqiyatsiz urinishlar hisoblanadi,
+   * 5tadan keyin bloklanadi" talabini qamraydi (device-companion.service.ts
+   * pair()dagi izohga qarang — nega alohida DB-hisoblagich yo'q).
+   */
   @Post('companion/pair')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   pair(@Body() dto: PairDto) {
     return this.companion.pair(dto.pairingCode);
+  }
+
+  /** SEC-01 AC#6: 30-kunlik rotatsiya — companion o'zi muddat yaqinlashganda chaqiradi. */
+  @Post('companion/refresh')
+  async refreshCompanion(@Headers('x-companion-token') token: string) {
+    const c = await this.companion.authCompanion(token);
+    if (!c) throw new UnauthorizedException('Companion tokeni yaroqsiz');
+    return this.companion.refreshToken(c);
   }
 
   @Post('companion/poll')

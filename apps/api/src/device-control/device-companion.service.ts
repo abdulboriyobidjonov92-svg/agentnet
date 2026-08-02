@@ -1,9 +1,10 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { randomBytes, createHash, randomInt } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { DeviceControlService } from './device-control.service';
+import { ConnectorsService } from '../connectors/connectors.service';
 import type { DeviceCompanion, User } from '@prisma/client';
 
 /**
@@ -12,6 +13,11 @@ import type { DeviceCompanion, User } from '@prisma/client';
  * qaytaradi. Har buyruq DevicePermission bilan cheklangan (fail-closed) va
  * DeviceActionLog'ga yoziladi. Companion auth: bir martalik juftlash-kodi ->
  * doimiy token (server faqat sha256 hash saqlaydi).
+ *
+ * SEC-01 (Engineering Contract, Phase 1): pairing endi (1) 10 daqiqada
+ * muddati o'tadi, (2) 12-belgili base32 (6-xonali sondan ancha kattaroq
+ * maydon), (3) muvaffaqiyatli juftlashda foydalanuvchiga bildirishnoma
+ * yuboriladi, (4) token 30 kunda /companion/refresh orqali yangilanadi.
  */
 
 // Buyruq turi -> ruxsat toifasi (DevicePermission.isAllowed uchun) + qurilma turi.
@@ -22,6 +28,22 @@ const COMMAND_RULES: Record<string, { kind: 'computer' | 'phone'; category: stri
   computer_use: { kind: 'computer', category: 'screen' },
 };
 
+// RFC4648 base32 alifbosi (32 belgi). 256 % 32 === 0, shuning uchun
+// `byte % 32` bilan tekis (bias'siz) tanlov — bitta bayt bitta belgini beradi.
+const PAIRING_CODE_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+const PAIRING_CODE_LENGTH = 12; // 32^12 ≈ 1.15e18 — brute-force amaliy jihatdan imkonsiz
+const PAIRING_CODE_TTL_MS = 10 * 60 * 1000; // 10 daqiqa
+
+/** Kriptografik tasodifiy 12-belgili base32 juftlash-kodi. */
+function generatePairingCode(): string {
+  const bytes = randomBytes(PAIRING_CODE_LENGTH);
+  let code = '';
+  for (let i = 0; i < PAIRING_CODE_LENGTH; i++) {
+    code += PAIRING_CODE_ALPHABET[bytes[i] % PAIRING_CODE_ALPHABET.length];
+  }
+  return code;
+}
+
 @Injectable()
 export class DeviceCompanionService {
   private readonly engineUrl = process.env.AGENT_ENGINE_URL ?? 'http://localhost:8000';
@@ -30,23 +52,31 @@ export class DeviceCompanionService {
     private readonly prisma: PrismaService,
     private readonly device: DeviceControlService,
     private readonly http: HttpService,
+    private readonly connectors: ConnectorsService,
   ) {}
 
   // ---- Dashboard (foydalanuvchi) ----
 
-  /** Yangi companion yaratadi va 6-xonali juftlash-kodini qaytaradi. */
+  /** Yangi companion yaratadi va 12-belgili base32 juftlash-kodini qaytaradi (10 daq amal qiladi). */
   async register(user: User, kind: string, name?: string) {
     if (kind !== 'computer' && kind !== 'phone') throw new BadRequestException("Noma'lum companion turi");
-    const pairingCode = String(randomInt(100000, 1000000)); // 6 xona
+    const pairingCode = generatePairingCode();
     const row = await this.prisma.deviceCompanion.create({
-      data: { userId: user.id, kind, name: name ?? null, pairingCode, status: 'pending' },
+      data: {
+        userId: user.id,
+        kind,
+        name: name ?? null,
+        pairingCode,
+        pairingExpiresAt: new Date(Date.now() + PAIRING_CODE_TTL_MS),
+        status: 'pending',
+      },
     });
     await this.device.logAction(user.id, {
       deviceType: kind,
       category: 'connect',
       action: `Companion yaratildi (${kind}) — juftlash kutilmoqda`,
     });
-    return { id: row.id, kind, pairingCode };
+    return { id: row.id, kind, pairingCode, pairingExpiresAt: row.pairingExpiresAt };
   }
 
   async listCompanions(user: User) {
@@ -93,21 +123,90 @@ export class DeviceCompanionService {
 
   // ---- Companion (yordamchi ilova) ----
 
-  /** Juftlash-kodini doimiy tokenga almashtiradi. */
+  /**
+   * Juftlash-kodini doimiy tokenga almashtiradi.
+   * SEC-01: muddati o'tgan kod "topilmadi" bilan bir xil xabar bilan rad
+   * etiladi (kod mavjud-u muddati o'tganini oshkor qilmaslik uchun).
+   * Brute-force himoyasi ikki qatlamda: (1) 12-belgili base32 maydoni
+   * (32^12 ≈ 1.15e18 — amaliy jihatdan taxmin qilib bo'lmaydi), (2) controller
+   * darajasidagi `@Throttle(5, 60s)` — bu ikkalasi birga "muvaffaqiyatsiz
+   * urinishlar hisoblanadi, 5tadan keyin bloklanadi" talabini qamraydi.
+   * Alohida DB-darajasidagi urinish-hisoblagich QO'SHILMADI: `pair()` kodni
+   * ANIQ moslik bo'yicha (`findUnique`) qidiradi — noto'g'ri taxmin HECH
+   * QANDAY qatorga tegishli bo'lmaydi, shuning uchun "shu qatorga 5 marta
+   * noto'g'ri urinildi" ma'nosida hisoblagichni bironta qatorga bog'lab
+   * bo'lmaydi (aks holda yolg'on-manfiy: bitta foydalanuvchining noto'g'ri
+   * urinishlari boshqa foydalanuvchining kutib turgan kodini bekor qilib
+   * qo'yishi mumkin edi — bu haqiqiy DoS eshigi bo'lardi).
+   */
   async pair(pairingCode: string) {
     const companion = await this.prisma.deviceCompanion.findUnique({ where: { pairingCode } });
-    if (!companion) throw new NotFoundException("Juftlash-kodi noto'g'ri yoki muddati tugagan");
+    const expired = companion?.pairingExpiresAt && companion.pairingExpiresAt.getTime() < Date.now();
+    if (!companion || expired) {
+      throw new NotFoundException("Juftlash-kodi noto'g'ri yoki muddati tugagan");
+    }
     const token = randomBytes(32).toString('base64url');
+    const now = new Date();
     await this.prisma.deviceCompanion.update({
       where: { id: companion.id },
-      data: { tokenHash: this.hash(token), pairingCode: null, status: 'paired', pairedAt: new Date(), lastSeenAt: new Date() },
+      data: {
+        tokenHash: this.hash(token),
+        pairingCode: null,
+        pairingExpiresAt: null,
+        status: 'paired',
+        pairedAt: now,
+        lastSeenAt: now,
+        tokenIssuedAt: now,
+      },
     });
     await this.device.logAction(companion.userId, {
       deviceType: companion.kind,
       category: 'connect',
       action: `Companion juftlandi (${companion.kind})`,
     });
+    await this.notifyPaired(companion.userId, companion.kind);
     return { companionId: companion.id, kind: companion.kind, token };
+  }
+
+  /**
+   * Companion tokenini yangilaydi (SEC-01 AC#6 — 30 kunlik rotatsiya).
+   * Eski token darhol ishlamay qoladi (tokenHash almashtiriladi). Yosh
+   * bo'yicha majburiy rad etish YO'Q — companion o'zi muddat yaqinlashganda
+   * chaqiradi (companion.mjs); serverda qattiq cheklov qo'yish companion
+   * biroz vaqt oflayn bo'lsa uni butunlay qulflab qo'yishi mumkin edi.
+   */
+  async refreshToken(companion: DeviceCompanion) {
+    const token = randomBytes(32).toString('base64url');
+    const now = new Date();
+    await this.prisma.deviceCompanion.update({
+      where: { id: companion.id },
+      data: { tokenHash: this.hash(token), tokenIssuedAt: now, lastSeenAt: now },
+    });
+    await this.device.logAction(companion.userId, {
+      deviceType: companion.kind,
+      category: 'connect',
+      action: `Companion tokeni yangilandi (${companion.kind})`,
+    });
+    return { token };
+  }
+
+  /**
+   * SEC-01 AC#5 — muvaffaqiyatli juftlashda foydalanuvchiga bildirishnoma.
+   * Best-effort: hozircha yagona umumiy kanal Telegram (EmailService faqat
+   * OTP kodlari uchun, umumiy xabar yubormaydi). Bog'lanmagan bo'lsa yoki
+   * yuborish xato bersa — jim o'tkazib yuboriladi, juftlashning o'zi
+   * bloklanmaydi (allaqachon DeviceActionLog'ga yozilgan).
+   */
+  private async notifyPaired(userId: string, kind: string): Promise<void> {
+    try {
+      const user = await this.prisma.user.findUnique({ where: { id: userId } });
+      if (!user?.telegramChatId) return;
+      const label = kind === 'phone' ? 'Telefon' : 'Kompyuter';
+      const text = `✅ Yangi qurilma ulandi: ${label} companion. Bu siz bo'lmasangiz, Sozlamalar → Qurilma Boshqaruvida uni darhol o'chiring.`;
+      await this.connectors.sendViaChannel(user, 'telegram', user.telegramChatId, text);
+    } catch {
+      // best-effort — bildirishnoma xatosi juftlashni bekor qilmaydi
+    }
   }
 
   /** Token orqali companion'ni topadi (poll/result uchun). */

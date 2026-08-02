@@ -9,15 +9,19 @@ import { AutomationModule } from '../automation/automation.module';
 import { AuthModule } from '../auth/auth.module';
 import { ClerkGuard } from '../auth/clerk.guard';
 import { UsageModule } from '../usage/usage.module';
+import { ConnectorsModule } from '../connectors/connectors.module';
 
 /**
  * Device Control — qurilma-boshqaruv (BOSQICH 0: brauzer-agent).
  * Boshqa agentlardan ATAYLAB ajratilgan modul — xavfsizlik-modeli boshqacha
  * (real boshqaruv). Hozircha brauzer-agentni ta'minlaydi (mavjud
  * AutomationService/Playwright poydevorini qayta ishlatadi — noldan qurilmadi).
+ *
+ * ConnectorsModule — SEC-01: pairing-muvaffaqiyat bildirishnomasi
+ * (DeviceCompanionService.notifyPaired) Telegram konnektori orqali yuboradi.
  */
 @Module({
-  imports: [HttpModule, AutomationModule, AuthModule, UsageModule],
+  imports: [HttpModule, AutomationModule, AuthModule, UsageModule, ConnectorsModule],
   controllers: [DeviceControlController],
   providers: [
     ClerkGuard,
