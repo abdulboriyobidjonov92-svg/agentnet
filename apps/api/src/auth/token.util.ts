@@ -17,11 +17,20 @@ import * as crypto from 'crypto';
 export interface TokenPayload {
   sub: string; // foydalanuvchi id
   email?: string;
+  // SEC-03: token-versiya. ClerkGuard buni User.tokenVersion bilan solishtiradi
+  // — mos kelmasa 401. Ixtiyoriy: shu maydonsiz signToken() chaqiruvchilar
+  // (masalan telegram.service.ts'dagi qisqa-muddatli link-kod, ClerkGuard'dan
+  // o'tmaydi) o'zgarishsiz ishlayveradi. Bu maydon YO'Q token — istalgan
+  // haqiqiy foydalanuvchi uchun `undefined !== 0` bo'lgani uchun ClerkGuard
+  // uni avtomatik rad etadi (deploy'dan oldingi barcha eski tokenlar shunday).
+  tv?: number;
   iat: number; // beriltan vaqt (unix soniya)
   exp: number; // amal qilish muddati (unix soniya)
 }
 
-const DEFAULT_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 kun
+// SEC-03: 30 kun -> 7 kun (xavfsizlik ta'sir doirasini qisqartirish).
+// Jimgina yangilash uchun POST /auth/session/refresh mavjud.
+const DEFAULT_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 kun
 
 function secret(): string {
   const s = process.env.AUTH_JWT_SECRET;
@@ -41,7 +50,7 @@ function secret(): string {
 
 /** Foydalanuvchi uchun imzolangan token beradi. */
 export function signToken(
-  claims: { sub: string; email?: string },
+  claims: { sub: string; email?: string; tv?: number },
   ttlSeconds: number = DEFAULT_TTL_SECONDS,
 ): string {
   const now = Math.floor(Date.now() / 1000);

@@ -77,4 +77,23 @@ describe('token.util', () => {
     const payload = verifyToken(token)!;
     expect(payload.exp - payload.iat).toBe(100);
   });
+
+  // SEC-03
+  it('tv (token-versiya) claim saqlanadi va qaytariladi', () => {
+    const token = signToken({ sub: 'u1', tv: 3 });
+    const payload = verifyToken(token);
+    expect(payload?.tv).toBe(3);
+  });
+
+  it('tv berilmasa payload\'da yo\'q bo\'ladi (eski chaqiruvchilar — masalan telegram link-kod — o\'zgarishsiz ishlaydi)', () => {
+    const token = signToken({ sub: 'u1' });
+    const payload = verifyToken(token);
+    expect(payload?.tv).toBeUndefined();
+  });
+
+  it('sukut TTL 7 kun (SEC-03: 30 kundan qisqartirilgan)', () => {
+    const token = signToken({ sub: 'u1' });
+    const payload = verifyToken(token)!;
+    expect(payload.exp - payload.iat).toBe(60 * 60 * 24 * 7);
+  });
 });
