@@ -93,6 +93,12 @@ model User {
   auditLogs              AuditLog[]
   connectorConfigs       ConnectorConfig[]
   automationRuns         AutomationRun[]
+  browserSessions        BrowserSession[]
+  devicePermissions      DevicePermission[]
+  deviceActionLogs       DeviceActionLog[]
+  deviceCompanions       DeviceCompanion[]
+  deviceCommands         DeviceCommand[]
+  callRecordings         CallRecording[]
   retailProducts         RetailProduct[]
   retailSales            RetailSale[]
   visionEvents           VisionEvent[]
@@ -398,6 +404,126 @@ model AutomationRun {
 
   @@index([userId])
   @@index([status])
+}
+
+// --- BOSQICH 0: Brauzer-agent sessiyalari ---
+// Foydalanuvchi maqsadli saytga BIR MARTA login qiladi; Playwright storageState
+// (cookie + localStorage) shu yerda SHIFRLANGAN holda (CryptoService, AES-256-GCM)
+// saqlanadi va har brauzer-run'da kontekstga in'ektsiya qilinadi — shunda agent
+// foydalanuvchining login-sessiyasida ishlaydi. Parol HECH QACHON saqlanmaydi.
+// Har sayt (domen) uchun alohida yozuv; run paytida hammasi birlashtiriladi
+// (universal — foydalanuvchi ulagan istalgan ilovaga kira oladi).
+model BrowserSession {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  domain      String // masalan "instagram.com" — sessiya qaysi sayt uchun
+  label       String? // foydalanuvchi bergan nom (ixtiyoriy)
+  state       String // SHIFRLANGAN storageState JSON (CryptoService)
+  cookieCount Int       @default(0)
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, domain])
+  @@index([userId])
+}
+
+// --- BOSQICH 1: Qurilma Boshqaruvi (Device Control) ---
+// Real qurilmaga ruxsat — xavfsizlik-modeli boshqa agentlardan BUTUNLAY farqli.
+// Har qurilma (computer | phone) va har toifa (files, browser, apps, calls, sms,
+// screen) uchun ALOHIDA yoqish/o'chirish. Sukut bo'yicha HAMMASI o'chiq — agent
+// faqat foydalanuvchi ochiq ruxsat bergan toifada ish qila oladi.
+model DevicePermission {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceType String // "computer" | "phone"
+  category   String // "files" | "browser" | "apps" | "calls" | "sms" | "screen"
+  enabled    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, deviceType, category])
+  @@index([userId])
+}
+
+// Xavfsizlik-log: agent bajargan HAR harakat ("Telegram ochildi", "SMS yuborildi")
+// shu yerga yoziladi — foydalanuvchi "agent nima qildi" tarixini ko'ra oladi.
+model DeviceActionLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceType String // computer | phone | browser
+  category   String
+  action     String // inson-o'qiydigan tavsif
+  detail     String?
+  status     String   @default("ok") // ok | blocked | failed
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, createdAt])
+}
+
+// --- BOSQICH 2/3: Companion (yordamchi ilova) — desktop & Android ---
+// Real qurilmani server BEVOSITA boshqara olmaydi; foydalanuvchi mashinasiga/
+// telefoniga companion o'rnatiladi va juftlash-kodi orqali bog'lanadi. Companion
+// buyruqlarni oladi (poll), bajaradi va natijани qaytaradi. Har amal DevicePermission
+// bilan cheklangan (fail-closed) va DeviceActionLog'ga yoziladi.
+model DeviceCompanion {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind        String // "computer" | "phone"
+  name        String?
+  pairingCode String?   @unique // faol juftlash-kodi (ulanguncha); ulangach null
+  tokenHash   String? // companion auth-tokeni (sha256 hash — xom token faqat companion'da)
+  status      String    @default("pending") // pending | paired | offline
+  pairedAt    DateTime?
+  lastSeenAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  commands    DeviceCommand[]
+
+  @@index([userId])
+}
+
+// Buyruq-navbati. B3 (telefon) Intent-MVP: send_sms/call/open_app (ekran-nazoratsiz,
+// ishonchli). B2 (desktop) computer_use: skrinshot->vision->harakat loop.
+model DeviceCommand {
+  id          String          @id @default(cuid())
+  companionId String
+  companion   DeviceCompanion @relation(fields: [companionId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind        String // "send_sms" | "call" | "open_app" | "computer_use"
+  payload     Json // {to,text} | {to} | {package|appName} | {goal}
+  status      String          @default("queued") // queued | running | done | failed | denied
+  result      Json?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([companionId, status])
+  @@index([userId])
+}
+
+// --- BOSQICH 5: Qo'ng'iroqni yozib olish (huquqiy ogohlantirish bilan) ---
+// Yozuv SHIFRLANGAN saqlanadi (CryptoService). Yaratish uchun foydalanuvchi
+// majburiy huquqiy ogohlantirishni TASDIQLASHi shart (consentAck) — ba'zi
+// mamlakatlarda rozilik-siz yozib olish noqonuniy, javobgarlik foydalanuvchida.
+model CallRecording {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label         String?
+  mimeType      String   @default("audio/webm")
+  durationSec   Int      @default(0)
+  data          String // SHIFRLANGAN audio (base64 -> CryptoService)
+  consentAck    Boolean  @default(false) // huquqiy ogohlantirish tasdiqlangan
+  partyNotified Boolean  @default(false) // ikkinchi tomon ogohlantirilganmi (imkon bo'lsa)
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
 }
 
 // --- S2: Connector SDK ---
