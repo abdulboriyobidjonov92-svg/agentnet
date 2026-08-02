@@ -18,6 +18,7 @@ import agentos as agentos_engine
 import automation_planner
 import business_ops
 import compliance_packs
+import computer_use_planner
 import ethics as ethics_engine
 import fusion as fusion_engine
 import goal_engine
@@ -280,6 +281,14 @@ class AutomationPlanRequest(BaseModel):
 class AutomationSummaryRequest(BaseModel):
     goal: str
     steps: list[dict[str, Any]] = []
+    language: str = "en"
+
+
+class ComputerUseRequest(BaseModel):
+    goal: str
+    screenshot: str | None = None  # base64 (data-URL yoki xom)
+    screen: dict[str, int] | None = None  # {"width":..,"height":..}
+    history: list[dict[str, Any]] = []
     language: str = "en"
 
 
@@ -596,6 +605,25 @@ async def automation_summarize(req: AutomationSummaryRequest):
 @app.get("/automation/capabilities")
 async def automation_capabilities():
     return automation_planner.describe_capabilities()
+
+
+# --- BOSQICH 2: Kompyuter-agent (computer-use, vision) ---
+# Skrinshot -> vision LLM -> piksel-harakat. Companion (foydalanuvchi mashinasi)
+# bajaradi; server faqat reja beradi. DevicePermission API tomonda cheklaydi.
+
+
+@app.post("/computer-use/plan")
+async def computer_use_plan(req: ComputerUseRequest):
+    if not req.history:
+        await _guard(req.goal, "computer-use")
+    return await computer_use_planner.plan_computer_step(
+        req.goal, req.screenshot, req.screen, req.history, req.language
+    )
+
+
+@app.get("/computer-use/capabilities")
+async def computer_use_capabilities():
+    return computer_use_planner.describe_capabilities()
 
 
 # --- S3: Vertical Compliance Packs ---
