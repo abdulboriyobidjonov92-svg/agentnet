@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiClient } from "@/lib/api-client";
 import { useT } from "@/lib/i18n/client";
-import { Globe, Play, Loader2, CheckCircle2, XCircle, ShieldAlert, ChevronDown } from "lucide-react";
+import { Globe, Play, Loader2, CheckCircle2, XCircle, ShieldAlert, ChevronDown, KeyRound, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { ErrorState } from "@/components/ui/error-state";
@@ -70,6 +70,8 @@ export default function AutomationPage() {
         </div>
       </div>
 
+      <SessionsCard t={t} />
+
       {lastRun && <RunCard run={lastRun} t={t} expanded />}
 
       {runsError && <ErrorState onRetry={() => refetchRuns()} />}
@@ -86,6 +88,64 @@ export default function AutomationPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * BOSQICH 0 — brauzer-agent sessiyalari (ko'rish/o'chirish). Sessiya QO'LGA
+ * KIRITISH oqimi (headful login-capture) ADR-010 bo'yicha rad etilgan — hosted
+ * muhitda ishlamaydi. Bu karta faqat allaqachon saqlangan sessiyalarni
+ * ko'rsatadi/o'chiradi; qo'shish oqimi kontrakt-mos usul bilan keyinroq qaytadi.
+ */
+function SessionsCard({ t }: { t: (k: string) => string }) {
+  const api = useApiClient();
+  const qc = useQueryClient();
+
+  const { data: sessions } = useQuery({
+    queryKey: ["browser-sessions"],
+    queryFn: () => api.get<any[]>("/automation/sessions"),
+  });
+
+  const delMut = useMutation({
+    mutationFn: (id: string) => api.delete(`/automation/sessions/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["browser-sessions"] }),
+  });
+
+  return (
+    <div className="rounded-2xl border bg-card p-5 shadow-soft">
+      <div className="flex items-center gap-2">
+        <KeyRound className="h-4 w-4 text-primary" />
+        <h2 className="font-semibold">{t("auto.sessions")}</h2>
+      </div>
+      <p className="mt-1.5 max-w-2xl text-xs text-muted-foreground">{t("auto.sessionsHint")}</p>
+
+      <div className="mt-4 space-y-2">
+        {sessions?.length ? (
+          sessions.map((s) => (
+            <div key={s.id} className="flex items-center gap-3 rounded-xl border bg-background/50 px-3 py-2">
+              <Globe className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{s.label || s.domain}</p>
+                <p className="text-xs text-muted-foreground">
+                  {s.domain} · {s.cookieCount} {t("auto.cookies")} ·{" "}
+                  {t("auto.lastUsed")}: {s.lastUsedAt ? new Date(s.lastUsedAt).toLocaleString() : t("auto.never")}
+                </p>
+              </div>
+              <button
+                onClick={() => delMut.mutate(s.id)}
+                disabled={delMut.isPending}
+                className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+                aria-label={t("auto.deleteSession")}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))
+        ) : (
+          <p className="text-xs text-muted-foreground">{t("auto.noSessions")}</p>
+        )}
+      </div>
     </div>
   );
 }
