@@ -21,6 +21,11 @@ model User {
   phone                  String?   @unique
   name                   String?
   role                   String    @default("MEMBER")
+  // SEC-03 (Engineering Contract, Phase 1): JWT bekor qilish uchun versiya
+  // hisoblagichi. Token payload'idagi `tv` shu qiymatga teng bo'lishi SHART
+  // (ClerkGuard tekshiradi) — mos kelmasa 401. Oshirilganda barcha eski
+  // tokenlar darhol yaroqsiz bo'ladi (masalan 2FA yoqilganda).
+  tokenVersion           Int       @default(0)
   // Tarif turi — monetizatsiya poydevori: "free" | "pro"
   plan                   String    @default("free")
   // Pro obuna amal qilish muddati — o'tgach limitlar avtomatik free'ga qaytadi
