@@ -14,6 +14,7 @@ import asyncio
 from fastapi.testclient import TestClient
 
 import agent_tools
+import computer_use_planner
 import main
 import retail_forecast
 from halal_filter import Action, keyword_layer
@@ -135,3 +136,16 @@ def test_agent_tools_nomalum_tool_xato_beradi():
 def test_agent_tools_tool_result_json_seriyalanadi():
     s = agent_tools.to_tool_result_content({"shahar": "Tashkent", "harorat_C": 20})
     assert '"Tashkent"' in s and "20" in s
+
+
+# ----------------------------------------------------------------
+# SEC-02: computer-use vision loop qadam-chegarasi (15 -> 10)
+# ----------------------------------------------------------------
+
+def test_computer_use_max_steps_10ga_tushirilgan():
+    assert computer_use_planner.MAX_STEPS == 10
+
+
+def test_computer_use_describe_capabilities_max_steps_mos():
+    caps = computer_use_planner.describe_capabilities()
+    assert caps["max_steps"] == 10

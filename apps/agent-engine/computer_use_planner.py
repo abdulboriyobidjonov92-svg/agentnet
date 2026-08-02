@@ -38,7 +38,10 @@ from llm_utils import (
     lang_instruction,
 )
 
-MAX_STEPS = 15
+# SEC-02 (Engineering Contract, Phase 1): 15 -> 10. Har qadam NestJS tomonda
+# alohida charge/consume qilinadi (device-companion.service.ts computerUsePlan) —
+# past chegara, past xarajat tomoni.
+MAX_STEPS = 10
 
 _VALID = {"click", "double_click", "type", "key", "scroll", "wait", "done", "fail"}
 
