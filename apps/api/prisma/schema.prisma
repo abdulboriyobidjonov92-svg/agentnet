@@ -471,19 +471,24 @@ model DeviceActionLog {
 // buyruqlarni oladi (poll), bajaradi va natijани qaytaradi. Har amal DevicePermission
 // bilan cheklangan (fail-closed) va DeviceActionLog'ga yoziladi.
 model DeviceCompanion {
-  id          String    @id @default(cuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kind        String // "computer" | "phone"
-  name        String?
-  pairingCode String?   @unique // faol juftlash-kodi (ulanguncha); ulangach null
-  tokenHash   String? // companion auth-tokeni (sha256 hash — xom token faqat companion'da)
-  status      String    @default("pending") // pending | paired | offline
-  pairedAt    DateTime?
-  lastSeenAt  DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  commands    DeviceCommand[]
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind             String // "computer" | "phone"
+  name             String?
+  pairingCode      String?   @unique // faol juftlash-kodi (ulanguncha); ulangach null
+  // SEC-01: kod 10 daqiqadan keyin amal qilishdan to'xtaydi (pair() shuni tekshiradi).
+  pairingExpiresAt DateTime?
+  tokenHash        String? // companion auth-tokeni (sha256 hash — xom token faqat companion'da)
+  // SEC-01: joriy tokenning berilgan vaqti — 30-kunlik rotatsiya siyosati shundan hisoblanadi
+  // (companion.mjs muddat yaqinlashganda /companion/refresh chaqiradi).
+  tokenIssuedAt    DateTime?
+  status           String    @default("pending") // pending | paired | offline
+  pairedAt         DateTime?
+  lastSeenAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  commands         DeviceCommand[]
 
   @@index([userId])
 }
