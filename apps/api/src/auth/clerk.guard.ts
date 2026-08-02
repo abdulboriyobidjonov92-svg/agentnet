@@ -32,6 +32,16 @@ export class ClerkGuard implements CanActivate {
     const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
     if (!user) throw new UnauthorizedException('Foydalanuvchi topilmadi');
 
+    // SEC-03: token-versiya solishtiruvi. Deploy'dan oldin berilgan HAR QANDAY
+    // token'da `tv` yo'q (undefined) — user.tokenVersion esa doim raqam
+    // (default 0), shuning uchun bu tekshiruv ishga tushgan zahoti barcha eski
+    // tokenlar bir martalik tarzda rad etiladi (ataylab — Engineering Contract
+    // ADR-001). Keyinchalik 2FA yoqilganda tokenVersion oshadi va o'sha
+    // foydalanuvchining eski tokenlari xuddi shunday rad etiladi.
+    if (user.tokenVersion !== payload.tv) {
+      throw new UnauthorizedException("Sessiya bekor qilingan — qaytadan kiring");
+    }
+
     request.dbUser = user;
     return true;
   }

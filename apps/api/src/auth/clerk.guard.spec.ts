@@ -63,9 +63,9 @@ describe('ClerkGuard', () => {
     await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
-  it('yaroqli token + mavjud foydalanuvchi -> ruxsat, request.dbUser biriktiriladi', async () => {
-    const token = signToken({ sub: 'u1', email: 'a@b.com' });
-    const user = { id: 'u1', email: 'a@b.com' };
+  it('yaroqli token + mavjud foydalanuvchi + mos tv -> ruxsat, request.dbUser biriktiriladi', async () => {
+    const token = signToken({ sub: 'u1', email: 'a@b.com', tv: 0 });
+    const user = { id: 'u1', email: 'a@b.com', tokenVersion: 0 };
     const prisma = { user: { findUnique: jest.fn(async () => user) } } as any;
     const guard = new ClerkGuard(prisma);
     const { ctx, request } = ctxWith({ authorization: `Bearer ${token}` });
@@ -75,5 +75,41 @@ describe('ClerkGuard', () => {
     expect(result).toBe(true);
     expect(request.dbUser).toEqual(user);
     expect(prisma.user.findUnique).toHaveBeenCalledWith({ where: { id: 'u1' } });
+  });
+
+  // SEC-03
+  it('DoD: deploy\'dan oldingi eski token (tv yo\'q) -> UnauthorizedException', async () => {
+    // Deploy'dan oldin berilgan har qanday token — tv maydoni umuman yo'q.
+    const oldToken = signToken({ sub: 'u1', email: 'a@b.com' });
+    const user = { id: 'u1', email: 'a@b.com', tokenVersion: 0 };
+    const prisma = { user: { findUnique: jest.fn(async () => user) } } as any;
+    const guard = new ClerkGuard(prisma);
+    const { ctx } = ctxWith({ authorization: `Bearer ${oldToken}` });
+
+    await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('tv mos kelmasa (bekor qilingan — masalan 2FA yoqilgandan keyingi eski token) -> UnauthorizedException', async () => {
+    const staleToken = signToken({ sub: 'u1', email: 'a@b.com', tv: 0 });
+    // Foydalanuvchi keyinchalik 2FA yoqdi -> tokenVersion 1ga oshdi
+    const user = { id: 'u1', email: 'a@b.com', tokenVersion: 1 };
+    const prisma = { user: { findUnique: jest.fn(async () => user) } } as any;
+    const guard = new ClerkGuard(prisma);
+    const { ctx } = ctxWith({ authorization: `Bearer ${staleToken}` });
+
+    await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('yangi (oshirilgan) tv bilan berilgan token -> ruxsat', async () => {
+    const freshToken = signToken({ sub: 'u1', email: 'a@b.com', tv: 1 });
+    const user = { id: 'u1', email: 'a@b.com', tokenVersion: 1 };
+    const prisma = { user: { findUnique: jest.fn(async () => user) } } as any;
+    const guard = new ClerkGuard(prisma);
+    const { ctx, request } = ctxWith({ authorization: `Bearer ${freshToken}` });
+
+    const result = await guard.canActivate(ctx);
+
+    expect(result).toBe(true);
+    expect(request.dbUser).toEqual(user);
   });
 });
