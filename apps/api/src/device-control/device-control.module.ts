@@ -10,6 +10,7 @@ import { AuthModule } from '../auth/auth.module';
 import { ClerkGuard } from '../auth/clerk.guard';
 import { UsageModule } from '../usage/usage.module';
 import { ConnectorsModule } from '../connectors/connectors.module';
+import { BillingModule } from '../billing/billing.module';
 
 /**
  * Device Control — qurilma-boshqaruv (BOSQICH 0: brauzer-agent).
@@ -19,9 +20,10 @@ import { ConnectorsModule } from '../connectors/connectors.module';
  *
  * ConnectorsModule — SEC-01: pairing-muvaffaqiyat bildirishnomasi
  * (DeviceCompanionService.notifyPaired) Telegram konnektori orqali yuboradi.
+ * BillingModule — SEC-02: computerUsePlan() endi chargeForMessage orqali o'tadi.
  */
 @Module({
-  imports: [HttpModule, AutomationModule, AuthModule, UsageModule, ConnectorsModule],
+  imports: [HttpModule, AutomationModule, AuthModule, UsageModule, ConnectorsModule, BillingModule],
   controllers: [DeviceControlController],
   providers: [
     ClerkGuard,

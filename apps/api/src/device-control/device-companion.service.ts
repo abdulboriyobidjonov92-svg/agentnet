@@ -5,6 +5,8 @@ import { randomBytes, createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { DeviceControlService } from './device-control.service';
 import { ConnectorsService } from '../connectors/connectors.service';
+import { BillingService } from '../billing/billing.service';
+import { UsageService } from '../usage/usage.service';
 import type { DeviceCompanion, User } from '@prisma/client';
 
 /**
@@ -18,6 +20,10 @@ import type { DeviceCompanion, User } from '@prisma/client';
  * muddati o'tadi, (2) 12-belgili base32 (6-xonali sondan ancha kattaroq
  * maydon), (3) muvaffaqiyatli juftlashda foydalanuvchiga bildirishnoma
  * yuboriladi, (4) token 30 kunda /companion/refresh orqali yangilanadi.
+ *
+ * SEC-02 (Phase 1): computerUsePlan() endi chargeForMessage + consumeChat
+ * orqali o'tadi — xuddi agents.service.ts'dagi run() bilan bir xil prepaid
+ * naqsh (bu yerda ham BFF emas, to'g'ridan-to'g'ri servis-ichi DI chaqiruvi).
  */
 
 // Buyruq turi -> ruxsat toifasi (DevicePermission.isAllowed uchun) + qurilma turi.
@@ -53,6 +59,8 @@ export class DeviceCompanionService {
     private readonly device: DeviceControlService,
     private readonly http: HttpService,
     private readonly connectors: ConnectorsService,
+    private readonly billing: BillingService,
+    private readonly usage: UsageService,
   ) {}
 
   // ---- Dashboard (foydalanuvchi) ----
@@ -253,6 +261,19 @@ export class DeviceCompanionService {
   /**
    * B2 computer-use: companion skrinshot yuboradi, biz engine vision-planner'ga
    * uzatib keyingi harakatni qaytaramiz. Ruxsat: computer:screen (fail-closed).
+   *
+   * SEC-02: har chaqiruv (loop'ning bitta iteratsiyasi) alohida hisoblanadi —
+   * companion.mjs har qadamda shu endpointni chaqiradi, shuning uchun bu
+   * yerga charge/consume qo'yish avtomatik ravishda "har iteratsiya alohida
+   * hisoblanadi" talabini bajaradi (butun sessiya uchun bitta yig'ma hisob
+   * emas). Naqsh agents.service.ts'dagi run() bilan AYNAN bir xil (faqat u
+   * yerda `user` allaqachon controller'dan keladi — bu yerda companion'dan
+   * userId orqali topiladi, chunki bu yo'l ClerkGuard emas, companion-token
+   * bilan autentifikatsiya qilinadi):
+   *   1) PUL — LLM/vision chaqiruvidan OLDIN (balans yetmasa 402, engine'ga
+   *      so'rov umuman ketmaydi).
+   *   2) KVOTA — pul allaqachon yechilgani uchun 429 bo'lsa qaytariladi.
+   *   3) ENGINE — javob berilmasa (xato/aloqa yo'q) yechilgan pul qaytariladi.
    */
   async computerUsePlan(
     companion: DeviceCompanion,
@@ -261,14 +282,31 @@ export class DeviceCompanionService {
     if (companion.kind !== 'computer') throw new BadRequestException('Faqat computer-companion');
     const allowed = await this.device.isAllowed(companion.userId, 'computer', 'screen');
     if (!allowed) throw new ForbiddenException("'screen' ruxsati yoqilmagan");
-    const { data } = await firstValueFrom(
-      this.http.post(
-        `${this.engineUrl}/computer-use/plan`,
-        { goal: body.goal, screenshot: body.screenshot, screen: body.screen, history: body.history ?? [] },
-        { timeout: 60_000 },
-      ),
-    );
-    return data;
+
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: companion.userId } });
+
+    await this.billing.chargeForMessage(user, { companionId: companion.id, via: 'computer_use' });
+
+    try {
+      await this.usage.consumeChat(user);
+    } catch (e) {
+      await this.billing.refund(user, 'rate_limited').catch(() => undefined);
+      throw e;
+    }
+
+    try {
+      const { data } = await firstValueFrom(
+        this.http.post(
+          `${this.engineUrl}/computer-use/plan`,
+          { goal: body.goal, screenshot: body.screenshot, screen: body.screen, history: body.history ?? [] },
+          { timeout: 60_000 },
+        ),
+      );
+      return data;
+    } catch (e) {
+      await this.billing.refund(user, 'computer_use_failed').catch(() => undefined);
+      throw e;
+    }
   }
 
   private hash(token: string): string {
