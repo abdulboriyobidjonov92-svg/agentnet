@@ -5,6 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
+import { RolesGuard } from './auth/roles.guard';
 import { PrismaModule } from './prisma/prisma.module';
 import { CryptoModule } from './crypto/crypto.module';
 import { AgentsModule } from './agents/agents.module';
@@ -71,6 +72,12 @@ import { HealthController } from './health.controller';
     // ya'ni limit AMALDA ishlamas edi. Server-to-server BFF endpointlari va
     // webhooklar controller darajasida @SkipThrottle bilan chiqarib tashlangan.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // SEC-05: global RBAC. ThrottlerGuard'dan KEYIN turadi — Nest APP_GUARD'larni
+    // ro'yxat tartibida bajaradi, ya'ni avval rate-limit, keyin avtorizatsiya.
+    // Guard FAQAT `request.dbUser` mavjud (ya'ni ClerkGuard allaqachon
+    // autentifikatsiya qilgan) yo'llarga ta'sir qiladi; ochiq endpointlar,
+    // internal-token yo'llari va to'lov webhooklari tegilmaydi (roles.guard.ts).
+    { provide: APP_GUARD, useClass: RolesGuard },
     // Global xato-filtri (observability) — har bir ishlov berilmagan xatoni
     // strukturaviy loglaydi (5xx to'liq stack bilan). Render loglarida ko'rinadi.
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
