@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
 
 @Injectable()
 export class UsersService {
@@ -28,11 +27,16 @@ export class UsersService {
     return safe;
   }
 
+  /**
+   * SEC-05 prerequisite: `role` bu yerdan ATAYLAB olib tashlandi. Rol —
+   * avtorizatsiya kaliti; uni foydalanuvchi o'z profil-yangilash yo'li orqali
+   * o'zgartira olmasligi SHART. Rol tayinlash — kelajakdagi admin yo'lining
+   * ishi (§6.1: faqat OWNER), bu endpointning emas.
+   */
   async updateProfile(
     userId: string,
     dto: {
       isBusinessAccount?: boolean;
-      role?: Role;
       name?: string;
       tourCompleted?: boolean;
       briefingOptIn?: boolean;

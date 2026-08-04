@@ -90,10 +90,16 @@ export class AgentOsService {
       },
     });
 
-    // Foydalanuvchini org'ga bog'lash (owner roli)
+    // Foydalanuvchini org'ga bog'lash.
+    // SEC-05 prerequisite: bu yerda ilgari `role: 'OWNER'` ham yozilardi —
+    // "org egasi" tushunchasi PLATFORMA `OWNER` roli bilan aralashtirilgan edi.
+    // Bu endpoint faqat `ClerkGuard` bilan himoyalangan, ya'ni istalgan oddiy
+    // foydalanuvchi uni chaqirib o'zini platforma OWNER'iga ko'tara olardi.
+    // Org egaligi allaqachon `Org.ownerId` (yuqorida) bilan ifodalanadi —
+    // `User.role` bunga umuman kerak emas.
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { orgId: org.id, role: 'OWNER' },
+      data: { orgId: org.id },
     });
 
     // C-suite agentlarini Part 1 Agent modelida yaratish

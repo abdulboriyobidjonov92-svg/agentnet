@@ -5,6 +5,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { UsersService } from './users.service';
 import { OnboardingService } from './onboarding.service';
 import { OnboardingDto, InstallRecommendationsDto } from './dto/onboarding.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import type { User } from '@prisma/client';
 
 @ApiTags('users')
@@ -42,10 +43,7 @@ export class UsersController {
   }
 
   @Patch('me')
-  updateProfile(
-    @CurrentUser() user: User,
-    @Body() dto: { isBusinessAccount?: boolean; name?: string; tourCompleted?: boolean; briefingOptIn?: boolean },
-  ) {
+  updateProfile(@CurrentUser() user: User, @Body() dto: UpdateProfileDto) {
     return this.users.updateProfile(user.id, dto);
   }
 

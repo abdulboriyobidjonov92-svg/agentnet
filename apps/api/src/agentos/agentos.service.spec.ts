@@ -53,7 +53,7 @@ describe('AgentOsService.getWorkspace', () => {
 });
 
 describe('AgentOsService.createWorkspace', () => {
-  it('org yaratadi, foydalanuvchini OWNER qiladi va 5 ta C-suite agentini urug\'laydi', async () => {
+  it('org yaratadi, foydalanuvchini org\'ga bog\'laydi (rolga TEGMAYDI) va 5 ta C-suite agentini urug\'laydi', async () => {
     const { prisma, http, audit } = makeMock();
     prisma.org.create.mockResolvedValue({ id: 'org1', name: 'Acme' });
     prisma.org.findUnique.mockResolvedValue({ id: 'org1', agents: [{}, {}, {}, {}, {}] });
@@ -62,10 +62,16 @@ describe('AgentOsService.createWorkspace', () => {
     await svc.createWorkspace(user, { name: 'Acme' });
 
     expect(prisma.org.create).toHaveBeenCalled();
+    // SEC-05 prerequisite: bu yozuv ilgari `role: 'OWNER'`ni ham o'z ichiga
+    // olardi — ya'ni ochiq (faqat ClerkGuard) endpoint orqali o'z-o'zini
+    // platforma OWNER'iga ko'tarish. Endi FAQAT orgId yoziladi.
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: 'u1' },
-      data: { orgId: 'org1', role: 'OWNER' },
+      data: { orgId: 'org1' },
     });
+    expect(prisma.user.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ role: expect.anything() }) }),
+    );
     expect(prisma.agent.create).toHaveBeenCalledTimes(5);
     const roles = prisma.agent.create.mock.calls.map((c: any) => c[0].data.csuiteRole).sort();
     expect(roles).toEqual(['ceo', 'cfo', 'clo', 'cmo', 'cto']);
