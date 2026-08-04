@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { decodeSession, SESSION_COOKIE, TOKEN_COOKIE } from "@/lib/session";
+import { TOKEN_COOKIE } from "@/lib/session";
 
 /**
  * SEC-03 AC#5 — joriy sessiyani yangi 7-kunlik token bilan almashtiradi
@@ -8,10 +8,8 @@ import { decodeSession, SESSION_COOKIE, TOKEN_COOKIE } from "@/lib/session";
  * polling/timer/background job) ATAYLAB qo'shilmagan — bu kelajakdagi UX
  * bosqichi (Engineering Contract, SEC-03 approval, Decision B).
  *
- * Token endi httpOnly cookie'da (XSS himoyasi); legacy sessiyalar uchun eski
- * profil-cookie ichidagi token fallback sifatida qabul qilinadi — xuddi
- * shu BFF-darajasidagi qo'shni route'lar (chat/stream, device/browser/stream)
- * bilan bir xil, chunki SEC-04 hali bu fallback'ni olib tashlamagan.
+ * Token httpOnly cookie'da (XSS himoyasi). SEC-04: legacy profil-cookie
+ * fallback olib tashlandi — faqat httpOnly agentnet_token qabul qilinadi.
  */
 
 // ../route.ts'dagi bilan AYNAN bir xil qiymat — Next.js route.ts fayllari
@@ -20,9 +18,7 @@ import { decodeSession, SESSION_COOKIE, TOKEN_COOKIE } from "@/lib/session";
 // Ikkalasini birga o'zgartiring.
 const MAX_AGE = 60 * 60 * 24 * 7; // 7 kun
 export async function POST(req: NextRequest) {
-  const token =
-    req.cookies.get(TOKEN_COOKIE)?.value ||
-    decodeSession(req.cookies.get(SESSION_COOKIE)?.value)?.token;
+  const token = req.cookies.get(TOKEN_COOKIE)?.value;
   if (!token) return NextResponse.json({ message: "Sessiya topilmadi" }, { status: 401 });
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";

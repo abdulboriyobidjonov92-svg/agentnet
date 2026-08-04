@@ -6,25 +6,12 @@ const PUBLIC_PATHS = ["/", "/sign-in", "/sign-up", "/agentos-demo"];
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 const TOKEN_COOKIE = "agentnet_token";
-const SESSION_COOKIE = "agentnet_user";
 const PROXY_PREFIX = "/api/backend/";
 
-/** Legacy sessiyalar (token profil-cookie ichida bo'lgan davr) uchun fallback. */
-function legacyToken(raw: string | undefined): string | null {
-  if (!raw) return null;
-  try {
-    const s = JSON.parse(decodeURIComponent(escape(atob(raw))));
-    return typeof s?.token === "string" && s.token ? s.token : null;
-  } catch {
-    return null;
-  }
-}
-
+// SEC-04: legacy profil-cookie fallback (legacyToken()) olib tashlandi — endi
+// FAQAT httpOnly agentnet_token qabul qilinadi.
 function resolveToken(request: NextRequest): string | null {
-  return (
-    request.cookies.get(TOKEN_COOKIE)?.value ||
-    legacyToken(request.cookies.get(SESSION_COOKIE)?.value)
-  );
+  return request.cookies.get(TOKEN_COOKIE)?.value ?? null;
 }
 
 /**

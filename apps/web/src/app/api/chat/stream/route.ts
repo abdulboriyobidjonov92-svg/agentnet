@@ -1,12 +1,10 @@
 import { NextRequest } from "next/server";
-import { decodeSession, tokenPayload, SESSION_COOKIE, TOKEN_COOKIE } from "@/lib/session";
+import { tokenPayload, TOKEN_COOKIE } from "@/lib/session";
 
 export async function POST(req: NextRequest) {
-  // Token endi httpOnly cookie'da (XSS himoyasi); legacy sessiyalar uchun eski
-  // profil-cookie ichidagi token fallback sifatida qabul qilinadi.
-  const token =
-    req.cookies.get(TOKEN_COOKIE)?.value ||
-    decodeSession(req.cookies.get(SESSION_COOKIE)?.value)?.token;
+  // Token httpOnly cookie'da (XSS himoyasi). SEC-04: legacy profil-cookie
+  // fallback olib tashlandi — faqat httpOnly agentnet_token qabul qilinadi.
+  const token = req.cookies.get(TOKEN_COOKIE)?.value;
   if (!token) return new Response("Unauthorized", { status: 401 });
 
   // user_id IMZOLANGAN token ichidan olinadi — ilgari profil-cookie'dagi userId

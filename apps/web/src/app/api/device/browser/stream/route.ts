@@ -1,16 +1,16 @@
 import { NextRequest } from "next/server";
-import { decodeSession, tokenPayload, SESSION_COOKIE, TOKEN_COOKIE } from "@/lib/session";
+import { tokenPayload, TOKEN_COOKIE } from "@/lib/session";
 
 /**
  * Device Control brauzer-agent BFF — httpOnly cookie'dagi tokenni o'qib,
  * NestJS'ning SSE endpointiga (`/api/device/browser/stream`) proxy qiladi va
  * qadam-eventlarini brauzerga uzatadi. Chat/stream bilan bir xil naqsh:
  * token JS'ga ko'rinmaydi, faqat server uni Authorization sifatida qo'shadi.
+ * SEC-04: legacy profil-cookie fallback olib tashlandi — faqat httpOnly
+ * agentnet_token qabul qilinadi.
  */
 export async function POST(req: NextRequest) {
-  const token =
-    req.cookies.get(TOKEN_COOKIE)?.value ||
-    decodeSession(req.cookies.get(SESSION_COOKIE)?.value)?.token;
+  const token = req.cookies.get(TOKEN_COOKIE)?.value;
   if (!token || !tokenPayload(token)?.sub) {
     return new Response("Unauthorized", { status: 401 });
   }
