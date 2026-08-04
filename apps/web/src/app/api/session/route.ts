@@ -13,7 +13,13 @@ import { encodeSession, SESSION_COOKIE, TOKEN_COOKIE, type Session } from "@/lib
  * guard imzoni tekshiradi va 401 qaytaradi (fail-closed o'zgarmagan).
  */
 
-const MAX_AGE = 60 * 60 * 24 * 30; // 30 kun — token muddati bilan bir xil
+// SEC-03: 30 kun -> 7 kun (API tomonidagi token TTL bilan bir xil bo'lishi
+// SHART — aks holda cookie tokendan uzoqroq yashab, muddati o'tgan tokenni
+// ushlab turadi). DIQQAT: session/refresh/route.ts'da xuddi shu qiymat
+// TAKRORLANGAN (Next.js route.ts fayllari HTTP-metod eksportlaridan boshqa
+// nom eksport qilishga ruxsat bermaydi — sinab ko'rilgan, build xato beradi).
+// Ikkalasini birga o'zgartiring.
+const MAX_AGE = 60 * 60 * 24 * 7; // 7 kun — token muddati bilan bir xil
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
