@@ -10,9 +10,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Enum'lar String sifatida saqlanadi (kod string bilan solishtiradi —
-// migratsiyada buzilmasligi uchun shunday qoldirildi).
-// Rol qiymatlari: OWNER | ADMIN | MEMBER | VIEWER
+// Qolgan holat-maydonlari (plan, platformPlan, AgentStatus, ...) hali ham
+// String — ular Phase 3 (A14) da enum'ga o'tkaziladi. `UserRole` esa SEC-05
+// doirasida ALLAQACHON enum: u avtorizatsiya kaliti, shuning uchun typo'ga
+// chidamli bo'lishi birinchi navbatda kerak.
+
+/// Rol ierarxiyasi: OWNER > ADMIN > SUPPORT > MEMBER > VIEWER
+/// (Engineering Contract A8 / ADR-002). SUPPORT — qo'llab-quvvatlash roli.
+/// DIQQAT: bu yerdagi TARTIB `roles.guard.ts`dagi ROLE_RANK bilan mos
+/// bo'lishi SHART — ikkalasini birga o'zgartiring.
+enum UserRole {
+  OWNER
+  ADMIN
+  SUPPORT
+  MEMBER
+  VIEWER
+}
 
 model User {
   id                     String    @id @default(cuid())
@@ -20,7 +33,7 @@ model User {
   email                  String    @unique
   phone                  String?   @unique
   name                   String?
-  role                   String    @default("MEMBER")
+  role                   UserRole  @default(MEMBER)
   // SEC-03 (Engineering Contract, Phase 1): JWT bekor qilish uchun versiya
   // hisoblagichi. Token payload'idagi `tv` shu qiymatga teng bo'lishi SHART
   // (ClerkGuard tekshiradi) — mos kelmasa 401. Oshirilganda barcha eski
