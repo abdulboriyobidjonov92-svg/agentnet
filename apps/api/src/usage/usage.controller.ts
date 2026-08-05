@@ -1,14 +1,12 @@
-import { Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { ClerkGuard } from '../auth/clerk.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { UsageService } from './usage.service';
 import type { User } from '@prisma/client';
 
 @ApiTags('usage')
 @ApiBearerAuth()
-@UseGuards(ClerkGuard)
 @Controller('usage')
 export class UsageController {
   constructor(private readonly usage: UsageService) {}

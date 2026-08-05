@@ -1,7 +1,6 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
-import { ClerkGuard } from '../auth/clerk.guard';
 import { LlmQuotaGuard } from '../usage/llm-quota.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AgentOsService } from './agentos.service';
@@ -29,7 +28,6 @@ class CommandDto {
 
 @ApiTags('agentos')
 @ApiBearerAuth()
-@UseGuards(ClerkGuard)
 @Controller('agentos')
 export class AgentOsController {
   constructor(private readonly agentos: AgentOsService) {}

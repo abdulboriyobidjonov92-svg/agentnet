@@ -7,7 +7,6 @@ import {
   Req,
   BadRequestException,
   ForbiddenException,
-  UseGuards,
   type RawBodyRequest,
 } from '@nestjs/common';
 import type { Request } from 'express';
@@ -15,7 +14,6 @@ import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { Webhook } from 'svix';
 import { ClerkSyncService, TwoFactorService } from './auth.service';
 import { OtpService } from './otp.service';
-import { ClerkGuard } from './clerk.guard';
 import { CurrentUser } from './current-user.decorator';
 import { Public } from './public.decorator';
 import type { User } from '@prisma/client';
@@ -110,14 +108,12 @@ export class AuthController {
 
   /** 2FA sozlash — QR kod va secret qaytaradi. Faqat autentifikatsiya qilingan foydalanuvchi uchun. */
   @Post('2fa/setup')
-  @UseGuards(ClerkGuard)
   async setup2fa(@CurrentUser() user: User) {
     return this.twoFactor.generateSecret(user.id, user.email);
   }
 
   /** 2FA tasdiqlash va yoqish. Faqat autentifikatsiya qilingan foydalanuvchi o'zi uchun. */
   @Post('2fa/verify')
-  @UseGuards(ClerkGuard)
   @Throttle({ default: { limit: 10, ttl: 60_000 } }) // TOTP-kodni taxminlashga qarshi
   async verify2fa(@CurrentUser() user: User, @Body() body: { token: string }) {
     const ok = await this.twoFactor.verifyAndEnable(user.id, body.token);
@@ -131,7 +127,6 @@ export class AuthController {
    * bo'lsa bu yerga umuman yetib kelmaydi (401 guard darajasida).
    */
   @Post('session/refresh')
-  @UseGuards(ClerkGuard)
   refreshSession(@CurrentUser() user: User) {
     return this.clerkSync.refreshSession(user);
   }

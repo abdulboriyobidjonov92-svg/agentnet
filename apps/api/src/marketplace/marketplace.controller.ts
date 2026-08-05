@@ -1,6 +1,5 @@
-import { Controller, Get, Post, Delete, Param, Body, Query, UseGuards, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Body, Query, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
-import { ClerkGuard } from '../auth/clerk.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Public } from '../auth/public.decorator';
 import { MarketplaceService } from './marketplace.service';
@@ -21,21 +20,18 @@ export class MarketplaceController {
 
   @Get('creator/dashboard')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   creatorDashboard(@CurrentUser() user: User) {
     return this.marketplace.creatorDashboard(user);
   }
 
   @Post('creator/payout')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   payout(@CurrentUser() user: User) {
     return this.marketplace.requestPayout(user);
   }
 
   @Post(':agentId/publish')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   publish(
     @CurrentUser() user: User,
     @Param('agentId') agentId: string,
@@ -46,7 +42,6 @@ export class MarketplaceController {
 
   @Delete(':agentId/publish')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   @HttpCode(204)
   unpublish(@CurrentUser() user: User, @Param('agentId') agentId: string) {
     return this.marketplace.unpublish(agentId, user);
@@ -54,7 +49,6 @@ export class MarketplaceController {
 
   @Post(':agentId/install')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   install(@CurrentUser() user: User, @Param('agentId') agentId: string) {
     return this.marketplace.install(agentId, user);
   }
@@ -67,7 +61,6 @@ export class MarketplaceController {
 
   @Post(':agentId/reviews')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   review(
     @CurrentUser() user: User,
     @Param('agentId') agentId: string,

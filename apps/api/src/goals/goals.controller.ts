@@ -1,8 +1,7 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { IsString, MaxLength, MinLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { ClerkGuard } from '../auth/clerk.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { GoalsService } from './goals.service';
 import type { User } from '@prisma/client';
@@ -17,7 +16,6 @@ class CreateGoalDto {
 
 @ApiTags('goals')
 @ApiBearerAuth()
-@UseGuards(ClerkGuard)
 @Controller('goals')
 export class GoalsController {
   constructor(private readonly goals: GoalsService) {}

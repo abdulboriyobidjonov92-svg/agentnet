@@ -1,7 +1,6 @@
-import { Body, Controller, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsArray, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
-import { ClerkGuard } from '../auth/clerk.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Public } from '../auth/public.decorator';
 import { ShareService } from './share.service';
@@ -51,7 +50,6 @@ export class ShareController {
   /** Natijani ulashish uchun public token yaratadi (faqat autentifikatsiya qilingan). */
   @Post()
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   @HttpCode(200)
   create(@CurrentUser() user: User, @Body() body: CreateShareBody) {
     return this.share.create(user, body);

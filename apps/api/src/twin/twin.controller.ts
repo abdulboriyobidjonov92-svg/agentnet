@@ -1,6 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { ClerkGuard } from '../auth/clerk.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { TwinService } from './twin.service';
 import { AddFactDto, ExtractDto, WhatIfDto } from './dto/twin.dto';
@@ -8,7 +7,6 @@ import type { User } from '@prisma/client';
 
 @ApiTags('twin')
 @ApiBearerAuth()
-@UseGuards(ClerkGuard)
 @Controller('twin')
 export class TwinController {
   constructor(private readonly twin: TwinService) {}

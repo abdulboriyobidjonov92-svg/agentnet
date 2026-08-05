@@ -1,6 +1,5 @@
-import { Controller, Get, Post, Param, Query, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Param, Query, Body } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { ClerkGuard } from '../auth/clerk.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { TemplatesService } from './templates.service';
 import type { User } from '@prisma/client';
@@ -8,7 +7,6 @@ import type { User } from '@prisma/client';
 /** Y3: tayyor shablon galereyasi — ko'rish, moslash, bir-bosishda o'rnatish. */
 @ApiTags('templates')
 @ApiBearerAuth()
-@UseGuards(ClerkGuard)
 @Controller('templates')
 export class TemplatesController {
   constructor(private readonly templates: TemplatesService) {}

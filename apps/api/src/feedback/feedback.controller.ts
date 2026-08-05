@@ -1,21 +1,19 @@
 import {
   Body,
   Controller,
-  ForbiddenException,
   Get,
   HttpCode,
   Param,
   Patch,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
-import { ClerkGuard } from '../auth/clerk.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { Roles } from '../auth/roles.decorator';
 import { FeedbackService } from './feedback.service';
-import type { User } from '@prisma/client';
+import { UserRole, type User } from '@prisma/client';
 
 class SubmitFeedbackDto {
   @ApiProperty({ enum: ['suggestion', 'bug', 'question'], required: false })
@@ -44,7 +42,6 @@ class SubmitFeedbackDto {
 
 @ApiTags('feedback')
 @ApiBearerAuth()
-@UseGuards(ClerkGuard)
 @Controller('feedback')
 export class FeedbackController {
   constructor(private readonly feedback: FeedbackService) {}
@@ -56,21 +53,21 @@ export class FeedbackController {
     return this.feedback.submit(user, dto);
   }
 
-  /** Admin ro'yxati — faqat OWNER roli. */
+  /**
+   * Admin ro'yxati — faqat OWNER roli.
+   * SEC-05: ilgari bu yerda inline `assertAdmin()` tekshiruvi bor edi —
+   * endi global `RolesGuard` majburlaydi (AC #5).
+   */
   @Get()
-  list(@CurrentUser() user: User, @Query('limit') limit?: string) {
-    this.assertAdmin(user);
+  @Roles(UserRole.OWNER)
+  list(@Query('limit') limit?: string) {
     return this.feedback.list(limit ? Number(limit) : undefined);
   }
 
   /** Admin holatni yangilaydi (seen/resolved) — faqat OWNER roli. */
   @Patch(':id/status')
-  setStatus(@CurrentUser() user: User, @Param('id') id: string, @Body() body: { status: string }) {
-    this.assertAdmin(user);
+  @Roles(UserRole.OWNER)
+  setStatus(@Param('id') id: string, @Body() body: { status: string }) {
     return this.feedback.setStatus(id, body.status);
-  }
-
-  private assertAdmin(user: User) {
-    if (user.role !== 'OWNER') throw new ForbiddenException('Faqat admin uchun');
   }
 }

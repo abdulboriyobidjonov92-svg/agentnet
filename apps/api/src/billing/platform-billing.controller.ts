@@ -1,7 +1,6 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsIn, IsOptional } from 'class-validator';
-import { ClerkGuard } from '../auth/clerk.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { PlatformBillingService, PLATFORM_PLANS, type SelfServePlatformPlan } from './platform-billing.service';
 import { PaymeService } from './payme.service';
@@ -38,7 +37,6 @@ export class PlatformBillingController {
   /** Narxlar sahifasi uchun katalog — narx (billing) + kunlik limit (usage) birlashtirilgan. */
   @Get('plans')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   plans() {
     const prices = this.platformBilling.plansCatalog();
     const limits = this.usage.platformLimitsCatalog();
@@ -53,7 +51,6 @@ export class PlatformBillingController {
   /** Joriy foydalanuvchining platforma-obunasi holati. */
   @Get('status')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   status(@CurrentUser() user: User) {
     return this.platformBilling.status(user);
   }
@@ -66,7 +63,6 @@ export class PlatformBillingController {
    */
   @Post('subscribe')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   subscribe(@CurrentUser() user: User, @Body() dto: SubscribeDto) {
     const priceSom = Math.round(this.platformBilling.priceForPlan(dto.plan) / 100);
     const svc = dto.provider === 'click' ? this.click : this.payme;

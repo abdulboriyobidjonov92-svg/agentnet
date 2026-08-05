@@ -1,9 +1,8 @@
 import {
-  Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, HttpCode,
+  Controller, Get, Post, Patch, Delete, Body, Param, HttpCode,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
-import { ClerkGuard } from '../auth/clerk.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AgentsService } from './agents.service';
 import { CreateAgentDto } from './dto/create-agent.dto';
@@ -27,7 +26,6 @@ class RunAgentDto {
 
 @ApiTags('agents')
 @ApiBearerAuth()
-@UseGuards(ClerkGuard)
 @Controller('agents')
 export class AgentsController {
   constructor(private readonly agents: AgentsService) {}

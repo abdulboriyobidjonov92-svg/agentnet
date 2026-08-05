@@ -1,6 +1,5 @@
-import { Controller, Get, Patch, Post, Delete, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Delete, Body } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { ClerkGuard } from '../auth/clerk.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { UsersService } from './users.service';
 import { OnboardingService } from './onboarding.service';
@@ -10,7 +9,6 @@ import type { User } from '@prisma/client';
 
 @ApiTags('users')
 @ApiBearerAuth()
-@UseGuards(ClerkGuard)
 @Controller('users')
 export class UsersController {
   constructor(

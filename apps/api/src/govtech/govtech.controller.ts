@@ -1,6 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { ClerkGuard } from '../auth/clerk.guard';
 import { LlmQuotaGuard } from '../usage/llm-quota.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Public } from '../auth/public.decorator';
@@ -20,28 +19,26 @@ export class GovtechController {
 
   @Post('requests')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard, LlmQuotaGuard) // intake → engine tasnifi (LLM)
+  @UseGuards(LlmQuotaGuard) // intake → engine tasnifi (LLM)
   intake(@CurrentUser() user: User, @Body() body: { text: string; fullName?: string; contact?: string }) {
     return this.govtech.intake(user, body);
   }
 
   @Get('requests')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   list(@CurrentUser() user: User, @Query('status') status?: string) {
     return this.govtech.list(user, status);
   }
 
   @Patch('requests/:id/status')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   advance(@CurrentUser() user: User, @Param('id') id: string, @Body() body: { status: string; note?: string }) {
     return this.govtech.advance(user, id, body);
   }
 
   @Post('guide')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard, LlmQuotaGuard) // guide → engine LLM navigatori
+  @UseGuards(LlmQuotaGuard) // guide → engine LLM navigatori
   guide(@CurrentUser() user: User, @Body() body: { query: string }) {
     return this.govtech.guide(user, body.query);
   }

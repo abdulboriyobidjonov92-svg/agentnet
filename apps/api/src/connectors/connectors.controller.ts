@@ -9,7 +9,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { ClerkGuard } from '../auth/clerk.guard';
 import { InternalTokenGuard } from '../auth/internal-token.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Public } from '../auth/public.decorator';
@@ -34,14 +33,12 @@ export class ConnectorsController {
 
   @Get('mine')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   myCatalog(@CurrentUser() user: User) {
     return this.connectors.catalog(user);
   }
 
   @Post(':connectorId/configure')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   configure(
     @CurrentUser() user: User,
     @Param('connectorId') connectorId: string,
@@ -52,14 +49,12 @@ export class ConnectorsController {
 
   @Delete(':connectorId/configure')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   remove(@CurrentUser() user: User, @Param('connectorId') connectorId: string) {
     return this.connectors.remove(user, connectorId);
   }
 
   @Post(':connectorId/invoke')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   invoke(
     @CurrentUser() user: User,
     @Param('connectorId') connectorId: string,

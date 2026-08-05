@@ -2,7 +2,6 @@ import { Controller, Get, Post, Body, Headers, UseGuards } from '@nestjs/common'
 import { SkipThrottle } from '@nestjs/throttler';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { IsIn, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
-import { ClerkGuard } from '../auth/clerk.guard';
 import { InternalTokenGuard } from '../auth/internal-token.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Public } from '../auth/public.decorator';
@@ -46,7 +45,6 @@ export class BillingController {
 
   @Get('me')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   getBalance(@CurrentUser() user: User) {
     return this.billing.getBalance(user);
   }
@@ -54,7 +52,6 @@ export class BillingController {
   /** Pricing sahifasi uchun tariflar katalogi — env'dagi haqiqiy narx/limitlar. */
   @Get('plans')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   plans() {
     return {
       pricePerMessageSom: Math.round(this.billing.pricePerMessageTiyin / 100),
@@ -66,7 +63,6 @@ export class BillingController {
   /** Prepaid balansdan 30 kunlik Pro obuna sotib olish. Balans yetmasa 402. */
   @Post('upgrade-pro')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   upgradePro(@CurrentUser() user: User) {
     return this.billing.upgradePro(user);
   }
@@ -78,7 +74,6 @@ export class BillingController {
   @Post('charge-message')
   @SkipThrottle() // Next.js BFF'dan (bitta IP) chaqiriladi + har-user balans o'zi cheklaydi
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   chargeMessage(@CurrentUser() user: User) {
     return this.billing.chargeForMessage(user);
   }
@@ -92,7 +87,7 @@ export class BillingController {
    */
   @Post('refund')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard, InternalTokenGuard)
+  @UseGuards(InternalTokenGuard)
   refund(@CurrentUser() user: User, @Body() dto: RefundDto) {
     return this.billing.refund(user, dto.reason, dto.idempotencyKey);
   }
@@ -100,7 +95,6 @@ export class BillingController {
   /** Balansni to'ldirish — foydalanuvchi checkout'da Payme yoki Click'ni tanlaydi. */
   @Post('topup')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   topup(@CurrentUser() user: User, @Body() dto: TopupDto) {
     return this.billing.createTopupReceipt(user, dto.amountSom, dto.provider);
   }

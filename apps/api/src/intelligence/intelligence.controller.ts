@@ -1,7 +1,6 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsArray, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
-import { ClerkGuard } from '../auth/clerk.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { IntelligenceService } from './intelligence.service';
 import type { User } from '@prisma/client';
@@ -27,7 +26,6 @@ class SuperModeDto {
 
 @ApiTags('intelligence')
 @ApiBearerAuth()
-@UseGuards(ClerkGuard)
 @Controller()
 export class IntelligenceController {
   constructor(private readonly intelligence: IntelligenceService) {}

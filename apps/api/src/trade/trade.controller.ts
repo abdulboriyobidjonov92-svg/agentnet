@@ -2,7 +2,6 @@ import { Body, Controller, Get, Param, Post, Query, UseGuards, UnprocessableEnti
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { ClerkGuard } from '../auth/clerk.guard';
 import { LlmQuotaGuard } from '../usage/llm-quota.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { User } from '@prisma/client';
@@ -14,7 +13,6 @@ import type { User } from '@prisma/client';
  */
 @ApiTags('trade')
 @ApiBearerAuth()
-@UseGuards(ClerkGuard)
 @Controller('trade')
 export class TradeController {
   private readonly logger = new Logger(TradeController.name);

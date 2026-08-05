@@ -9,7 +9,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { ClerkGuard } from '../auth/clerk.guard';
 import { InternalTokenGuard } from '../auth/internal-token.guard';
 import { LlmQuotaGuard } from '../usage/llm-quota.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -28,14 +27,13 @@ export class AutomationController {
 
   @Post('run')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard, LlmQuotaGuard) // ko'p-qadamli engine LLM loop — kvota bilan
+  @UseGuards(LlmQuotaGuard) // ko'p-qadamli engine LLM loop — kvota bilan
   run(@CurrentUser() user: User, @Body() body: { goal: string; startUrl?: string; language?: string }) {
     return this.automation.run(user, body.goal, body.startUrl, body.language);
   }
 
   @Get('runs')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   list(@CurrentUser() user: User) {
     return this.automation.listRuns(user);
   }
@@ -54,14 +52,12 @@ export class AutomationController {
 
   @Get('sessions')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   listSessions(@CurrentUser() user: User) {
     return this.automation.listSessions(user);
   }
 
   @Delete('sessions/:id')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   deleteSession(@CurrentUser() user: User, @Param('id') id: string) {
     return this.automation.deleteSession(user, id);
   }

@@ -1,6 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { ClerkGuard } from '../auth/clerk.guard';
 import { LlmQuotaGuard } from '../usage/llm-quota.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { OperationsService } from './operations.service';
@@ -8,7 +7,6 @@ import type { User } from '@prisma/client';
 
 @ApiTags('operations')
 @ApiBearerAuth()
-@UseGuards(ClerkGuard)
 @Controller('operations')
 export class OperationsController {
   constructor(private readonly ops: OperationsService) {}

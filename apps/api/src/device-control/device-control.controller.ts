@@ -13,7 +13,6 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { IsBoolean, IsIn, IsObject, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import type { Response } from 'express';
-import { ClerkGuard } from '../auth/clerk.guard';
 import { LlmQuotaGuard } from '../usage/llm-quota.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Public } from '../auth/public.decorator';
@@ -159,28 +158,24 @@ export class DeviceControlController {
 
   @Post('recordings')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   createRecording(@CurrentUser() user: User, @Body() dto: RecordingDto) {
     return this.recordings.create(user, dto);
   }
 
   @Get('recordings')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   listRecordings(@CurrentUser() user: User) {
     return this.recordings.list(user);
   }
 
   @Get('recordings/:id')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   getRecording(@CurrentUser() user: User, @Param('id') id: string) {
     return this.recordings.get(user, id);
   }
 
   @Delete('recordings/:id')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   deleteRecording(@CurrentUser() user: User, @Param('id') id: string) {
     return this.recordings.remove(user, id);
   }
@@ -190,14 +185,12 @@ export class DeviceControlController {
   /** Berilgan target uchun eng tez bajaruvchini tanlaydi (connector > brauzer > ekran). */
   @Get('resolve')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   resolve(@Query('target') target: string) {
     return this.router.resolve(target);
   }
 
   @Get('capability-catalog')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   capabilityCatalog() {
     return this.router.catalog();
   }
@@ -207,14 +200,12 @@ export class DeviceControlController {
   /** Dashboard: yangi companion yaratadi, juftlash-kodini qaytaradi. */
   @Post('companion/register')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   registerCompanion(@CurrentUser() user: User, @Body() dto: CompanionRegisterDto) {
     return this.companion.register(user, dto.kind, dto.name);
   }
 
   @Get('companions')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   listCompanions(@CurrentUser() user: User) {
     return this.companion.listCompanions(user);
   }
@@ -222,7 +213,6 @@ export class DeviceControlController {
   /** Dashboard: buyruqni navbatga qo'yadi (ruxsat tekshiriladi). */
   @Post('command')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   enqueue(@CurrentUser() user: User, @Body() dto: CommandDto) {
     return this.companion.enqueue(user, dto.kind, dto.payload);
   }
@@ -283,7 +273,6 @@ export class DeviceControlController {
   /** Qurilmalar, toifalar va joriy ruxsat-holati. */
   @Get('status')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   status(@CurrentUser() user: User) {
     return this.device.getStatus(user);
   }
@@ -291,7 +280,6 @@ export class DeviceControlController {
   /** Qurilmani ulaydi (ruxsat-oqimini boshlaydi — barcha toifalar o'chiq holatda). */
   @Post('connect')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   connect(@CurrentUser() user: User, @Body() dto: ConnectDto) {
     return this.device.connect(user, dto.deviceType);
   }
@@ -299,7 +287,6 @@ export class DeviceControlController {
   /** Bitta toifa ruxsatini yoqadi/o'chiradi. */
   @Patch('permission')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   setPermission(@CurrentUser() user: User, @Body() dto: PermissionDto) {
     return this.device.setPermission(user, dto.deviceType, dto.category, dto.enabled);
   }
@@ -307,7 +294,6 @@ export class DeviceControlController {
   /** Xavfsizlik-log — agent nima qildi tarixi. */
   @Get('actions')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   actions(@CurrentUser() user: User) {
     return this.device.listActions(user);
   }
@@ -318,14 +304,13 @@ export class DeviceControlController {
    */
   @Post('interrupt')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard)
   interrupt(@CurrentUser() user: User) {
     return this.automation.requestInterrupt(user.id);
   }
 
   @Post('browser/stream')
   @ApiBearerAuth()
-  @UseGuards(ClerkGuard, LlmQuotaGuard)
+  @UseGuards(LlmQuotaGuard)
   async browserStream(
     @CurrentUser() user: User,
     @Body() dto: BrowserRunDto,
