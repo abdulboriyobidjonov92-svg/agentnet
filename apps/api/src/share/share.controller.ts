@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsArray, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { ClerkGuard } from '../auth/clerk.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { Public } from '../auth/public.decorator';
 import { ShareService } from './share.service';
 import type { User } from '@prisma/client';
 
@@ -58,6 +59,7 @@ export class ShareController {
 
   /** Ulashilgan natijani ochadi — PUBLIC, kirishsiz (guard yo'q). */
   @Get(':token')
+  @Public()
   getPublic(@Param('token') token: string) {
     return this.share.getPublic(token);
   }

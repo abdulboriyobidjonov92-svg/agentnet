@@ -2,6 +2,7 @@ import { Body, Controller, Post } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ApiTags } from '@nestjs/swagger';
 import { ClickService } from './click.service';
+import { Public } from '../auth/public.decorator';
 
 /**
  * Click Merchant serverlaridan keladigan webhook — Payme'dan farqli o'laroq
@@ -16,6 +17,7 @@ export class WebhooksController {
 
   @Post('click')
   @SkipThrottle() // Click serverlaridan keladi — to'lov ishonchliligini throttle buzmasin
+  @Public()
   clickWebhook(@Body() body: any) {
     return this.click.handleWebhook(body ?? {});
   }

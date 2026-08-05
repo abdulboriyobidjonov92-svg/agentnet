@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ClerkGuard } from '../auth/clerk.guard';
 import { LlmQuotaGuard } from '../usage/llm-quota.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { Public } from '../auth/public.decorator';
 import { GovtechService } from './govtech.service';
 import type { User } from '@prisma/client';
 
@@ -12,6 +13,7 @@ export class GovtechController {
   constructor(private readonly govtech: GovtechService) {}
 
   @Get('catalog')
+  @Public()
   catalog() {
     return this.govtech.catalog(null);
   }

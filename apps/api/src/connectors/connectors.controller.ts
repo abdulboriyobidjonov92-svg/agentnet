@@ -12,6 +12,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ClerkGuard } from '../auth/clerk.guard';
 import { InternalTokenGuard } from '../auth/internal-token.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { Public } from '../auth/public.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConnectorsService } from './connectors.service';
 import type { User } from '@prisma/client';
@@ -26,6 +27,7 @@ export class ConnectorsController {
 
   /** Katalog — autentifikatsiyasiz ham ko'rinadi (holatsiz). */
   @Get()
+  @Public()
   publicCatalog() {
     return this.connectors.catalog(null);
   }
@@ -71,6 +73,7 @@ export class ConnectorsController {
    * (doimiy-vaqtli + prod fail-closed) — oldingi raw `!==` o'rniga.
    */
   @Post('internal/invoke')
+  @Public()
   @UseGuards(InternalTokenGuard)
   async internalInvoke(
     @Body() body: { userId: string; connectorId: string; action: string; params?: Record<string, any> },

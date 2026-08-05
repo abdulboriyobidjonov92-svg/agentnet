@@ -2,6 +2,7 @@ import { Controller, Post, Body, Headers, UnauthorizedException, UseGuards } fro
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { ClerkGuard } from '../auth/clerk.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { Public } from '../auth/public.decorator';
 import { TelegramService } from './telegram.service';
 import type { User } from '@prisma/client';
 
@@ -12,6 +13,7 @@ export class TelegramController {
 
   // Telegram botdan keladigan webhook (public endpoint)
   @Post('webhook')
+  @Public()
   async handleWebhook(
     @Body() update: any,
     @Headers('x-telegram-bot-api-secret-token') secret?: string,

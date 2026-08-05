@@ -2,6 +2,7 @@ import { Controller, Get, Post, Delete, Param, Body, Query, UseGuards, HttpCode 
 import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ClerkGuard } from '../auth/clerk.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { Public } from '../auth/public.decorator';
 import { MarketplaceService } from './marketplace.service';
 import type { User } from '@prisma/client';
 
@@ -13,6 +14,7 @@ export class MarketplaceController {
   /** Reyting bo'yicha saralangan bozor (leaderboard). */
   @Get()
   @ApiQuery({ name: 'search', required: false })
+  @Public()
   list(@Query('search') search?: string) {
     return this.marketplace.listPublished(search);
   }
@@ -58,6 +60,7 @@ export class MarketplaceController {
   }
 
   @Get(':agentId/reviews')
+  @Public()
   reviews(@Param('agentId') agentId: string) {
     return this.marketplace.reviews(agentId);
   }

@@ -1,5 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
+import { Public } from './auth/public.decorator';
 
 /**
  * Liveness healthcheck (M7). Ilgari API'da alohida `/health` yo'q edi va
@@ -12,6 +13,7 @@ import { SkipThrottle } from '@nestjs/throttler';
 export class HealthController {
   @Get()
   @SkipThrottle()
+  @Public()
   check() {
     return { status: 'ok', service: 'api', ts: new Date().toISOString() };
   }

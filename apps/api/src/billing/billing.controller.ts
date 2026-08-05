@@ -5,6 +5,7 @@ import { IsIn, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator
 import { ClerkGuard } from '../auth/clerk.guard';
 import { InternalTokenGuard } from '../auth/internal-token.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { Public } from '../auth/public.decorator';
 import { BillingService } from './billing.service';
 import { PaymeService } from './payme.service';
 import { UsageService } from '../usage/usage.service';
@@ -110,6 +111,7 @@ export class BillingController {
    */
   @Post('payme/webhook')
   @SkipThrottle() // Paycom serverlaridan keladi — to'lov ishonchliligini throttle buzmasin
+  @Public()
   async paymeWebhook(@Headers('authorization') auth: string, @Body() body: any) {
     try {
       this.payme.verifyMerchantAuth(auth);

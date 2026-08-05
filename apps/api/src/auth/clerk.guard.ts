@@ -4,8 +4,10 @@ import {
   ExecutionContext,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../prisma/prisma.service';
 import { verifyToken } from './token.util';
+import { IS_PUBLIC_KEY } from './public.decorator';
 
 /**
  * Lokal auth guard (Clerk'siz).
@@ -16,12 +18,26 @@ import { verifyToken } from './token.util';
  * MUHIM: token endi shunchaki userId EMAS — imzosiz userId qabul qilinmaydi.
  * Shu tufayli boshqa foydalanuvchining id'sini qo'yib uning hisobiga kirib
  * bo'lmaydi (avvalgi zaiflik shu yerda hal qilingan).
+ *
+ * SEC-05 (Option B): bu hali ham har CONTROLLER'da alohida qo'llaniladi —
+ * `@Public()` tekshiruvi hozircha NO-OP (chunki hali global emas). Keyingi
+ * commit'da `APP_GUARD` sifatida ro'yxatdan o'tkaziladi; shu paytgacha
+ * `@Public()` bilan belgilangan endpointlar mavjud xulqidan farq qilmaydi.
  */
 @Injectable()
 export class ClerkGuard implements CanActivate {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly reflector: Reflector,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) return true;
+
     const request = context.switchToHttp().getRequest();
     const token = this.extractToken(request);
     if (!token) throw new UnauthorizedException('Token talab qilinadi');

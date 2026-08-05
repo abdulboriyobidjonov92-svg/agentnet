@@ -13,6 +13,7 @@ import { ClerkGuard } from '../auth/clerk.guard';
 import { InternalTokenGuard } from '../auth/internal-token.guard';
 import { LlmQuotaGuard } from '../usage/llm-quota.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { Public } from '../auth/public.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { AutomationService } from './automation.service';
 import type { User } from '@prisma/client';
@@ -40,6 +41,7 @@ export class AutomationController {
   }
 
   @Get('capabilities')
+  @Public()
   capabilities() {
     return this.automation.capabilities();
   }
@@ -71,6 +73,7 @@ export class AutomationController {
    * User esa body'dagi userId orqali.
    */
   @Post('internal/run')
+  @Public()
   @UseGuards(InternalTokenGuard)
   async internalRun(
     @Body() body: { goal: string; startUrl?: string; userId: string; language?: string },

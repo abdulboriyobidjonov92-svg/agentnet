@@ -16,6 +16,7 @@ import type { Response } from 'express';
 import { ClerkGuard } from '../auth/clerk.guard';
 import { LlmQuotaGuard } from '../usage/llm-quota.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { Public } from '../auth/public.decorator';
 import { Delete, Param, Query } from '@nestjs/common';
 import { AutomationService } from '../automation/automation.service';
 import { DeviceControlService } from './device-control.service';
@@ -238,12 +239,14 @@ export class DeviceControlController {
    */
   @Post('companion/pair')
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Public()
   pair(@Body() dto: PairDto) {
     return this.companion.pair(dto.pairingCode);
   }
 
   /** SEC-01 AC#6: 30-kunlik rotatsiya — companion o'zi muddat yaqinlashganda chaqiradi. */
   @Post('companion/refresh')
+  @Public()
   async refreshCompanion(@Headers('x-companion-token') token: string) {
     const c = await this.companion.authCompanion(token);
     if (!c) throw new UnauthorizedException('Companion tokeni yaroqsiz');
@@ -251,6 +254,7 @@ export class DeviceControlController {
   }
 
   @Post('companion/poll')
+  @Public()
   async poll(@Headers('x-companion-token') token: string) {
     const c = await this.companion.authCompanion(token);
     if (!c) throw new UnauthorizedException('Companion tokeni yaroqsiz');
@@ -258,6 +262,7 @@ export class DeviceControlController {
   }
 
   @Post('companion/result')
+  @Public()
   async companionResult(@Headers('x-companion-token') token: string, @Body() dto: CompanionResultDto) {
     const c = await this.companion.authCompanion(token);
     if (!c) throw new UnauthorizedException('Companion tokeni yaroqsiz');
@@ -266,6 +271,7 @@ export class DeviceControlController {
 
   /** B2 computer-use: companion skrinshot yuboradi -> keyingi harakat qaytadi. */
   @Post('companion/computer-use/plan')
+  @Public()
   async companionComputerUse(@Headers('x-companion-token') token: string, @Body() dto: ComputerUsePlanDto) {
     const c = await this.companion.authCompanion(token);
     if (!c) throw new UnauthorizedException('Companion tokeni yaroqsiz');

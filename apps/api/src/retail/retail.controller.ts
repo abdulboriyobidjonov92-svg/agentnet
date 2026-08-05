@@ -15,6 +15,7 @@ import { ClerkGuard } from '../auth/clerk.guard';
 import { InternalTokenGuard } from '../auth/internal-token.guard';
 import { LlmQuotaGuard } from '../usage/llm-quota.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { Public } from '../auth/public.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { RetailService } from './retail.service';
 import { CompetitorPriceService } from './competitor-price.service';
@@ -181,6 +182,7 @@ export class RetailController {
    * himoya; oldin raw `!==` bilan prod-default kalitni qabul qilardi).
    */
   @Post('internal/vision-events')
+  @Public()
   @UseGuards(InternalTokenGuard)
   async internalVisionEvent(
     @Body()

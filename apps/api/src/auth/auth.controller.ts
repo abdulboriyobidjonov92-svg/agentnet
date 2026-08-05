@@ -17,6 +17,7 @@ import { ClerkSyncService, TwoFactorService } from './auth.service';
 import { OtpService } from './otp.service';
 import { ClerkGuard } from './clerk.guard';
 import { CurrentUser } from './current-user.decorator';
+import { Public } from './public.decorator';
 import type { User } from '@prisma/client';
 
 @Controller('auth')
@@ -30,6 +31,7 @@ export class AuthController {
   /** Clerk webhook — foydalanuvchi yaratish/o'chirish eventlarini qabul qiladi */
   @Post('webhooks/clerk')
   @SkipThrottle() // Clerk serverlaridan keladi (svix imzosi bilan tekshiriladi)
+  @Public()
   @HttpCode(200)
   async clerkWebhook(
     @Headers('svix-id') svixId: string,
@@ -67,6 +69,7 @@ export class AuthController {
    */
   @Post('dev-login')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Public()
   @HttpCode(200)
   async devLogin(@Body() body: { email?: string; phone?: string; name?: string }) {
     if (process.env.NODE_ENV === 'production') {
@@ -78,6 +81,7 @@ export class AuthController {
   /** 1-qadam: email yoki telefonga bir martalik kirish kodi yuboradi */
   @Post('otp/request')
   @Throttle({ default: { limit: 5, ttl: 60_000 } }) // kod-spam'ga qarshi
+  @Public()
   @HttpCode(200)
   async requestOtp(@Body() body: { email?: string; phone?: string }) {
     return this.otp.requestOtp(body);
@@ -89,6 +93,7 @@ export class AuthController {
    */
   @Post('otp/verify')
   @Throttle({ default: { limit: 10, ttl: 60_000 } }) // kod-taxminlashga qarshi
+  @Public()
   @HttpCode(200)
   async verifyOtp(@Body() body: { email?: string; phone?: string; code: string; name?: string; ref?: string }) {
     return this.otp.verifyOtp(body);
@@ -97,6 +102,7 @@ export class AuthController {
   /** 2FA yoqilgan hisoblar uchun login'ning yakuniy qadami — TOTP kodni tekshiradi */
   @Post('2fa/login-verify')
   @Throttle({ default: { limit: 10, ttl: 60_000 } }) // TOTP-kodni taxminlashga qarshi
+  @Public()
   @HttpCode(200)
   async loginVerify2fa(@Body() body: { userId: string; token: string }) {
     return this.otp.completeTwoFactorLogin(body.userId, body.token);
