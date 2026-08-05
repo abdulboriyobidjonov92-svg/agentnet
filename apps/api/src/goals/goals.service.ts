@@ -131,6 +131,9 @@ export class GoalsService {
     }
 
     // Progress: bajarilgan / jami
+    // @upstream-scope: `goal` shu metod boshida `findOne(id, user)` orqali
+    // olingan — u `goal.userId !== user.id` bo'lsa ForbiddenException
+    // tashlaydi. Bu so'rov `goal.id`ga tayanadi, alohida userId shart emas.
     const tasks = await this.prisma.goalTask.findMany({ where: { goalId: goal.id } });
     const done = tasks.filter((t) => t.status === 'done').length;
     const progress = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
@@ -146,6 +149,9 @@ export class GoalsService {
   /** Har kuni 07:00 da barcha faol maqsadlarni avtonom yuritadi. */
   @Cron(CronExpression.EVERY_DAY_AT_7AM)
   async advanceAllActive() {
+    // @system-scope: kunlik cron — BARCHA faol maqsadlarni avtonom yuritadi
+    // (funksiya sharhida ham aytilgan), bitta foydalanuvchi so'roviga
+    // bog'liq emas.
     const goals = await this.prisma.goal.findMany({
       where: { status: 'active' },
       include: { user: true },

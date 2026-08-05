@@ -78,6 +78,10 @@ export class AuditLogService {
       await this.prisma.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(${AUDIT_CHAIN_LOCK})`;
 
+        // @system-scope: audit-zanjirning O'ZI global (hali per-actor'ga
+        // bo'linmagan — Engineering Contract A17/Phase 3, hali qilinmagan) —
+        // "oxirgi yozuv"ni topish tizimning ichki hash-zanjir holati, biror
+        // foydalanuvchining ma'lumoti emas.
         const last = await tx.auditLog.findFirst({
           orderBy: { seq: 'desc' }, // monotonik — millisekund-teng holatida ham aniq
         });

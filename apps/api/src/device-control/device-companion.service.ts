@@ -220,6 +220,9 @@ export class DeviceCompanionService {
   /** Token orqali companion'ni topadi (poll/result uchun). */
   async authCompanion(token: string | undefined): Promise<DeviceCompanion | null> {
     if (!token) return null;
+    // @preauth-scope: bu companion-autentifikatsiyaning O'ZI — qaysi
+    // foydalanuvchiga tegishli ekani hali noma'lum, tokenHash bo'yicha
+    // qidiruv shuni ANIQLAYDI.
     const row = await this.prisma.deviceCompanion.findFirst({ where: { tokenHash: this.hash(token) } });
     return row ?? null;
   }
@@ -230,6 +233,9 @@ export class DeviceCompanionService {
       where: { id: companion.id },
       data: { lastSeenAt: new Date(), status: 'paired' },
     });
+    // @upstream-scope: `companion` parametri caller (authCompanion orqali
+    // token bilan tasdiqlangan) tomonidan allaqachon berilgan — so'rov
+    // `companionId`ga tayanadi, alohida userId tekshiruvi shart emas.
     const next = await this.prisma.deviceCommand.findFirst({
       where: { companionId: companion.id, status: 'queued' },
       orderBy: { createdAt: 'asc' },
@@ -241,6 +247,9 @@ export class DeviceCompanionService {
 
   /** Companion buyruq natijasini qaytaradi. */
   async result(companion: DeviceCompanion, commandId: string, status: string, result?: unknown) {
+    // @upstream-scope: xuddi shu naqsh — `companion` token-orqali tasdiqlangan,
+    // so'rov `companionId`ga tayanadi (boshqa companion'ning buyrug'iga
+    // natija yozib bo'lmasligini shu maydon kafolatlaydi).
     const cmd = await this.prisma.deviceCommand.findFirst({ where: { id: commandId, companionId: companion.id } });
     if (!cmd) throw new NotFoundException('Buyruq topilmadi');
     const final = ['done', 'failed', 'denied'].includes(status) ? status : 'done';

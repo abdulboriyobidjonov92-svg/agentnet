@@ -294,6 +294,10 @@ export class AgentsService {
    */
   async trustLog(id: string, user: User) {
     await this.findOne(id, user);
+    // @upstream-scope: egalik BIR QATOR YUQORIDA allaqachon tekshirilgan —
+    // findOne() `agent.userId !== user.id` bo'lsa ForbiddenException tashlaydi.
+    // Quyidagi so'rov `id`ga (allaqachon tasdiqlangan agent) tayanadi, `userId`
+    // maydonining o'ziga emas.
     const entries = await this.prisma.auditLog.findMany({
       where: { resourceType: 'agent', resourceId: id },
       orderBy: { createdAt: 'asc' },

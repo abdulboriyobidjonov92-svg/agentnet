@@ -90,6 +90,8 @@ export class BriefingService {
   async sendWeeklyBriefings() {
     const now = new Date();
     const since = new Date(now.getTime() - 7 * 86_400_000);
+    // @system-scope: haftalik cron — BARCHA brifing-obunachi foydalanuvchini
+    // topadi (funksiyaning o'z sharhi ham shuni aytadi: "barcha nomzodlarga").
     const candidates = await this.prisma.user.findMany({
       where: { telegramChatId: { not: null }, briefingOptIn: true },
     });

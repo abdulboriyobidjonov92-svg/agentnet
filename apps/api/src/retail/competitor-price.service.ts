@@ -130,6 +130,9 @@ export class CompetitorPriceService {
   /** Har kuni soat 06:00 da barcha faol foydalanuvchilar manbalarini tekshiradi. */
   @Cron(CronExpression.EVERY_DAY_AT_6AM)
   async dailyCheckAll() {
+    // @system-scope: kunlik cron — BARCHA faol foydalanuvchilarning
+    // manbalarini tekshiradi (funksiya sharhida ham aytilgan), bitta
+    // foydalanuvchi so'roviga bog'liq emas.
     const sources = await this.prisma.competitorSource.findMany({
       where: { active: true },
       include: { user: true },

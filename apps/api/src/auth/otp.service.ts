@@ -58,6 +58,9 @@ export class OtpService {
 
     // Spam'ga qarshi: identifikator uchun so'nggi so'nggi so'rovdan beri
     // 1 daqiqa o'tmagan bo'lsa, yangi kod yubormaymiz.
+    // @preauth-scope: hali hech qanday foydalanuvchi autentifikatsiya
+    // qilinmagan — `identifier` (email/telefon) o'zi login-oldi ma'lumot,
+    // userId hali mavjud emas.
     const recent = await this.prisma.otpCode.findFirst({
       where: { identifier, consumedAt: null, createdAt: { gt: new Date(Date.now() - RESEND_COOLDOWN_MS) } },
       orderBy: { createdAt: 'desc' },
@@ -101,6 +104,9 @@ export class OtpService {
       throw new BadRequestException('6 xonali kodni kiriting');
     }
 
+    // @preauth-scope: kodni TASDIQLASH so'zorvining o'zi — foydalanuvchi
+    // hali aniqlanmagan, `identifier` bo'yicha qidiruv identifikatsiyani
+    // O'RNATADI, uni taqozo qilmaydi.
     const otp = await this.prisma.otpCode.findFirst({
       where: { identifier, consumedAt: null },
       orderBy: { createdAt: 'desc' },

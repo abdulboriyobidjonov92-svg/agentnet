@@ -50,6 +50,31 @@ route'da to'g'ridan-to'g'ri Prisma chaqiruvi taqiqlanadi (Engineering Contract R
 `providers` massivida QAYTA e'lon qilishi kerak (`imports: [AuthModule]` YETARLI EMAS).
 Bu — konvensiya, xato emas; 18/18 mavjud modul shu naqshni ishlatadi.
 
+## Tenant-scoping (SEC-06)
+
+Har bir `prisma.<model>.findMany`/`.findFirst` (yoki `tx.<model>.findMany`/`.findFirst`
+tranzaksiya ichida) `where`sida `userId`/`ownerId`/`creatorId`/`actorId` — yoki shu
+suffikslar bilan tugaydigan boshqa nom (`originalCreatorId`, `previousOwnerId`...) —
+bo'lishi SHART. Bo'lmasa, ESLint CI'da bloklaydi (`local/require-tenant-scope`,
+`apps/api/eslint-rules/require-tenant-scope.js`).
+
+Agar so'rov ATAYLAB tenant-scope qilinmagan bo'lsa, aynan bitta sababni ko'rsatuvchi
+izoh qo'yiladi (bo'sh `@admin-scope`ni hammasiga yopishtirish TAQIQLANADI — bu
+istisno mexanizmining o'zini ma'nosiz qiladi):
+
+| Izoh | Qachon |
+|---|---|
+| `@admin-scope` | `@Roles(...)` bilan himoyalangan admin yo'lidan chaqiriladigan chinakam cross-tenant o'qish |
+| `@system-scope` | Cron/scheduled job yoki global ichki holat (foydalanuvchi so'roviga bog'liq emas) |
+| `@public-scope` | Ataylab ommaviy ma'lumot (`@Public()` endpoint qatoridagi katalog/ro'yxat) |
+| `@preauth-scope` | Foydalanuvchi hali aniqlanmagan so'rov (OTP, companion-token qidiruvi) |
+| `@upstream-scope` | Egalik shu metod ichida OLDINROQ (`findUnique` + `if (x.userId !== user.id) throw`) allaqachon tekshirilgan |
+| `@org-scope` | Individual foydalanuvchi emas, tashkilot (`orgId`) darajasida scope |
+
+Cross-tenant o'qish uchun yagona rasmiy nuqta — `apps/api/src/admin/admin-query.service.ts`
+(`AdminQueryService`). U hech narsani avtomatik scope QILMAYDI — ataylab shunday
+(`ScopedQuery`-uslubidagi avtomatik-scoping helper ATAYLAB qurilmagan).
+
 ## i18n — uchala til birga
 
 Har yangi UI matni **bir vaqtda** `apps/web/src/lib/i18n/locales/{en,ru,uz}.ts`ga qo'shiladi.

@@ -182,6 +182,9 @@ export class AgentOsService {
 
   async history(user: User) {
     if (!user.orgId) return [];
+    // @org-scope: bu yerda tenant chegarasi individual foydalanuvchi emas,
+    // TASHKILOT (orgId) — bir org ichidagi bir necha foydalanuvchi bir xil
+    // buyruq-tarixini ko'radi (ko'p-foydalanuvchili tenant modeli).
     return this.prisma.orgCommand.findMany({
       where: { orgId: user.orgId },
       orderBy: { createdAt: 'desc' },

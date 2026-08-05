@@ -154,6 +154,8 @@ export class PlatformBillingService {
   async checkSubscriptions() {
     const now = new Date();
 
+    // @system-scope: kunlik cron — BARCHA muddati yaqinlashgan obunachilarni
+    // topadi, bitta foydalanuvchi so'roviga bog'liq emas.
     const soon = await this.prisma.user.findMany({
       where: {
         platformPlan: { not: 'none' },
@@ -171,6 +173,8 @@ export class PlatformBillingService {
       await this.prisma.user.update({ where: { id: user.id }, data: { platformReminderSentAt: now } });
     }
 
+    // @system-scope: xuddi shu cron'ning ikkinchi bosqichi — BARCHA muddati
+    // o'tgan obunachilarni muzlatadi, bitta foydalanuvchi so'roviga bog'liq emas.
     const overdue = await this.prisma.user.findMany({
       where: { platformPlan: { not: 'none' }, platformPlanFrozen: false, platformPlanUntil: { lte: now } },
     });

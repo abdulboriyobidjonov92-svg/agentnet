@@ -42,6 +42,10 @@ export class MarketplaceService {
   // ---- Katalog: usage-asosidagi reyting bilan ----
 
   async listPublished(search?: string) {
+    // @public-scope: marketplace katalogi ATAYLAB ommaviy (SEC-05'da
+    // `@Public()` bilan belgilangan marketplace.controller.ts `list()`ning
+    // ishlash mantig'i) — `isPublished: true` filtri ko'ruvchi-tenant
+    // tushunchasi o'rniga nashr-holatiga qaraydi.
     const agents = await this.prisma.agent.findMany({
       where: {
         isPublished: true,
@@ -317,6 +321,9 @@ export class MarketplaceService {
   }
 
   async reviews(publishedAgentId: string) {
+    // @public-scope: xuddi shu naqsh — SEC-05'da `@Public()` bilan
+    // belgilangan `:agentId/reviews`ning ishlash mantig'i. Sharhlar ochiq
+    // marketplace listing'iga tegishli, ko'ruvchi-tenant emas.
     return this.prisma.agentReview.findMany({
       where: { agentId: publishedAgentId },
       orderBy: { createdAt: 'desc' },

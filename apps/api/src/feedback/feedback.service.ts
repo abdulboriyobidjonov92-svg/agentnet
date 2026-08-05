@@ -37,6 +37,9 @@ export class FeedbackService {
 
   /** Admin ro'yxati — eng yangi birinchi. Faqat OWNER chaqiradi (controller gate'i). */
   async list(limit = 100) {
+    // @admin-scope: bu — SEC-05'da @Roles(UserRole.OWNER) bilan himoyalangan
+    // yagona chaqiruvchi (feedback.controller.ts `list()`) — chinakam admin
+    // cross-tenant o'qish, BARCHA foydalanuvchilarning fikrlarini qaytaradi.
     return this.prisma.feedback.findMany({
       orderBy: { createdAt: 'desc' },
       take: Math.min(Math.max(limit, 1), 500),

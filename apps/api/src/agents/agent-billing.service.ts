@@ -39,6 +39,9 @@ export class AgentBillingService {
 
   @Cron(CronExpression.EVERY_DAY_AT_9AM)
   async chargeDueAgents() {
+    // @system-scope: kunlik cron — bitta HTTP so'rovga yoki foydalanuvchiga
+    // bog'liq emas, tizimning o'zi BARCHA foydalanuvchilarning to'lov
+    // muddati kelgan agentlarini tekshiradi (bu — uning butun vazifasi).
     const due = await this.prisma.agent.findMany({
       where: { monthlyPriceTiyin: { gt: 0 }, frozen: false, nextChargeAt: { lte: new Date() } },
       include: { user: true },

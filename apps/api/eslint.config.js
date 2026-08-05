@@ -2,6 +2,7 @@
 const eslint = require('@eslint/js');
 const tseslint = require('typescript-eslint');
 const requireRolesOnAdmin = require('./eslint-rules/require-roles-on-admin');
+const requireTenantScope = require('./eslint-rules/require-tenant-scope');
 
 module.exports = tseslint.config(
   {
@@ -18,6 +19,7 @@ module.exports = tseslint.config(
       local: {
         rules: {
           'require-roles-on-admin': requireRolesOnAdmin,
+          'require-tenant-scope': requireTenantScope,
         },
       },
     },
@@ -27,6 +29,8 @@ module.exports = tseslint.config(
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       // SEC-05 AC #6: @Roles bo'lmagan admin/* endpoint — xato (bloklovchi).
       'local/require-roles-on-admin': 'error',
+      // SEC-06 AC: tenant-scoped bo'lmagan findMany/findFirst — xato (bloklovchi).
+      'local/require-tenant-scope': 'error',
     },
   },
 );
