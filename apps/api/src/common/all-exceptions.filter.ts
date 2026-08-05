@@ -27,10 +27,20 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const res = ctx.getResponse<Response>();
     const req = ctx.getRequest<Request>();
 
+    // SEC-08: NestJS'ning O'ZI TASHLAMAGAN, lekin haqiqiy HTTP status kodini
+    // olib yuruvchi xatolar bor — masalan Express/body-parser'ning
+    // `PayloadTooLargeError`si (`.status`/`.statusCode` = 413, `http-errors`
+    // konvensiyasi). Ular `HttpException` EMAS, shuning uchun ilgari
+    // bu yerda HAR DOIM 500'ga tushib qolardi — SEC-08'ning "413" DoD'i
+    // amalda 500 bo'lib qolgan edi, shu joyda topildi va tuzatildi.
+    const rawStatus = (exception as { status?: unknown; statusCode?: unknown } | null)?.status ??
+      (exception as { status?: unknown; statusCode?: unknown } | null)?.statusCode;
     const status =
       exception instanceof HttpException
         ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR;
+        : typeof rawStatus === 'number' && rawStatus >= 400 && rawStatus < 600
+          ? rawStatus
+          : HttpStatus.INTERNAL_SERVER_ERROR;
 
     const err = exception instanceof Error ? exception : new Error(String(exception));
     const reqId = (req.headers['x-request-id'] as string) || '-';
@@ -43,10 +53,18 @@ export class AllExceptionsFilter implements ExceptionFilter {
       this.logger.warn(`${where}: ${err.message}`);
     }
 
+    // Xom (HttpException bo'lmagan) xato haqiqiy 4xx bo'lsa (masalan 413) —
+    // xabari mijoz uchun xavfsiz va foydali (stack/ichki yo'l sizmaydi),
+    // shuning uchun "Ichki server xatosi" bilan yashirilmaydi.
+    const isRawClientError =
+      !(exception instanceof HttpException) && typeof rawStatus === 'number' && rawStatus >= 400 && rawStatus < 500;
+
     const body =
       exception instanceof HttpException
         ? exception.getResponse()
-        : { statusCode: status, message: 'Ichki server xatosi', reason: 'internal_error' };
+        : isRawClientError
+          ? { statusCode: status, message: err.message, reason: 'request_error' }
+          : { statusCode: status, message: 'Ichki server xatosi', reason: 'internal_error' };
 
     res.status(status).json(typeof body === 'string' ? { message: body } : body);
   }

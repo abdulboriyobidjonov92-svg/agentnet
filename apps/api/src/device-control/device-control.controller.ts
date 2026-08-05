@@ -11,7 +11,21 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { IsBoolean, IsIn, IsObject, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsObject,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+  Validate,
+  ValidationArguments,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
+  validateSync,
+} from 'class-validator';
+import { plainToInstance } from 'class-transformer';
 import type { Response } from 'express';
 import { LlmQuotaGuard } from '../usage/llm-quota.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -63,11 +77,74 @@ class CompanionRegisterDto {
   name?: string;
 }
 
-class CommandDto {
+// SEC-08: `CommandDto.payload` endi `kind`ga qarab ANIQ shaklga ega bo'lishi
+// SHART — ilgari `@IsObject()` istalgan obyektni qabul qilardi.
+
+export class SendSmsPayload {
+  @IsString()
+  @MaxLength(20)
+  to: string;
+
+  @IsString()
+  @MaxLength(640) // ~4-5 SMS segment (160 belgi/segment)
+  text: string;
+}
+
+export class CallPayload {
+  @IsString()
+  @MaxLength(20)
+  to: string;
+}
+
+export class OpenAppPayload {
+  @IsString()
+  @MaxLength(200)
+  appId: string;
+}
+
+export class ComputerUsePayload {
+  @IsString()
+  @MinLength(3)
+  @MaxLength(2000)
+  goal: string;
+}
+
+const COMMAND_PAYLOAD_DTO_BY_KIND: Record<string, new () => object> = {
+  send_sms: SendSmsPayload,
+  call: CallPayload,
+  open_app: OpenAppPayload,
+  computer_use: ComputerUsePayload,
+};
+
+/**
+ * `payload`ning haqiqiy shakli sibling maydon `kind`ga bog'liq bo'lgani
+ * uchun class-validator/class-transformer'ning o'rnatilgan diskriminator
+ * mexanizmi (u obyektning O'ZIDA diskriminator maydonini kutadi, sibling
+ * maydonda emas) to'g'ridan-to'g'ri mos kelmaydi — shuning uchun `kind`ni
+ * `args.object`dan o'qiydigan qo'lda constraint yozilgan.
+ */
+@ValidatorConstraint({ name: 'commandPayloadShape' })
+class CommandPayloadShapeConstraint implements ValidatorConstraintInterface {
+  validate(payload: unknown, args: ValidationArguments): boolean {
+    const kind = (args.object as CommandDto).kind;
+    const DtoClass = COMMAND_PAYLOAD_DTO_BY_KIND[kind];
+    if (!DtoClass || typeof payload !== 'object' || payload === null) return false;
+    const instance = plainToInstance(DtoClass, payload);
+    return validateSync(instance).length === 0;
+  }
+
+  defaultMessage(args: ValidationArguments): string {
+    const kind = (args.object as CommandDto).kind;
+    return `payload "${kind}" turi uchun yaroqsiz shaklda`;
+  }
+}
+
+export class CommandDto {
   @IsIn(['send_sms', 'call', 'open_app', 'computer_use'])
   kind: string;
 
   @IsObject()
+  @Validate(CommandPayloadShapeConstraint)
   payload: Record<string, unknown>;
 }
 

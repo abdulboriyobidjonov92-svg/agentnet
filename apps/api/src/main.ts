@@ -1,6 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { randomUUID } from 'crypto';
+import * as express from 'express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { installEngineAuthInterceptor } from './common/engine-auth';
@@ -18,7 +20,28 @@ async function bootstrap() {
   // rawBody: true — svix (Clerk webhook) imzo tekshiruvi XOM baytlar ustida
   // ishlashi shart. Busiz @Body() parsed-JSON obyekt beradi va imzo tekshiruvi
   // HAR DOIM yiqilar edi (auth.controller'dagi req.rawBody shunga tayanadi).
-  const app = await NestFactory.create(AppModule, { bufferLogs: false, rawBody: true });
+  //
+  // SEC-08: bodyParser: false — Nest'ning avtomatik (limitsiz-ga yaqin,
+  // framework-standart) body-parser'ini o'chiramiz, pastda O'ZIMIZ aniq
+  // 1MB limit bilan o'rnatamiz (useBodyParser — rawBody:true'ni hali ham
+  // hurmat qiladi, chunki u appOptions'dan o'qiydi).
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bufferLogs: false,
+    rawBody: true,
+    bodyParser: false,
+  });
+
+  // SEC-08 AC: global JSON limiti 1MB. `/device/recordings` (qo'ng'iroq
+  // yozuvi — base64 audio) BUNDAN OLDIN, kengroq (10MB) limit bilan alohida
+  // ro'yxatdan o'tadi — Express so'rovni BIRINCHI mos middleware'da
+  // parslaydi, keyingi global 1MB parser shu yo'lda ishlamay qoladi (body
+  // allaqachon o'qilgan). To'liq R2 presigned-URL multipart yo'li (AC'ning
+  // muqobil varianti) ATAYLAB qurilmagan — bu yangi infratuzilma (R2 SDK,
+  // presigned-URL endpoint, frontend yuklash oqimi) talab qiladi, "1 ED"
+  // vazifa doirasidan tashqari; AC o'zi "10MB" ni aniq muqobil sifatida beradi.
+  app.use('/api/device/recordings', express.json({ limit: '10mb' }));
+  app.useBodyParser('json', { limit: '1mb' });
+  app.useBodyParser('urlencoded', { limit: '1mb', extended: true });
 
   const explicitOrigin = process.env.NEXT_PUBLIC_APP_URL;
   const isProd = process.env.NODE_ENV === 'production';
