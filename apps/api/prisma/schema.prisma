@@ -29,7 +29,12 @@ enum UserRole {
 
 model User {
   id                     String    @id @default(cuid())
-  clerkId                String    @unique
+  // SEC-09: Clerk butunlay olib tashlandi (hech qachon haqiqiy auth uchun
+  // ishlatilmagan — OTP/dev-login yagona login yo'li). Ustun O'ZI saqlanadi
+  // (tarixiy foydalanuvchilarda sintetik `dev_...` qiymat bor, @unique
+  // qoladi) — lekin endi MAJBURIY EMAS, kelajakda yangi foydalanuvchi
+  // yaratish yo'llari uni umuman to'ldirmasligi mumkin.
+  clerkId                String?   @unique
   email                  String    @unique
   phone                  String?   @unique
   name                   String?

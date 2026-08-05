@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Lokal auth (Clerk'siz). Dashboard yo'llari uchun sessiya cookie'sini tekshiradi.
+// Lokal auth (tashqi provayder ishlatilmaydi). Dashboard yo'llari uchun sessiya cookie'sini tekshiradi.
 // /agentos-demo — ochiq ko'rgazma sahifasi (Living Interface demo, shaxsiy ma'lumot yo'q)
 const PUBLIC_PATHS = ["/", "/sign-in", "/sign-up", "/agentos-demo"];
 

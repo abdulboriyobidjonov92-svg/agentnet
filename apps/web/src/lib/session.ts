@@ -1,4 +1,4 @@
-// Lokal sessiya (Clerk'siz) — IKKI cookie:
+// Lokal sessiya (tashqi provayder ishlatilmaydi) — IKKI cookie:
 //
 //   1. agentnet_token (httpOnly) — imzolangan JWT. FAQAT server o'rnatadi
 //      (/api/session route). JS'dan o'qib bo'lmaydi — XSS token'ni o'g'irlay

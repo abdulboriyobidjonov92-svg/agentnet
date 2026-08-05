@@ -31,7 +31,7 @@ function makeDeps() {
   };
   const email = { sendOtpCode: jest.fn(async () => undefined) };
   const sms = { isConfigured: jest.fn(() => false), sendOtpCode: jest.fn(async () => undefined) };
-  const clerkSync = {
+  const auth = {
     normalizePhone: jest.fn((p: string) => (/^\+?\d{7,15}$/.test(p.replace(/\s/g, '')) ? `+${p.replace(/\D/g, '')}` : null)),
     findOrCreateUser: jest.fn(async (input: any) => ({
       user: {
@@ -62,12 +62,12 @@ function makeDeps() {
     prisma,
     email as any,
     sms as any,
-    clerkSync as any,
+    auth as any,
     auditLog as any,
     twoFactor as any,
     referral as any,
   );
-  return { svc, prisma, email, sms, clerkSync, auditLog, twoFactor, referral };
+  return { svc, prisma, email, sms, auth, auditLog, twoFactor, referral };
 }
 
 describe('OtpService.requestOtp', () => {
@@ -104,7 +104,7 @@ describe('OtpService.requestOtp', () => {
 
 describe('OtpService.verifyOtp', () => {
   it("to'g'ri kod -> foydalanuvchi topiladi/yaratiladi va sessiya beriladi (2FA yo'q)", async () => {
-    const { svc, prisma, clerkSync } = makeDeps();
+    const { svc, prisma, auth } = makeDeps();
     const code = '123456';
     prisma.otpCode.findFirst.mockResolvedValueOnce({
       id: 'otp1',
@@ -119,7 +119,7 @@ describe('OtpService.verifyOtp', () => {
       where: { id: 'otp1' },
       data: { consumedAt: expect.any(Date) },
     });
-    expect(clerkSync.findOrCreateUser).toHaveBeenCalledWith({ email: 'a@b.com' }, { action: 'auth.otp_login' });
+    expect(auth.findOrCreateUser).toHaveBeenCalledWith({ email: 'a@b.com' }, { action: 'auth.otp_login' });
     expect(res).toMatchObject({ needsTwoFactor: false, token: 'signed.jwt.token' });
   });
 
@@ -157,7 +157,7 @@ describe('OtpService.verifyOtp', () => {
   });
 
   it('2FA yoqilgan foydalanuvchi -> token bermaydi, needsTwoFactor qaytaradi', async () => {
-    const { svc, prisma, clerkSync } = makeDeps();
+    const { svc, prisma, auth } = makeDeps();
     const code = '654321';
     prisma.otpCode.findFirst.mockResolvedValueOnce({
       id: 'otp1',
@@ -165,7 +165,7 @@ describe('OtpService.verifyOtp', () => {
       expiresAt: new Date(Date.now() + 60_000),
       codeHash: hashCode('a@b.com', code),
     });
-    clerkSync.findOrCreateUser.mockResolvedValueOnce({
+    auth.findOrCreateUser.mockResolvedValueOnce({
       user: { id: 'u2', email: 'a@b.com', phone: null, role: 'MEMBER', name: null, twoFactorEnabled: true },
       isNewUser: false,
     });
@@ -191,7 +191,7 @@ describe('OtpService.completeTwoFactorLogin — bypass himoyasi', () => {
   });
 
   it("2FA yoqilgan + to'g'ri TOTP -> sessiya beradi", async () => {
-    const { svc, prisma, twoFactor, clerkSync } = makeDeps();
+    const { svc, prisma, twoFactor, auth } = makeDeps();
     prisma.user.findUnique.mockResolvedValueOnce({
       id: 'u1',
       email: 'a@b.com',
@@ -204,7 +204,7 @@ describe('OtpService.completeTwoFactorLogin — bypass himoyasi', () => {
 
     const res = await svc.completeTwoFactorLogin('u1', '123456');
     expect(twoFactor.verifyLogin).toHaveBeenCalledWith('u1', '123456');
-    expect(clerkSync.issueSession).toHaveBeenCalled();
+    expect(auth.issueSession).toHaveBeenCalled();
     expect(res).toMatchObject({ needsTwoFactor: false, token: 'signed.jwt.token' });
   });
 

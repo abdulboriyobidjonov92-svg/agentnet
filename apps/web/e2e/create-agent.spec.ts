@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { topUpBalance, disconnectPrisma } from './helpers/db';
 
 /**
- * Ssenariy: foydalanuvchi tizimga kiradi (lokal dev-login, Clerk'siz) va
+ * Ssenariy: foydalanuvchi tizimga kiradi (lokal dev-login, tashqi provayder ishlatilmaydi) va
  * no-code interfeys orqali yangi AI-agent yaratadi.
  *
  * 1) /sign-up — email bilan ro'yxatdan o'tish (yangi foydalanuvchi)

@@ -1,6 +1,6 @@
 /**
- * AgentNet — Auth Service (NestJS + Clerk)
- * Clerk webhook orqali foydalanuvchini sinxronlashtiradi,
+ * AgentNet — Auth Service (NestJS)
+ * Lokal OTP/dev-login orqali foydalanuvchini yaratadi/topadi,
  * biznes hisoblar uchun 2FA (TOTP) ni MAJBURIY qiladi,
  * RBAC guard va hash-chained audit-log ta'minlaydi.
  */
@@ -36,15 +36,6 @@ export interface AuthenticatedUser {
   role: Role;
   twoFactorEnabled: boolean;
   isBusinessAccount: boolean;
-}
-
-interface ClerkWebhookEvent {
-  type: 'user.created' | 'user.updated' | 'user.deleted';
-  data: {
-    id: string;
-    email_addresses: { email_address: string }[];
-    public_metadata?: Record<string, unknown>;
-  };
 }
 
 // ----------------------------------------------------------------
@@ -191,7 +182,7 @@ export class TwoFactorService {
 }
 
 // ----------------------------------------------------------------
-// Clerk Webhook handler
+// Autentifikatsiya — lokal login (dev-login, OTP)
 // ----------------------------------------------------------------
 
 @Injectable()
@@ -201,43 +192,11 @@ export class AuthService {
     private readonly prisma: PrismaService,
   ) {}
 
-  async handleWebhook(event: ClerkWebhookEvent): Promise<void> {
-    switch (event.type) {
-      case 'user.created': {
-        const email = event.data.email_addresses[0]?.email_address ?? '';
-        const user = await this.prisma.user.create({
-          data: {
-            clerkId: event.data.id,
-            email,
-            role: 'MEMBER',
-            twoFactorEnabled: false,
-            isBusinessAccount: false,
-          },
-        });
-        await this.auditLog.record({
-          actorId: user.id,
-          action: 'auth.user_created',
-          resourceType: 'user',
-          resourceId: user.id,
-        });
-        break;
-      }
-      case 'user.deleted': {
-        await this.prisma.user.updateMany({
-          where: { clerkId: event.data.id },
-          data: { deletedAt: new Date() },
-        });
-        break;
-      }
-      default:
-        break;
-    }
-  }
-
   /**
-   * Lokal dev auth — Clerk'siz. Email YOKI telefon raqami bo'yicha
-   * foydalanuvchini topadi/yaratadi. FAQAT NODE_ENV!==production'da chaqiriladi
-   * (controller darajasida cheklangan) — real login endi OtpService orqali.
+   * Lokal dev auth — tashqi provayder ishlatilmaydi. Email YOKI telefon raqami
+   * bo'yicha foydalanuvchini topadi/yaratadi. FAQAT NODE_ENV!==production'da
+   * chaqiriladi (controller darajasida cheklangan) — real login endi
+   * OtpService orqali.
    */
   async devLogin(input: { email?: string; phone?: string; name?: string }) {
     const { user, isNewUser } = await this.findOrCreateUser(input, {

@@ -12,7 +12,7 @@ import { verifyToken } from './token.util';
 
 /**
  * Auth xizmatlari uchun testlar: hash-chained audit-log, majburiy 2FA (TOTP),
- * Clerk webhook sinxronizatsiyasi, lokal dev-login va RBAC guardlar.
+ * lokal dev-login va RBAC guardlar.
  */
 
 beforeAll(() => {
@@ -207,38 +207,12 @@ describe('AuthService', () => {
     const prisma: any = {
       user: {
         create: jest.fn(async (a: any) => ({ id: 'newid', ...a.data })),
-        updateMany: jest.fn(),
         findUnique: jest.fn(async () => null),
       },
     };
     const audit = { record: jest.fn() } as any;
     return { svc: new AuthService(audit, prisma), prisma, audit };
   }
-
-  it('user.created webhook -> foydalanuvchi yaratiladi + audit yoziladi', async () => {
-    const { svc, prisma, audit } = makeSvc();
-
-    await svc.handleWebhook({
-      type: 'user.created',
-      data: { id: 'clerk1', email_addresses: [{ email_address: 'a@b.com' }] },
-    } as any);
-
-    expect(prisma.user.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ clerkId: 'clerk1', email: 'a@b.com', role: 'MEMBER' }) }),
-    );
-    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'auth.user_created' }));
-  });
-
-  it('user.deleted webhook -> soft-delete (deletedAt qo\'yiladi)', async () => {
-    const { svc, prisma } = makeSvc();
-
-    await svc.handleWebhook({ type: 'user.deleted', data: { id: 'clerk1', email_addresses: [] } } as any);
-
-    expect(prisma.user.updateMany).toHaveBeenCalledWith({
-      where: { clerkId: 'clerk1' },
-      data: { deletedAt: expect.any(Date) },
-    });
-  });
 
   describe('devLogin — email bilan', () => {
     it('yaroqsiz email -> BadRequestException', async () => {

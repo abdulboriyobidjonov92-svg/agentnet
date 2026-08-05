@@ -1,7 +1,4 @@
 
-# clerk configuration (can include secrets)
-/.clerk/
-
 # Playwright E2E
 /test-results/
 /playwright-report/

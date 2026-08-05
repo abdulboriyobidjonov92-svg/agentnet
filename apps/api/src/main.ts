@@ -17,17 +17,11 @@ async function bootstrap() {
   // `x-internal-token` qo'shadigan yagona axios interceptor'ni o'rnatamiz.
   installEngineAuthInterceptor();
 
-  // rawBody: true — svix (Clerk webhook) imzo tekshiruvi XOM baytlar ustida
-  // ishlashi shart. Busiz @Body() parsed-JSON obyekt beradi va imzo tekshiruvi
-  // HAR DOIM yiqilar edi (auth.controller'dagi req.rawBody shunga tayanadi).
-  //
   // SEC-08: bodyParser: false — Nest'ning avtomatik (limitsiz-ga yaqin,
   // framework-standart) body-parser'ini o'chiramiz, pastda O'ZIMIZ aniq
-  // 1MB limit bilan o'rnatamiz (useBodyParser — rawBody:true'ni hali ham
-  // hurmat qiladi, chunki u appOptions'dan o'qiydi).
+  // 1MB limit bilan o'rnatamiz.
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: false,
-    rawBody: true,
     bodyParser: false,
   });
 

@@ -6,7 +6,7 @@ export const IS_PUBLIC_KEY = 'isPublic';
  * SEC-05 (Option B) — endpointni global `AuthGuard`dan ochiq deb belgilaydi.
  *
  * Ishlatish o'rni — FAQAT haqiqatan autentifikatsiyasiz endpointlar:
- *   - to'lov/messenger webhooklari (Payme, Click, Telegram, Clerk) — o'z
+ *   - to'lov/messenger webhooklari (Payme, Click, Telegram) — o'z
  *     imzo/sirini ICHKARIDA tekshiradi, AuthGuard'ga aloqasi yo'q;
  *   - servislararo `InternalTokenGuard`-himoyalangan yo'llar (engine->API) —
  *     bu yerda `@Public()` FAQAT AuthGuard'ni o'tkazib yuboradi,

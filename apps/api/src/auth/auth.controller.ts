@@ -2,16 +2,10 @@ import {
   Controller,
   Post,
   Body,
-  Headers,
   HttpCode,
-  Req,
-  BadRequestException,
   ForbiddenException,
-  type RawBodyRequest,
 } from '@nestjs/common';
-import type { Request } from 'express';
-import { SkipThrottle, Throttle } from '@nestjs/throttler';
-import { Webhook } from 'svix';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService, TwoFactorService } from './auth.service';
 import { OtpService } from './otp.service';
 import { CurrentUser } from './current-user.decorator';
@@ -25,40 +19,6 @@ export class AuthController {
     private readonly twoFactor: TwoFactorService,
     private readonly otp: OtpService,
   ) {}
-
-  /** Clerk webhook — foydalanuvchi yaratish/o'chirish eventlarini qabul qiladi */
-  @Post('webhooks/clerk')
-  @SkipThrottle() // Clerk serverlaridan keladi (svix imzosi bilan tekshiriladi)
-  @Public()
-  @HttpCode(200)
-  async clerkWebhook(
-    @Headers('svix-id') svixId: string,
-    @Headers('svix-timestamp') svixTimestamp: string,
-    @Headers('svix-signature') svixSignature: string,
-    // Imzo XOM baytlar ustida tekshiriladi — @Body() bu yerda ishlamaydi
-    // (parsed obyekt .toString() da "[object Object]" bo'lib, imzo doim
-    // yiqilardi). req.rawBody main.ts'dagi `rawBody: true` bilan to'ladi.
-    @Req() req: RawBodyRequest<Request>,
-  ) {
-    const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;
-    if (!webhookSecret) throw new BadRequestException('Webhook secret sozlanmagan');
-    if (!req.rawBody) throw new BadRequestException('Xom so\'rov tanasi mavjud emas');
-
-    const wh = new Webhook(webhookSecret);
-    let event: any;
-    try {
-      event = wh.verify(req.rawBody.toString('utf8'), {
-        'svix-id': svixId,
-        'svix-timestamp': svixTimestamp,
-        'svix-signature': svixSignature,
-      });
-    } catch {
-      throw new BadRequestException("Webhook imzosi noto'g'ri");
-    }
-
-    await this.auth.handleWebhook(event);
-    return { received: true };
-  }
 
   /**
    * Lokal dev login — tashqi provayder ishlatilmaydi, email YOKI telefon bilan kirish/ro'yxatdan o'tish.
