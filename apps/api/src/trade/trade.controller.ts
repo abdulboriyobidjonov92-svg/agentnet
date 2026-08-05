@@ -22,7 +22,7 @@ export class TradeController {
 
   // LlmQuotaGuard — bu 3 endpoint engine→Claude'ni chaqiradi (LLM xarajati),
   // shuning uchun kunlik+global kvota bilan himoyalanadi. tracking/fx (tashqi
-  // arzon API) esa faqat ClerkGuard bilan qoladi.
+  // arzon API) esa faqat AuthGuard bilan qoladi.
   @Post('customs-docs')
   @UseGuards(LlmQuotaGuard)
   docs(@CurrentUser() user: User, @Body() body: { shipment: Record<string, any> }) {

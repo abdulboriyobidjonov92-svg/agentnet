@@ -17,8 +17,10 @@ import type { User } from '@prisma/client';
  * endpointlar hozircha pulli emas) — faqat hisoblagich; shuning uchun engine
  * keyin yiqilsa refund shart emas (pul harakatlanmagan).
  *
- * MUHIM: ClerkGuard'dan KEYIN qo'yiladi (`@UseGuards(ClerkGuard, LlmQuotaGuard)`)
- * — request.dbUser shu tartibda to'ladi.
+ * MUHIM: `request.dbUser`ga tayanadi — SEC-05 (Option B)'dan beri global
+ * `AuthGuard` (`APP_GUARD`) buni HAR so'rovda, bu guard ishga tushishidan
+ * OLDIN to'ldiradi, shuning uchun bu yerda `@UseGuards(LlmQuotaGuard)`
+ * yetarli (`AuthGuard`ni qayta ko'rsatish shart emas).
  */
 @Injectable()
 export class LlmQuotaGuard implements CanActivate {

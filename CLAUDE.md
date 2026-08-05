@@ -39,16 +39,20 @@ route'da to'g'ridan-to'g'ri Prisma chaqiruvi taqiqlanadi (Engineering Contract R
 
 ## Guard matritsasi (yangi endpoint qo'shganda)
 
-| Endpoint turi | Guard |
-|---|---|
-| Oddiy foydalanuvchi endpointi | `@UseGuards(ClerkGuard)` |
-| Engine LLM chaqiradigan (pulsiz, kvota kerak) | `@UseGuards(ClerkGuard, LlmQuotaGuard)` |
-| Servis-ichi (webhook, engine→API, BFF→API) | `@UseGuards(InternalTokenGuard)` |
-| BFF orqali keladigan, bitta IP'dan (charge-message, consume-chat) | `@SkipThrottle()` |
+SEC-05 (Option B)'dan beri `AuthGuard` (ilgari `ClerkGuard` — SEC-09'da qayta
+nomlandi, hech qachon Clerk ishlatmagan) va `RolesGuard` **global** `APP_GUARD`
+sifatida ro'yxatdan o'tgan (`app.module.ts`) — hech bir controller/modulda
+qayta e'lon qilinmaydi. Ochiq (autentifikatsiyasiz) endpoint `@Public()` bilan
+ANIQ belgilanadi (aks holda default — kamida MEMBER talab qilinadi).
 
-**Muhim:** `ClerkGuard` `AuthModule`dan eksport qilinmaydi — har modul uni o'z
-`providers` massivida QAYTA e'lon qilishi kerak (`imports: [AuthModule]` YETARLI EMAS).
-Bu — konvensiya, xato emas; 18/18 mavjud modul shu naqshni ishlatadi.
+| Endpoint turi | Qo'shimcha guard/dekorator |
+|---|---|
+| Oddiy foydalanuvchi endpointi | Yo'q — global `AuthGuard`+`RolesGuard` yetarli |
+| Admin (`@Roles(...)` talab qiladi) | `@Roles(UserRole.OWNER, ...)` |
+| Engine LLM chaqiradigan (pulsiz, kvota kerak) | `@UseGuards(LlmQuotaGuard)` |
+| Servis-ichi (webhook, engine→API, BFF→API) | `@Public()` + `@UseGuards(InternalTokenGuard)` |
+| Chinakam ochiq (webhook, companion o'z-tokeni, login-oldi) | `@Public()` |
+| BFF orqali keladigan, bitta IP'dan (charge-message, consume-chat) | `@SkipThrottle()` |
 
 ## Tenant-scoping (SEC-06)
 

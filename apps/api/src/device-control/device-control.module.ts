@@ -7,7 +7,7 @@ import { CallRecordingService } from './call-recording.service';
 import { CapabilityRouterService } from './capability-router.service';
 import { AutomationModule } from '../automation/automation.module';
 import { AuthModule } from '../auth/auth.module';
-import { ClerkGuard } from '../auth/clerk.guard';
+import { AuthGuard } from '../auth/auth.guard';
 import { UsageModule } from '../usage/usage.module';
 import { ConnectorsModule } from '../connectors/connectors.module';
 import { BillingModule } from '../billing/billing.module';
@@ -26,7 +26,7 @@ import { BillingModule } from '../billing/billing.module';
   imports: [HttpModule, AutomationModule, AuthModule, UsageModule, ConnectorsModule, BillingModule],
   controllers: [DeviceControlController],
   providers: [
-    ClerkGuard,
+    AuthGuard,
     DeviceControlService,
     DeviceCompanionService,
     CallRecordingService,

@@ -12,7 +12,7 @@ import {
 import type { Request } from 'express';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { Webhook } from 'svix';
-import { ClerkSyncService, TwoFactorService } from './auth.service';
+import { AuthService, TwoFactorService } from './auth.service';
 import { OtpService } from './otp.service';
 import { CurrentUser } from './current-user.decorator';
 import { Public } from './public.decorator';
@@ -21,7 +21,7 @@ import type { User } from '@prisma/client';
 @Controller('auth')
 export class AuthController {
   constructor(
-    private readonly clerkSync: ClerkSyncService,
+    private readonly auth: AuthService,
     private readonly twoFactor: TwoFactorService,
     private readonly otp: OtpService,
   ) {}
@@ -56,12 +56,12 @@ export class AuthController {
       throw new BadRequestException("Webhook imzosi noto'g'ri");
     }
 
-    await this.clerkSync.handleWebhook(event);
+    await this.auth.handleWebhook(event);
     return { received: true };
   }
 
   /**
-   * Lokal dev login — Clerk'siz, email YOKI telefon bilan kirish/ro'yxatdan o'tish.
+   * Lokal dev login — tashqi provayder ishlatilmaydi, email YOKI telefon bilan kirish/ro'yxatdan o'tish.
    * FAQAT NODE_ENV!==production. Real login endi /auth/otp/* orqali — parol/OTP'siz
    * hech kimning hisobiga kirib bo'lmaydi (avvalgi zaiflik shu yerda yopildi).
    */
@@ -73,7 +73,7 @@ export class AuthController {
     if (process.env.NODE_ENV === 'production') {
       throw new ForbiddenException('dev-login production ortamida faol emas');
     }
-    return this.clerkSync.devLogin(body);
+    return this.auth.devLogin(body);
   }
 
   /** 1-qadam: email yoki telefonga bir martalik kirish kodi yuboradi */
@@ -122,12 +122,12 @@ export class AuthController {
 
   /**
    * SEC-03 AC#5 — joriy sessiyani jimgina (bir marta) yangilaydi: yangi
-   * 7-kunlik token qaytaradi, tokenVersion o'zgarmaydi. ClerkGuard bilan
+   * 7-kunlik token qaytaradi, tokenVersion o'zgarmaydi. AuthGuard bilan
    * himoyalangan — joriy token allaqachon bekor qilingan (tv mos kelmagan)
    * bo'lsa bu yerga umuman yetib kelmaydi (401 guard darajasida).
    */
   @Post('session/refresh')
   refreshSession(@CurrentUser() user: User) {
-    return this.clerkSync.refreshSession(user);
+    return this.auth.refreshSession(user);
   }
 }

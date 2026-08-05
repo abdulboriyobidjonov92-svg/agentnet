@@ -4,7 +4,7 @@ import * as crypto from 'crypto';
 import {
   AuditLogService,
   TwoFactorService,
-  ClerkSyncService,
+  AuthService,
   TwoFactorEnforcementGuard,
   RolesGuard,
 } from './auth.service';
@@ -199,10 +199,10 @@ describe('TwoFactorService', () => {
 });
 
 // ------------------------------------------------------------------
-// ClerkSyncService
+// AuthService
 // ------------------------------------------------------------------
 
-describe('ClerkSyncService', () => {
+describe('AuthService', () => {
   function makeSvc() {
     const prisma: any = {
       user: {
@@ -212,7 +212,7 @@ describe('ClerkSyncService', () => {
       },
     };
     const audit = { record: jest.fn() } as any;
-    return { svc: new ClerkSyncService(audit, prisma), prisma, audit };
+    return { svc: new AuthService(audit, prisma), prisma, audit };
   }
 
   it('user.created webhook -> foydalanuvchi yaratiladi + audit yoziladi', async () => {

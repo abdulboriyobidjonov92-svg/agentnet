@@ -294,7 +294,7 @@ export class DeviceControlController {
     return this.companion.enqueue(user, dto.kind, dto.payload);
   }
 
-  // --- Companion ilovasi (ClerkGuard YO'Q — juftlash-kodi / token bilan auth) ---
+  // --- Companion ilovasi (AuthGuard YO'Q — juftlash-kodi / token bilan auth) ---
 
   /**
    * SEC-01: 12-belgili base32 maydoni (32^12) o'zi brute-force'ni amaliy

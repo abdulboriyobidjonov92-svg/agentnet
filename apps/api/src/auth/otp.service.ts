@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuditLogService, ClerkSyncService, TwoFactorService } from './auth.service';
+import { AuditLogService, AuthService, TwoFactorService } from './auth.service';
 import { EmailService } from './email.service';
 import { SmsService } from './sms.service';
 import { ReferralService } from '../referral/referral.service';
@@ -24,7 +24,7 @@ export interface OtpRequestResult {
 
 export type OtpVerifyResult =
   | { needsTwoFactor: true; userId: string }
-  | ({ needsTwoFactor: false } & ReturnType<ClerkSyncService['issueSession']>);
+  | ({ needsTwoFactor: false } & ReturnType<AuthService['issueSession']>);
 
 /**
  * Bir martalik login kodi (OTP) — dev-login o'rnini bosuvchi HAQIQIY
@@ -41,7 +41,7 @@ export class OtpService {
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
     private readonly sms: SmsService,
-    private readonly clerkSync: ClerkSyncService,
+    private readonly auth: AuthService,
     private readonly auditLog: AuditLogService,
     private readonly twoFactor: TwoFactorService,
     private readonly referral: ReferralService,
@@ -128,7 +128,7 @@ export class OtpService {
 
     await this.prisma.otpCode.update({ where: { id: otp.id }, data: { consumedAt: new Date() } });
 
-    const { user, isNewUser } = await this.clerkSync.findOrCreateUser(
+    const { user, isNewUser } = await this.auth.findOrCreateUser(
       channel === 'email' ? { email: identifier, name: input.name } : { phone: identifier, name: input.name },
       { action: 'auth.otp_login' },
     );
@@ -148,7 +148,7 @@ export class OtpService {
       return { needsTwoFactor: true, userId: user.id };
     }
 
-    const session = this.clerkSync.issueSession(user, isNewUser);
+    const session = this.auth.issueSession(user, isNewUser);
     return { needsTwoFactor: false, ...session };
   }
 
@@ -170,7 +170,7 @@ export class OtpService {
     const ok = await this.twoFactor.verifyLogin(userId, token);
     if (!ok) throw new UnauthorizedException("TOTP kodi noto'g'ri");
 
-    return { needsTwoFactor: false as const, ...this.clerkSync.issueSession(user, false) };
+    return { needsTwoFactor: false as const, ...this.auth.issueSession(user, false) };
   }
 
   private resolveIdentifier(input: { email?: string; phone?: string }): {
@@ -178,7 +178,7 @@ export class OtpService {
     identifier: string;
   } {
     if (input.phone) {
-      const phone = this.clerkSync.normalizePhone(input.phone);
+      const phone = this.auth.normalizePhone(input.phone);
       if (!phone) throw new BadRequestException('Yaroqli telefon raqamini kiriting');
       return { channel: 'phone', identifier: phone };
     }

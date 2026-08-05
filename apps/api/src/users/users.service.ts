@@ -5,18 +5,6 @@ import { PrismaService } from '../prisma/prisma.service';
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async syncFromClerk(clerkId: string, email: string) {
-    return this.prisma.user.upsert({
-      where: { clerkId },
-      update: { email },
-      create: { clerkId, email, role: 'MEMBER', twoFactorEnabled: false, isBusinessAccount: false },
-    });
-  }
-
-  async findByClerkId(clerkId: string) {
-    return this.prisma.user.findUnique({ where: { clerkId } });
-  }
-
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },

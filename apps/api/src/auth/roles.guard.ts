@@ -18,7 +18,7 @@ import { ROLES_KEY } from './roles.decorator';
  *
  * ENG MUHIM QOIDA — `request.dbUser` yo'q bo'lsa, guard `true` qaytaradi.
  * Sababi: RBAC — autentifikatsiyadan KEYINGI qatlam. `dbUser`ni faqat
- * `ClerkGuard` o'rnatadi. Uni umuman ishlatmaydigan yo'llar ataylab shunday:
+ * `AuthGuard` o'rnatadi. Uni umuman ishlatmaydigan yo'llar ataylab shunday:
  *   - ochiq endpointlar (`/api/health`, `auth/dev-login`, `auth/otp/*`),
  *   - `InternalTokenGuard` bilan himoyalangan servis-ichi yo'llar,
  *   - Payme/Click to'lov webhooklari (`webhooks.controller.ts`).

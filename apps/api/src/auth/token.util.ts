@@ -17,11 +17,11 @@ import * as crypto from 'crypto';
 export interface TokenPayload {
   sub: string; // foydalanuvchi id
   email?: string;
-  // SEC-03: token-versiya. ClerkGuard buni User.tokenVersion bilan solishtiradi
+  // SEC-03: token-versiya. AuthGuard buni User.tokenVersion bilan solishtiradi
   // — mos kelmasa 401. Ixtiyoriy: shu maydonsiz signToken() chaqiruvchilar
-  // (masalan telegram.service.ts'dagi qisqa-muddatli link-kod, ClerkGuard'dan
+  // (masalan telegram.service.ts'dagi qisqa-muddatli link-kod, AuthGuard'dan
   // o'tmaydi) o'zgarishsiz ishlayveradi. Bu maydon YO'Q token — istalgan
-  // haqiqiy foydalanuvchi uchun `undefined !== 0` bo'lgani uchun ClerkGuard
+  // haqiqiy foydalanuvchi uchun `undefined !== 0` bo'lgani uchun AuthGuard
   // uni avtomatik rad etadi (deploy'dan oldingi barcha eski tokenlar shunday).
   tv?: number;
   iat: number; // beriltan vaqt (unix soniya)

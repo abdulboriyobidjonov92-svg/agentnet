@@ -3,13 +3,13 @@ import { HttpModule } from '@nestjs/axios';
 import { AutomationController } from './automation.controller';
 import { AutomationService } from './automation.service';
 import { AuthModule } from '../auth/auth.module';
-import { ClerkGuard } from '../auth/clerk.guard';
+import { AuthGuard } from '../auth/auth.guard';
 import { UsageModule } from '../usage/usage.module';
 
 @Module({
   imports: [HttpModule, AuthModule, UsageModule],
   controllers: [AutomationController],
-  providers: [AutomationService, ClerkGuard],
+  providers: [AutomationService, AuthGuard],
   exports: [AutomationService],
 })
 export class AutomationModule {}

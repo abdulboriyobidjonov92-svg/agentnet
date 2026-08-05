@@ -63,7 +63,7 @@ describe('AgentOsService.createWorkspace', () => {
 
     expect(prisma.org.create).toHaveBeenCalled();
     // SEC-05 prerequisite: bu yozuv ilgari `role: 'OWNER'`ni ham o'z ichiga
-    // olardi — ya'ni ochiq (faqat ClerkGuard) endpoint orqali o'z-o'zini
+    // olardi — ya'ni ochiq (faqat AuthGuard) endpoint orqali o'z-o'zini
     // platforma OWNER'iga ko'tarish. Endi FAQAT orgId yoziladi.
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: 'u1' },

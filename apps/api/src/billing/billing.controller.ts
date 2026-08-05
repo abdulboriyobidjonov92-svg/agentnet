@@ -82,7 +82,7 @@ export class BillingController {
    * Xizmat bajarilmasa (engine xatosi/mavjud emas) — yechilgan pulni qaytaradi.
    * FAQAT ichki chaqiruv (Next.js BFF): balansni OSHIRADI, shuning uchun
    * InternalTokenGuard bilan himoyalangan — brauzer/foydalanuvchi to'g'ridan-to'g'ri
-   * chaqirib bepul kredit ola olmaydi. ClerkGuard qaysi foydalanuvchi ekanini
+   * chaqirib bepul kredit ola olmaydi. AuthGuard qaysi foydalanuvchi ekanini
    * (BFF uzatadigan bearer token orqali) aniqlaydi.
    */
   @Post('refund')

@@ -159,7 +159,7 @@ export class RetailController {
 
   /**
    * Ichki: haqiqiy CV servis (agent-engine camera_service.py) shu yerga uradi —
-   * Clerk JWT emas, servislararo InternalTokenGuard (x-internal-token, doimiy-
+   * oddiy foydalanuvchi JWT emas, servislararo InternalTokenGuard (x-internal-token, doimiy-
    * vaqtli solishtirish + prod'da fail-closed — /billing/refund bilan bir xil
    * himoya; oldin raw `!==` bilan prod-default kalitni qabul qilardi).
    */

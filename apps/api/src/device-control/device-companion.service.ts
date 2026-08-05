@@ -277,7 +277,7 @@ export class DeviceCompanionService {
    * hisoblanadi" talabini bajaradi (butun sessiya uchun bitta yig'ma hisob
    * emas). Naqsh agents.service.ts'dagi run() bilan AYNAN bir xil (faqat u
    * yerda `user` allaqachon controller'dan keladi — bu yerda companion'dan
-   * userId orqali topiladi, chunki bu yo'l ClerkGuard emas, companion-token
+   * userId orqali topiladi, chunki bu yo'l AuthGuard emas, companion-token
    * bilan autentifikatsiya qilinadi):
    *   1) PUL — LLM/vision chaqiruvidan OLDIN (balans yetmasa 402, engine'ga
    *      so'rov umuman ketmaydi).

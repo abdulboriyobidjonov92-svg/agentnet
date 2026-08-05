@@ -5,7 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
-import { ClerkGuard } from './auth/clerk.guard';
+import { AuthGuard } from './auth/auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { PrismaModule } from './prisma/prisma.module';
 import { CryptoModule } from './crypto/crypto.module';
@@ -73,16 +73,16 @@ import { HealthController } from './health.controller';
     // ya'ni limit AMALDA ishlamas edi. Server-to-server BFF endpointlari va
     // webhooklar controller darajasida @SkipThrottle bilan chiqarib tashlangan.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
-    // SEC-05 (Option B): global autentifikatsiya. Ilgari ClerkGuard har
-    // controller'da alohida `@UseGuards(ClerkGuard)` bilan qo'llanardi —
+    // SEC-05 (Option B): global autentifikatsiya. Ilgari AuthGuard har
+    // controller'da alohida `@UseGuards(AuthGuard)` bilan qo'llanardi —
     // buning ostida global RolesGuard HAR DOIM `request.dbUser`ni yo'q deb
     // ko'rardi (guard tartibi: global -> controller -> route; global guard
-    // controller-darajasidagi ClerkGuard'dan OLDIN ishlaydi). Endi ClerkGuard
-    // o'zi global — barcha controller'lardagi ortiqcha `@UseGuards(ClerkGuard)`
+    // controller-darajasidagi AuthGuard'dan OLDIN ishlaydi). Endi AuthGuard
+    // o'zi global — barcha controller'lardagi ortiqcha `@UseGuards(AuthGuard)`
     // olib tashlandi, `@Public()` bilan belgilangan yo'llar (webhooklar,
     // companion, ichki-token, login-oldi oqim) chiqarib tashlanadi.
-    { provide: APP_GUARD, useClass: ClerkGuard },
-    // RolesGuard ClerkGuard'dan KEYIN turadi — endi haqiqatan `request.dbUser`ni
+    { provide: APP_GUARD, useClass: AuthGuard },
+    // RolesGuard AuthGuard'dan KEYIN turadi — endi haqiqatan `request.dbUser`ni
     // ko'radi. `@Public()` yo'llarda dbUser yo'q, RolesGuard o'zi ham aralashmaydi
     // (roles.guard.ts).
     { provide: APP_GUARD, useClass: RolesGuard },

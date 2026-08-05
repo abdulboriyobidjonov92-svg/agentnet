@@ -93,7 +93,7 @@ export class AgentOsService {
     // Foydalanuvchini org'ga bog'lash.
     // SEC-05 prerequisite: bu yerda ilgari `role: 'OWNER'` ham yozilardi —
     // "org egasi" tushunchasi PLATFORMA `OWNER` roli bilan aralashtirilgan edi.
-    // Bu endpoint faqat `ClerkGuard` bilan himoyalangan, ya'ni istalgan oddiy
+    // Bu endpoint faqat `AuthGuard` bilan himoyalangan, ya'ni istalgan oddiy
     // foydalanuvchi uni chaqirib o'zini platforma OWNER'iga ko'tara olardi.
     // Org egaligi allaqachon `Org.ownerId` (yuqorida) bilan ifodalanadi —
     // `User.role` bunga umuman kerak emas.

@@ -164,7 +164,7 @@ export class TwoFactorService {
         twoFactorSecretPending: null,
         twoFactorEnabled: true,
         // SEC-03: 2FA yoqilishi — barcha mavjud tokenlarni bekor qiladi
-        // (ClerkGuard payload.tv'ni User.tokenVersion bilan solishtiradi).
+        // (AuthGuard payload.tv'ni User.tokenVersion bilan solishtiradi).
         tokenVersion: { increment: 1 },
       },
     });
@@ -195,7 +195,7 @@ export class TwoFactorService {
 // ----------------------------------------------------------------
 
 @Injectable()
-export class ClerkSyncService {
+export class AuthService {
   constructor(
     private readonly auditLog: AuditLogService,
     private readonly prisma: PrismaService,
@@ -265,7 +265,7 @@ export class ClerkSyncService {
   /**
    * SEC-03 AC#5 — joriy sessiyani yangi 7-kunlik token bilan almashtiradi
    * ("jimgina yangilanish"). tokenVersion o'ZGARMAYDI (refresh — bekor qilish
-   * emas, faqat muddatni uzaytirish); chaqiruvchi controller ClerkGuard bilan
+   * emas, faqat muddatni uzaytirish); chaqiruvchi controller AuthGuard bilan
    * himoyalangan, shuning uchun bu yerga faqat joriy `tv` allaqachon mos
    * kelgan (ya'ni bekor qilinmagan) foydalanuvchi yetib keladi.
    */

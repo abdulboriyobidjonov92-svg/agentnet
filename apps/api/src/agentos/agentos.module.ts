@@ -3,12 +3,12 @@ import { HttpModule } from '@nestjs/axios';
 import { AgentOsController } from './agentos.controller';
 import { AgentOsService } from './agentos.service';
 import { AuthModule } from '../auth/auth.module';
-import { ClerkGuard } from '../auth/clerk.guard';
+import { AuthGuard } from '../auth/auth.guard';
 import { UsageModule } from '../usage/usage.module';
 
 @Module({
   imports: [HttpModule, AuthModule, UsageModule],
   controllers: [AgentOsController],
-  providers: [AgentOsService, ClerkGuard],
+  providers: [AgentOsService, AuthGuard],
 })
 export class AgentOsModule {}

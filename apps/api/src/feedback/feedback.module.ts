@@ -2,12 +2,12 @@ import { Module } from '@nestjs/common';
 import { FeedbackController } from './feedback.controller';
 import { FeedbackService } from './feedback.service';
 import { AuthModule } from '../auth/auth.module';
-import { ClerkGuard } from '../auth/clerk.guard';
+import { AuthGuard } from '../auth/auth.guard';
 
 @Module({
   imports: [AuthModule],
   controllers: [FeedbackController],
-  providers: [FeedbackService, ClerkGuard],
+  providers: [FeedbackService, AuthGuard],
   exports: [FeedbackService],
 })
 export class FeedbackModule {}

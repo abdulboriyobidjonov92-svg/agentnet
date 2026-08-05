@@ -3,13 +3,13 @@ import { HttpModule } from '@nestjs/axios';
 import { TwinController } from './twin.controller';
 import { TwinService } from './twin.service';
 import { AuthModule } from '../auth/auth.module';
-import { ClerkGuard } from '../auth/clerk.guard';
+import { AuthGuard } from '../auth/auth.guard';
 import { UsageModule } from '../usage/usage.module';
 
 @Module({
   imports: [HttpModule, AuthModule, UsageModule],
   controllers: [TwinController],
-  providers: [TwinService, ClerkGuard],
+  providers: [TwinService, AuthGuard],
   exports: [TwinService],
 })
 export class TwinModule {}

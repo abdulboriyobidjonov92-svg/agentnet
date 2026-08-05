@@ -3,12 +3,12 @@ import { HttpModule } from '@nestjs/axios';
 import { TelegramController } from './telegram.controller';
 import { TelegramService } from './telegram.service';
 import { AgentsModule } from '../agents/agents.module';
-import { ClerkGuard } from '../auth/clerk.guard';
+import { AuthGuard } from '../auth/auth.guard';
 
 @Module({
   imports: [HttpModule, AgentsModule],
   controllers: [TelegramController],
-  providers: [TelegramService, ClerkGuard],
+  providers: [TelegramService, AuthGuard],
   exports: [TelegramService],
 })
 export class TelegramModule {}

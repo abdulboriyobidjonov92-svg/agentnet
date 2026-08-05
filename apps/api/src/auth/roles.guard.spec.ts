@@ -12,7 +12,7 @@ import { ROLES_KEY } from './roles.decorator';
  * endpointlarning avtorizatsiya shakllari), sun'iy `ExecutionContext` bilan.
  * Bu ataylab: DoD'ni bajarish uchun 8 ta yangi ishlaydigan endpoint qo'shish
  * katta scope-creep bo'lardi va guard mantig'ini undan yaxshiroq sinamasdi.
- * Naqsh `clerk.guard.spec.ts` bilan bir xil (u ham sun'iy kontekst bilan).
+ * Naqsh `auth.guard.spec.ts` bilan bir xil (u ham sun'iy kontekst bilan).
  */
 
 const ALL_ROLES: UserRole[] = ['OWNER', 'ADMIN', 'SUPPORT', 'MEMBER', 'VIEWER'];

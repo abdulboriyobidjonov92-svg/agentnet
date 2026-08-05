@@ -10,7 +10,7 @@ import { verifyToken } from './token.util';
 import { IS_PUBLIC_KEY } from './public.decorator';
 
 /**
- * Lokal auth guard (Clerk'siz).
+ * Lokal auth guard — o'z HS256 JWT'imizga asoslangan (tashqi provayder yo'q).
  * Frontend `Authorization: Bearer <token>` yuboradi — bu token server tomonda
  * imzolangan JWT (login paytida beriladi). Guard imzoni tekshiradi, ichidan
  * foydalanuvchi id'sini (sub) oladi va shu foydalanuvchini so'rovga biriktiradi.
@@ -25,7 +25,7 @@ import { IS_PUBLIC_KEY } from './public.decorator';
  * `@Public()` bilan belgilangan endpointlar mavjud xulqidan farq qilmaydi.
  */
 @Injectable()
-export class ClerkGuard implements CanActivate {
+export class AuthGuard implements CanActivate {
   constructor(
     private readonly prisma: PrismaService,
     private readonly reflector: Reflector,
