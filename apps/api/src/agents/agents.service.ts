@@ -12,6 +12,7 @@ import {
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import type { Readable } from 'node:stream';
+import { paginate, type PageQuery } from '../common/pagination/paginate';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../auth/auth.service';
 import { UsageService } from '../usage/usage.service';
@@ -274,11 +275,16 @@ export class AgentsService {
     };
   }
 
-  async findAll(user: User) {
-    return this.prisma.agent.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' },
-    });
+  /** Phase 3: kursorli pagination shartnomasi (Konstitutsiya #24). */
+  async findAll(user: User, page: PageQuery = {}) {
+    return paginate(
+      this.prisma.agent,
+      {
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' },
+      },
+      page,
+    );
   }
 
   async findOne(id: string, user: User) {

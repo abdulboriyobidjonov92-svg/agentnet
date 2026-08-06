@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { Loader2, Plus, X } from "lucide-react";
-import { useApiClient } from "@/lib/api-client";
+import { useApiClient, unwrapPage, type Page } from "@/lib/api-client";
 import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
@@ -113,7 +113,10 @@ export default function DashboardPage() {
   });
   const { data: agents, isLoading: agentsLoading } = useQuery({
     queryKey: ["agents"],
-    queryFn: () => api.get<any[]>("/agents"),
+    // Dashboard — xulosa vidjeti: bir nechta agent ko'rsatiladi, sanoq esa
+    // `/users/me/stats` dan keladi. Shuning uchun bu yerda birinchi sahifa
+    // yetarli (Phase 3 pagination konverti `unwrapPage` bilan ochiladi).
+    queryFn: () => api.get<Page<any> | any[]>("/agents").then(unwrapPage),
   });
   const { data: recs } = useQuery({
     queryKey: ["recommendations", me?.domain],

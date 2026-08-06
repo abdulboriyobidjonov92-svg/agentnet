@@ -40,6 +40,7 @@ const ru: Dict = {
     "common.agentLimitReached": "Достигнут лимит агентов ({limit}). Обновите тариф, чтобы создать больше.",
     "common.retry": "Повторить",
     "common.undo": "Отменить",
+    "common.loadMore": "Показать ещё",
     "agents.deleted": "Агент удалён",
     "agents.frozen": "Заморожен",
     "agents.reactivate": "Пополнить и активировать",

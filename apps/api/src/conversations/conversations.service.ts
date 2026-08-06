@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException, Optional } from '@ne
 import { PrismaService } from '../prisma/prisma.service';
 import { TwinService } from '../twin/twin.service';
 import { MarketplaceService } from '../marketplace/marketplace.service';
+import { paginate, type PageQuery } from '../common/pagination/paginate';
 import type { User } from '@prisma/client';
 
 export interface ConversationMessage {
@@ -30,12 +31,17 @@ export class ConversationsService {
     });
   }
 
-  async findAll(user: User, agentId?: string) {
-    return this.prisma.conversation.findMany({
-      where: { userId: user.id, ...(agentId && { agentId }) },
-      orderBy: { updatedAt: 'desc' },
-      include: { agent: { select: { name: true } } },
-    });
+  /** Phase 3: kursorli pagination shartnomasi (Konstitutsiya #24). */
+  async findAll(user: User, agentId?: string, page: PageQuery = {}) {
+    return paginate(
+      this.prisma.conversation,
+      {
+        where: { userId: user.id, ...(agentId && { agentId }) },
+        orderBy: { updatedAt: 'desc' },
+        include: { agent: { select: { name: true } } },
+      },
+      page,
+    );
   }
 
   async findOne(id: string, user: User) {

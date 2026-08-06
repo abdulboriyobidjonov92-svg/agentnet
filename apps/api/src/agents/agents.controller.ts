@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Patch, Delete, Body, Param, HttpCode,
+  Controller, Get, Post, Patch, Delete, Body, Param, Query, HttpCode,
   Res, UseGuards, ServiceUnavailableException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
@@ -13,6 +13,7 @@ import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
 import { ComposeAgentDto } from './dto/compose-agent.dto';
 import { ChatStreamDto } from './dto/chat-stream.dto';
+import { PageQueryDto } from '../common/pagination/page-query.dto';
 import type { User } from '@prisma/client';
 
 // Dekoratorlar SHART: global ValidationPipe whitelist:true dekoratorsiz
@@ -46,9 +47,10 @@ export class AgentsController {
     return this.agents.create(user, dto);
   }
 
+  /** Phase 3: kursorli pagination — `?limit=<=100&cursor=<id>`. */
   @Get()
-  findAll(@CurrentUser() user: User) {
-    return this.agents.findAll(user);
+  findAll(@CurrentUser() user: User, @Query() page: PageQueryDto) {
+    return this.agents.findAll(user, page);
   }
 
   @Get(':id')

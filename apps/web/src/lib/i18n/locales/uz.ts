@@ -40,6 +40,7 @@ const uz: Dict = {
     "common.agentLimitReached": "Agent yaratish chegarasiga yetdingiz ({limit} ta). Ko'proq uchun tarifni yangilang.",
     "common.retry": "Qayta urinish",
     "common.undo": "Bekor qilish",
+    "common.loadMore": "Yana yuklash",
     "agents.deleted": "Agent o'chirildi",
     "agents.frozen": "Muzlatilgan",
     "agents.reactivate": "To'ldirib qayta faollashtirish",

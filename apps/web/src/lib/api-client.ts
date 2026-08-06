@@ -7,6 +7,29 @@ import { useCallback } from "react";
 // himoyasi); shu sabab bu yerda getClientSession/Authorization YO'Q.
 const API_BASE = "/api/backend";
 
+/**
+ * Phase 3 — kursorli pagination shartnomasi (Engineering Contract A18).
+ * Har ro'yxat endpointi shu konvertni qaytaradi.
+ */
+export interface Page<T> {
+  items: T[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
+/**
+ * Ro'yxat javobidan qatorlarni ochadi.
+ *
+ * NEGA massiv shoxi ham bor (vaqtinchalik): frontend Vercel'da, API Render'da —
+ * ular MUSTAQIL deploy bo'ladi (ADR-021). Deploy oynasida yangi frontend hali
+ * konvert qaytarmaydigan eski API'ga urilishi mumkin; usiz sahifa oq ekran
+ * berardi. Barcha muhitlarda konvertli API jonli bo'lgach, massiv shoxi
+ * o'chiriladi (Qoida #39: mos-kelish shoxi 2 sprintdan ortiq yashamaydi).
+ */
+export function unwrapPage<T>(res: Page<T> | T[]): T[] {
+  return Array.isArray(res) ? res : (res?.items ?? []);
+}
+
 interface ApiErrorPayload {
   reason?: string;
   creationPriceSom?: number;

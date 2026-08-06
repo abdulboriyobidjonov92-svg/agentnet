@@ -1,6 +1,6 @@
 "use client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useApiClient } from "@/lib/api-client";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useApiClient, unwrapPage, type Page } from "@/lib/api-client";
 import { Bot, Plus, Trash2, Settings, MessageSquare, Snowflake, Wallet, Hourglass, TimerReset } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -19,10 +19,27 @@ export default function AgentsPage() {
   const { t } = useT();
   const [confirmAgent, setConfirmAgent] = useState<any | null>(null);
 
-  const { data: agents, isLoading, isError, refetch } = useQuery({
+  // Phase 3 — kursorli pagination (Contract A18). Ro'yxat sahifasi endi
+  // `useInfiniteQuery`: birinchi sahifa darhol keladi, qolgani "yana yuklash"
+  // bilan. Bu SUKUT BILAN KESIB tashlamaslik uchun muhim — ilgari endpoint
+  // butun jadvalni qaytarardi, endi sahifalaydi.
+  const {
+    data: agentPages,
+    isLoading,
+    isError,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ["agents"],
-    queryFn: () => api.get<any[]>("/agents"),
+    queryFn: ({ pageParam }) =>
+      api.get<Page<any>>(`/agents${pageParam ? `?cursor=${encodeURIComponent(pageParam)}` : ""}`),
+    initialPageParam: "" as string,
+    getNextPageParam: (last) => last?.nextCursor ?? undefined,
   });
+
+  const agents = agentPages?.pages.flatMap((p) => unwrapPage(p));
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/agents/${id}`),
@@ -46,7 +63,23 @@ export default function AgentsPage() {
     const agent = confirmAgent;
     if (!agent) return;
     setConfirmAgent(null);
-    qc.setQueryData(["agents"], (old: any[] | undefined) => old?.filter((a) => a.id !== agent.id));
+    // Optimistik olib tashlash. `useInfiniteQuery` keshi — massiv EMAS,
+    // `{ pages, pageParams }`; shuning uchun har sahifa ichidan olib tashlaymiz.
+    // (Massiv shoxi — eski API bilan mos-kelish oynasi uchun, `unwrapPage`ga qarang.)
+    qc.setQueryData(
+      ["agents"],
+      (old: { pages: unknown[]; pageParams: unknown[] } | undefined) =>
+        old
+          ? {
+              ...old,
+              pages: old.pages.map((p: any) =>
+                Array.isArray(p)
+                  ? p.filter((a: any) => a.id !== agent.id)
+                  : { ...p, items: (p?.items ?? []).filter((a: any) => a.id !== agent.id) },
+              ),
+            }
+          : old,
+    );
     const timer = setTimeout(() => deleteMutation.mutate(agent.id), 5000);
     toast({
       title: t("agents.deleted"),
@@ -151,6 +184,15 @@ export default function AgentsPage() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Phase 3: keyingi sahifa — faqat haqiqatan ham qolgan bo'lsa ko'rinadi. */}
+      {hasNextPage && (
+        <div className="flex justify-center">
+          <Button variant="outline" onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
+            {t("common.loadMore")}
+          </Button>
         </div>
       )}
 

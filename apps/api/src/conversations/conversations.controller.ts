@@ -2,6 +2,7 @@ import { Controller, Get, Post, Delete, Body, Param, Query, HttpCode } from '@ne
 import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { ConversationsService } from './conversations.service';
+import { PageQueryDto } from '../common/pagination/page-query.dto';
 import type { User } from '@prisma/client';
 
 @ApiTags('conversations')
@@ -15,10 +16,15 @@ export class ConversationsController {
     return this.conversations.create(user, body.agentId);
   }
 
+  /** Phase 3: kursorli pagination — `?limit=<=100&cursor=<id>`. */
   @Get()
   @ApiQuery({ name: 'agentId', required: false })
-  findAll(@CurrentUser() user: User, @Query('agentId') agentId?: string) {
-    return this.conversations.findAll(user, agentId);
+  findAll(
+    @CurrentUser() user: User,
+    @Query() page: PageQueryDto,
+    @Query('agentId') agentId?: string,
+  ) {
+    return this.conversations.findAll(user, agentId, page);
   }
 
   @Get(':id')

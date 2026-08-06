@@ -41,6 +41,7 @@ const en: Dict = {
     "common.agentLimitReached": "You've reached your agent limit ({limit}). Upgrade your plan to create more.",
     "common.retry": "Retry",
     "common.undo": "Undo",
+    "common.loadMore": "Load more",
     "agents.deleted": "Agent deleted",
     "agents.frozen": "Frozen",
     "agents.reactivate": "Top up & reactivate",
