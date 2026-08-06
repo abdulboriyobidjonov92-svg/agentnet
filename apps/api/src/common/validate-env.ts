@@ -20,6 +20,15 @@ export function validateEnv(): void {
     { key: 'ENCRYPTION_KEY', why: 'at-rest AES-256-GCM shifrlash (render: generateValue)' },
     { key: 'INTERNAL_API_TOKEN', why: 'ichki server-to-server auth (render: umumiy guruh)' },
     { key: 'NEXT_PUBLIC_APP_URL', why: 'CORS origin (brauzer so\'rovlari)' },
+    // SEC-10: engine Render'da private service (`type: pserv`) — uning manzili
+    // ommaviy URL emas, xususiy tarmoq manzili (`http://<internal-host>:8000`)
+    // va uni blueprint oldindan bila olmaydi (Render hostname'ga taxmin
+    // qilib bo'lmaydigan qo'shimcha beradi), shuning uchun operator qo'lda
+    // kiritadi. Kiritilmasa kodda `http://localhost:8000` fallback'i bor —
+    // ya'ni prod JIM ishlamay qolardi (har engine chaqiruvi uzilardi).
+    // Shu sababli prod'da bu env MAJBURIY: xato boot'da ko'rinadi, jonli
+    // trafikda emas.
+    { key: 'AGENT_ENGINE_URL', why: 'engine xususiy tarmoq manzili (SEC-10: pserv, `http://<internal-host>:8000`)' },
   ];
 
   const missing = hardRequired.filter((r) => !has(r.key));

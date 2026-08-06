@@ -22,6 +22,13 @@ Qo'lda kiritilishi kerak (Render → servis → Environment):
 | `CLICK_SERVICE_ID` / `CLICK_SECRET_KEY` / `CLICK_MERCHANT_ID` | api | Click to'lov | Click o'chadi |
 | `ESKIZ_EMAIL` / `ESKIZ_PASSWORD` | api | telefon-OTP (SMS) | telefon-login o'chadi |
 | `TELEGRAM_BOT_TOKEN` | api | Telegram bot + brifing | bot o'chadi |
+| `AGENT_ENGINE_URL` | **faqat api** | engine xususiy tarmoq manzili (SEC-10) | **API boot'da to'xtaydi** (fail-closed) |
+
+> **SEC-10:** engine endi Render **private service** — ommaviy URL'i yo'q.
+> `AGENT_ENGINE_URL` qiymatini Render → `agentnet-engine` → **Connect → Internal**
+> dan oling va protokol bilan kiriting: `http://<internal-host>:8000`.
+> **Faqat API'ga** — frontend engine'ni bilmaydi (chat oqimi API orqali o'tadi).
+> To'liq tartib: `docs/guides/deployment.md` → "SEC-10" bo'limi.
 
 > **Muhim:** kamida BITTA login-kanali kerak — `RESEND_API_KEY` (email) YOKI
 > `ESKIZ_EMAIL`+`ESKIZ_PASSWORD` (telefon). Ikkalasi ham yo'q bo'lsa API prod'da
@@ -31,21 +38,29 @@ Boot'dan keyin loglarda `validateEnv` yetishmayotgan narsalarni ro'yxat qilib be
 
 ## 2. Infra plan qarori (H4 — sizning pulingiz)
 
-Hozir hamma servis `plan: free`:
-- **Free Postgres ~90 kunda O'CHIRILADI** → jonli foydalanuvchidan oldin `render.yaml`da
-  `databases[].plan: free` → `starter` (yoki backup rejasi).
-- Web servislar spin-down (30-60s sovuq start) → kerak bo'lsa `plan: starter`.
-- Engine og'ir CV-kutubxonalari bazadan chiqarilgan (M5/H4) — free 512MB'ga sig'adi.
+- **Postgres `starter`** (~$7/oy) — free-plan DB ~90 kunda o'chirilardi.
+- **Engine `starter`** (~$7/oy, SEC-10) — Render'da private service uchun `free`
+  instance turi umuman yo'q. Yon foyda: engine endi spin-down bo'lmaydi.
+- `api` va `web` hali `free`: spin-down (30-60s sovuq start) → kerak bo'lsa
+  `plan: starter`. Free web servis xususiy tarmoqqa so'rov **yubora oladi**
+  (engine'ga borish ishlaydi), lekin **qabul qila olmaydi**.
+- Engine og'ir CV-kutubxonalari bazadan chiqarilgan (M5/H4).
 
 ## 3. Deploy'dan keyin smoke-test (2 daqiqa)
 
 ```bash
-API_URL=https://<api>.onrender.com \
-ENGINE_URL=https://<engine>.onrender.com \
-INTERNAL_API_TOKEN=<render'dagi qiymat> \
-node scripts/smoke-test.mjs
+API_URL=https://<api>.onrender.com ENGINE_URL= ENGINE_PUBLIC_URL=https://<engine>.onrender.com node scripts/smoke-test.mjs
 ```
-Uchala servis tirikligini + engine ichki-auth (C1) + Swagger prod-gate (M7) tekshiradi.
+
+- `ENGINE_URL=` **ataylab bo'sh** — SEC-10 dan keyin engine private service,
+  tashqaridan (bu skript ishlayotgan joydan) ko'rinmaydi.
+- `ENGINE_PUBLIC_URL` — engine'ning **eski** ommaviy URL'i; skript uning
+  yopiqligini tasdiqlaydi (SEC-10 DoD).
+
+API tirikligi + engine ommaviy-yopiqligi + Swagger prod-gate (M7) tekshiriladi.
+Engine ichki-auth (C1) endi xususiy tarmoq ichidan tekshiriladi — lokal
+`node scripts/smoke-test.mjs` (default `ENGINE_URL=http://localhost:8000`)
+bu tekshiruvlarni o'zgarishsiz bajaradi.
 
 ## 4. Qo'lda to'liq end-to-end (real kalitlar bilan, BIR MARTA)
 

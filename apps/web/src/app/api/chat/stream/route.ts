@@ -15,7 +15,11 @@ export async function POST(req: NextRequest) {
   if (!payload?.sub) return new Response("Unauthorized", { status: 401 });
 
   const body = await req.json();
-  const engineUrl = process.env.AGENT_ENGINE_URL ?? "http://localhost:8000";
+  // SEC-10: engine Render'da private service — bu BFF (Vercel'da ishlaydi)
+  // unga TO'G'RIDAN-TO'G'RI yeta olmaydi. Oqim endi API orqali o'tadi
+  // (`POST /api/agents/stream`), shuning uchun bu yerda AGENT_ENGINE_URL
+  // umuman kerak emas. Pul/kvota tartibi (charge -> consume -> refund)
+  // o'zgarmadi — u ataylab shu BFF'da qoladi.
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
   // Ichki (server-to-server) kalit — /billing/refund balansni OSHIRADI, shuning
   // uchun InternalTokenGuard bilan himoyalangan; faqat shu BFF chaqira oladi.
@@ -103,20 +107,25 @@ export async function POST(req: NextRequest) {
 
   let upstream: Response;
   try {
-    upstream = await fetch(`${engineUrl}/agents/stream`, {
+    upstream = await fetch(`${apiUrl}/api/agents/stream`, {
       method: "POST",
-      // Engine endi ichki auth talab qiladi (main.py internal_token_guard) —
-      // token'siz so'rov 401. Bu BFF platformaning ichki servisi bo'lgani uchun
-      // uzatishga haqli (foydalanuvchi brauzeri engine'ga to'g'ridan-to'g'ri
-      // yeta olmaydi).
-      headers: { "Content-Type": "application/json", "x-internal-token": internalToken },
+      // Ikki qulf (API tomonda ham shunday tekshiriladi):
+      //   • x-internal-token — "bu chaqiruv platformaning o'z BFF'idan" (pul
+      //     allaqachon yechilgan). Busiz istalgan foydalanuvchi endpointni
+      //     to'g'ridan-to'g'ri chaqirib bepul LLM olardi.
+      //   • Authorization — qaysi foydalanuvchi ekani. `user_id` endi body'da
+      //     UZATILMAYDI: API uni imzolangan tokendan o'zi aniqlaydi.
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authHeader,
+        "x-internal-token": internalToken,
+      },
       body: JSON.stringify({
-        agent_definition: body.agentDefinition,
-        user_id: payload.sub,
+        agentDefinition: body.agentDefinition,
         message: body.message,
-        conversation_id: body.conversationId ?? null,
-        conversation_history: body.conversationHistory ?? null,
-        profession: body.profession ?? "",
+        conversationId: body.conversationId ?? undefined,
+        conversationHistory: body.conversationHistory ?? undefined,
+        profession: body.profession ?? undefined,
       }),
     });
   } catch (e: any) {

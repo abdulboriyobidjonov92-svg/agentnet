@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
+import type { Readable } from 'node:stream';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../auth/auth.service';
 import { UsageService } from '../usage/usage.service';
@@ -473,5 +474,58 @@ export class AgentsService {
     });
 
     return { ...data, conversationId: convId };
+  }
+
+  /**
+   * SEC-10 — chat SSE oqimini engine'dan OCHADI (proxy uchun).
+   *
+   * NEGA API orqali: engine endi Render'da **private service** (ADR-004), ya'ni
+   * Render xususiy tarmog'idan tashqarida ko'rinmaydi. Frontend esa Vercel'da
+   * turadi (ADR-021) — u engine'ga TO'G'RIDAN-TO'G'RI yeta olmaydi. Shuning
+   * uchun oqim endi: brauzer -> Vercel BFF -> Render API -> Render engine.
+   *
+   * Bu metod ATAYLAB "yupqa": pul va kvota mantiqi (charge -> consume ->
+   * refund zanjiri) BFF'da qoladi va bir zarrada ham o'zgarmaydi — u
+   * allaqachon ishlab turgan, testlangan va SEC-10 doirasidan tashqari.
+   * Bu yerda faqat tarmoq-hop qo'shiladi.
+   *
+   * Xatolik (engine o'lik / 5xx / halal-blok) — istisno sifatida yuqoriga
+   * chiqadi; controller uni 5xx'ga aylantiradi, BFF esa `!upstream.ok`
+   * ko'rib pulni QAYTARADI (mavjud `engine_error` yo'li).
+   */
+  async openChatStream(
+    user: User,
+    dto: {
+      agentDefinition: Record<string, unknown>;
+      message: string;
+      conversationId?: string;
+      conversationHistory?: Array<Record<string, unknown>>;
+      profession?: string;
+    },
+  ): Promise<Readable> {
+    const engineUrl = process.env.AGENT_ENGINE_URL ?? 'http://localhost:8000';
+
+    // `x-internal-token` avtomatik qo'shiladi (installEngineAuthInterceptor —
+    // yagona axios interceptor barcha engine chaqiruvlarini qamrab oladi).
+    const res = await firstValueFrom(
+      this.http.post(
+        `${engineUrl}/agents/stream`,
+        {
+          agent_definition: dto.agentDefinition,
+          // MUHIM: `user_id` body'dan EMAS, autentifikatsiyalangan
+          // foydalanuvchidan olinadi. Ilgari BFF uni o'zi uzatardi; endi
+          // uni umuman so'ramaymiz — "boshqa foydalanuvchi nomidan engine'ga
+          // borish" yuzasi butunlay yopiladi.
+          user_id: user.id,
+          message: dto.message,
+          conversation_id: dto.conversationId ?? null,
+          conversation_history: dto.conversationHistory ?? null,
+          profession: dto.profession ?? '',
+        },
+        { responseType: 'stream' },
+      ),
+    );
+
+    return res.data as Readable;
   }
 }

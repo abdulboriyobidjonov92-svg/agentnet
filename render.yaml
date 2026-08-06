@@ -5,18 +5,35 @@
 #   2. Render → New → Blueprint → repo'ni ulang → Apply
 #   3. (ixtiyoriy) agentnet-engine va agentnet-api ga ANTHROPIC_API_KEY qo'shing
 #      — bo'lmasa platforma to'liq heuristik/demo rejimda ishlaydi.
+#   4. SEC-10 (majburiy qo'lda qadam): agentnet-api va agentnet-web'ga
+#      AGENT_ENGINE_URL ni qo'lda kiriting — quyidagi izohga qarang.
 #
-# Cross-servis URL'lari Render'ning barqaror naqshidan foydalanadi:
+# OMMAVIY (public) servislar URL'i Render'ning barqaror naqshidan foydalanadi:
 #   https://<service-name>.onrender.com
 # Agar servis nomlarini o'zgartirsangiz, quyidagi URL'larni ham yangilang.
+# Engine ENDI ommaviy emas (SEC-10) — uning URL'i yo'q, xususiy tarmoq
+# manzili bor (`http://<internal-host>:<port>`).
 #
-# ⚠️ FREE-PLAN OGOHLANTIRISHI (H4) — hozir hamma servis `plan: free`:
-#   • Postgres endi `starter` (pullik, ~$7/oy) — free-plan DB ~90 kunda
+# ⚠️ MINTAQA (region) SHARTI — SEC-10 uchun kritik: Render xususiy tarmog'i
+#   FAQAT bitta akkaunt + bitta mintaqa ichida ishlaydi. Bu blueprint'da
+#   `region` ATAYLAB ko'rsatilmagan (mavjud servislar allaqachon akkaunt
+#   default mintaqasida yaratilgan; bu yerga boshqa mintaqa yozilsa
+#   deploy buziladi). Apply'dan keyin uchala servis + DB bir xil mintaqada
+#   ekanini Render panelidan TASDIQLANG.
+#
+# ⚠️ PLAN OGOHLANTIRISHI (H4):
+#   • Postgres `starter` (pullik, ~$7/oy) — free-plan DB ~90 kunda
 #     O'CHIRILAR edi (barcha akkaunt/balans yo'qolardi). Jonli foydalanuvchilar
 #     uchun bu majburiy xarajat. Baribir muntazam backup tavsiya etiladi.
-#   • Web servislar hali `free`: harakatsizlikda spin-down -> birinchi so'rov
+#   • Engine endi `starter` — Render'da private service uchun `free`
+#     instance turi UMUMAN YO'Q (free faqat web service / static site /
+#     Postgres / Key Value). SEC-10 narxi: ~$7/oy. Yon foyda: pullik
+#     instance spin-down BO'LMAYDI (engine sovuq start yo'qoladi).
+#   • api va web hali `free`: harakatsizlikda spin-down -> birinchi so'rov
 #     30-60s sovuq start; cron'lar (brifing/agent-billing/goals) o'tkazib
 #     yuborilishi mumkin. Jonli trafik oldidan API'ni ham starter'ga o'tkazing.
+#     Free web servis xususiy tarmoqqa so'rov YUBORA oladi (engine'ga borish
+#     ishlaydi), lekin xususiy tarmoqdan so'rov QABUL QILA olmaydi.
 #   • Free RAM 512MB. Engine'ning og'ir CV-kutubxonalari (torch) endi bazaviy
 #     o'rnatishdan chiqarilgan (requirements-camera.txt) — OOM xavfi kamaydi.
 databases:
@@ -40,13 +57,31 @@ envVarGroups:
 
 services:
   # 1) FastAPI agent-engine — orkestrator + 5 wow imkoniyat + AgentOS
-  - type: web
+  #
+  # SEC-10 (ADR-004; Contract A5 va Konstitutsiya qoidasi #5 — "Engine hech
+  # qachon ommaviy internetga chiqarilmaydi"): engine `type: web` dan
+  # `type: pserv` (Render Private Service) ga o'tdi.
+  #   • Private service `onrender.com` subdomeni OLMAYDI va ommaviy
+  #     internetdan umuman ochilmaydi.
+  #   • Unga faqat SHU Render akkaunti + SHU mintaqadagi boshqa servislar
+  #     xususiy tarmoq orqali murojaat qila oladi.
+  #   • Ichki `x-internal-token` (main.py `internal_token_guard`) SAQLANADI —
+  #     ikki qatlamli himoya: tarmoq + ilova. Biri buzilsa ikkinchisi ushlaydi.
+  #
+  # ⚠️ Render servis TURINI joyida o'zgartirmaydi (`type` — o'zgarmas maydon).
+  #    Migratsiya tartibi docs/guides/deployment.md → "SEC-10" bo'limida.
+  - type: pserv
     name: agentnet-engine
     runtime: docker
-    plan: free
+    # Private service uchun `free` instance turi Render'da YO'Q — eng past
+    # daraja `starter`. Bu SEC-10'ning real (va yagona) xarajati.
+    plan: starter
     dockerfilePath: ./apps/agent-engine/Dockerfile
     dockerContext: ./apps/agent-engine
-    healthCheckPath: /health
+    # `healthCheckPath` ATAYLAB OLIB TASHLANDI: Render blueprint
+    # spetsifikatsiyasida bu maydon "Web services only" deb belgilangan.
+    # Engine `/health` endpointi o'zi joyida qoladi (auth'siz, _OPEN_PATHS) —
+    # unga xususiy tarmoq ichidan murojaat qilinadi.
     envVars:
       # Ichki auth guardi shu belgi bilan production rejimini aniqlaydi:
       # ENV=production bo'lsa INTERNAL_API_TOKEN majburiy (fail-closed) —
@@ -57,11 +92,19 @@ services:
       - fromGroup: agentnet-shared
       - key: ANTHROPIC_API_KEY
         sync: false        # ixtiyoriy — bo'lmasa demo/heuristik rejim
-      # web.automate/connector.invoke uchun API'ga ichki chaqiruv
+      # web.automate/connector.invoke uchun API'ga ichki chaqiruv.
+      # (API — ommaviy web servis, shuning uchun bu URL o'zgarishsiz qoladi.)
       - key: API_URL
         value: https://agentnet-api-zf1h.onrender.com
       - key: AGENT_MAX_TOOL_ITERATIONS
         value: "8"
+      # Render hujjati: xususiy tarmoq aloqasi uchun 10000, 18012, 18013,
+      # 19099 portlaridan FOYDALANIB BO'LMAYDI. Render esa servisga default
+      # PORT=10000 beradi — agar engine o'sha portga bog'lansa, uni xususiy
+      # tarmoqdan CHAQIRIB BO'LMAS edi (jim ishlamaydigan deploy). Shuning
+      # uchun portni aniq belgilaymiz; Dockerfile default'i ham 8000.
+      - key: PORT
+        value: "8000"
 
   # 2) NestJS API — Core SaaS (auth, agents, twin, goals, intelligence, agentos)
   - type: web
@@ -78,8 +121,27 @@ services:
         fromDatabase:
           name: agentnet-db
           property: connectionString
+      # SEC-10: engine endi private service — bu qiymat ommaviy URL EMAS,
+      # xususiy tarmoq manzili.
+      #
+      # NEGA bu yerga yozib qo'yilmagan (`sync: false`): Render xususiy
+      # hostname'ga taxmin qilib bo'lmaydigan qo'shimcha beradi (rasmiy
+      # hujjatdagi misol: `elasticsearch-2j3e:9200`). Uni bu yerda taxmin
+      # qilish = jim ishlamaydigan deploy. Blueprint'da satr-birlashtirish
+      # ham yo'q (`fromService` faqat `host`/`port`/`hostport` beradi, ya'ni
+      # protokolsiz `host:port`), shuning uchun to'liq URL operator tomonidan
+      # kiritiladi — infratuzilma faraz qilinmaydi.
+      #
+      # QIYMATNI QAYERDAN OLASIZ:
+      #   Render → agentnet-engine → Connect → Internal → internal address
+      #   (masalan `agentnet-engine-2j3e:8000`)
+      # KIRITASIZ (protokol bilan):
+      #   http://agentnet-engine-2j3e:8000
+      #
+      # Bu env prod'da bo'lmasa API BOOT BO'LMAYDI (validateEnv, fail-closed) —
+      # jimgina `http://localhost:8000` fallback'iga tushib qolmaslik uchun.
       - key: AGENT_ENGINE_URL
-        value: https://agentnet-engine.onrender.com
+        sync: false
       # At-rest shifrlash kaliti — prod'da bo'lmasa API boot'da qulaydi
       # (CryptoService fail-closed). Render generatsiya qiladi, qo'lda kiritilmaydi.
       - key: ENCRYPTION_KEY
@@ -92,7 +154,11 @@ services:
         sync: false
       - key: TELEGRAM_BOT_TOKEN
         sync: false
-      # CORS — bo'lmasa brauzerdan kelgan hamma so'rov bloklanadi (production bug)
+      # CORS — bo'lmasa brauzerdan kelgan hamma so'rov bloklanadi (production bug).
+      # Bu FRONTEND'ning ommaviy origin'i. ADR-021 bo'yicha frontend Vercel'ga
+      # ko'chganda bu qiymat Vercel domeniga o'zgartiriladi (main.ts bitta aniq
+      # origin qabul qiladi). Quyidagi Render web servisi — o'tish davri /
+      # zaxira deploy.
       - key: NEXT_PUBLIC_APP_URL
         value: https://agentnet-web-cstn.onrender.com
       # web.automate/connector.invoke ichki chaqiruvlari uchun umumiy token
@@ -132,6 +198,12 @@ services:
         value: "4546"
 
   # 3) Next.js web — deep-space UI + 3D + AgentOS command center
+  #
+  # ADR-021: yakuniy arxitekturada frontend **Vercel**da turadi, backend
+  # (api + engine + Postgres + Redis + kelajakdagi worker'lar) — Render'da.
+  # Bu servis o'tish davri va zaxira deploy sifatida saqlanadi; SEC-10 dan
+  # keyin ikkala joyda ham AYNAN bir xil env to'plami bilan ishlaydi
+  # (frontend endi engine'ni bilmaydi).
   - type: web
     name: agentnet-web
     runtime: node
@@ -144,10 +216,16 @@ services:
     envVars:
       - key: NEXT_PUBLIC_API_URL
         value: https://agentnet-api-zf1h.onrender.com
-      - key: AGENT_ENGINE_URL
-        value: https://agentnet-engine.onrender.com
-      # BFF (/api/chat/stream) engine'ga va /billing/refund'ga ichki token bilan
-      # murojaat qiladi — engine va API bilan aynan bir xil qiymat (guruhdan).
+      # SEC-10: `AGENT_ENGINE_URL` bu yerdan ATAYLAB OLIB TASHLANDI.
+      # Frontend endi engine'ni umuman bilmaydi — chat oqimi API orqali
+      # o'tadi (`POST /api/agents/stream`). Natijada frontend deploy-portativ:
+      # unga faqat NEXT_PUBLIC_API_URL + INTERNAL_API_TOKEN kerak, ya'ni
+      # ayni shu env to'plami bilan Vercel'da ham ishlaydi (ADR-021).
+      #
+      # BFF (/api/chat/stream, /billing/refund, /agents/stream) ichki token
+      # bilan murojaat qiladi — engine va API bilan aynan bir xil qiymat.
+      # ⚠️ Vercel'ga ko'chirilganda INTERNAL_API_TOKEN qo'lda ko'chiriladi
+      #    (env-guruh faqat Render ichida ishlaydi).
       - fromGroup: agentnet-shared
       - key: NODE_ENV
         value: production
