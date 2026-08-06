@@ -55,12 +55,36 @@ ANIQ belgilanadi (aks holda default — kamida MEMBER talab qilinadi).
 | Chinakam ochiq (webhook, companion o'z-tokeni, login-oldi) | `@Public()` |
 | BFF orqali keladigan, bitta IP'dan (charge-message, consume-chat) | `@SkipThrottle()` |
 
-**SEC-11 (Konstitutsiya #10):** `@Roles(...)` bilan himoyalangan yo'lda foydalanuvchi
-roli `OWNER`/`ADMIN` bo'lsa, `RolesGuard` qo'shimcha ravishda `twoFactorEnabled`ni
-talab qiladi (aks holda 403 `reason: 'two_factor_required'`). Bu imtiyozni 2FA
-ortiga oladi, lekin hech kimni QULFLAMAYDI — dekoratorsiz yo'llar (jumladan
-`/auth/2fa/*`) 2FA'siz ham ochiq, ya'ni admin o'zi 2FA'ni yoqib imtiyozini
-qaytaradi. Yangi admin endpoint qo'shganda bu avtomatik qo'llanadi.
+**SEC-11 (Konstitutsiya #10) — BAJARILGAN va MUZLATILGAN:** `@Roles(...)` bilan
+himoyalangan yo'lda foydalanuvchi roli `OWNER`/`ADMIN` bo'lsa, `RolesGuard`
+qo'shimcha ravishda `twoFactorEnabled`ni talab qiladi (aks holda 403
+`reason: 'two_factor_required'`). Bu imtiyozni 2FA ortiga oladi, lekin hech kimni
+QULFLAMAYDI — dekoratorsiz yo'llar (jumladan `/auth/2fa/*`) 2FA'siz ham ochiq,
+ya'ni admin o'zi 2FA'ni yoqib imtiyozini qaytaradi. Yangi admin endpoint
+qo'shganda bu avtomatik qo'llanadi.
+
+### ⚠️ SEC-11'ning qolgan qismi — ATAYLAB KECHIKTIRILGAN (Phase 4 gacha)
+
+Engineering Contract §6.5'dagi **xavfli-amal oqimi** — sabab matni (min 20 belgi)
+→ TOTP qayta-autentifikatsiya → yozib tasdiqlash (`DELETE user_abc123`) → IKKITA
+audit yozuvi (`intent` + `result`) → 24 soatlik bekor oynasi (o'chirish uchun) →
+OWNER Telegram signali, + 10/soat throttle — **hali yozilmagan**.
+
+**Nega:** Contract SEC-11 uchun `Deps: SEC-05, P4` deydi. Bugun butun `@Roles`
+yuzasi — ikkita `feedback` endpointi (`list`, `setStatus`), ularning ikkalasi
+ham §6.5 ma'nosida xavfli EMAS. Oqimni hozir yozish — nol chaqiruv-nuqtali
+guard/service/dekorator/DTO demak, ya'ni **Qoida #38 buzilishi** ("o'lik kod
+darhol o'chiriladi — 'keyin kerak bo'ladi' taqiqlanadi"). Xavfli endpointlarni
+hozir yozish esa **§3 buzilishi** ("fazalar qayta tartiblanmaydi": P4 P3'dan
+oldin kelmaydi).
+
+**MAJBURIY SHART — P4'ni boshlaydigan kishi uchun:** §6.5 ro'yxatidagi BIRINCHI
+xavfli endpoint (rol tayinlash · balansdan yechish · qo'lda kredit >500k ·
+foydalanuvchini o'chirish · sessiyalarni ommaviy bekor qilish · to'lovni qo'lda
+yopish · global limit o'zgartirish · impersonation-write) **oqim bilan BIRGA**
+keladi — endpoint avval, kontrol keyin EMAS. Bu Contract §3'dagi Phase 2
+mantig'ining aynan o'zi: *"Avval ekran qurilsa, avtorizatsiya keyin 'yamoq'
+bo'lib qo'shiladi — bu sinf xatosi."*
 
 ## Tenant-scoping (SEC-06)
 
