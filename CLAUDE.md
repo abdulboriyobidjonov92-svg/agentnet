@@ -49,10 +49,18 @@ ANIQ belgilanadi (aks holda default — kamida MEMBER talab qilinadi).
 |---|---|
 | Oddiy foydalanuvchi endpointi | Yo'q — global `AuthGuard`+`RolesGuard` yetarli |
 | Admin (`@Roles(...)` talab qiladi) | `@Roles(UserRole.OWNER, ...)` |
+| BFF→API, foydalanuvchi kontekstli (refund, chat stream) | `@UseGuards(InternalTokenGuard)` — `@Public()`SIZ (aks holda `@CurrentUser()` bo'sh bo'ladi) |
 | Engine LLM chaqiradigan (pulsiz, kvota kerak) | `@UseGuards(LlmQuotaGuard)` |
 | Servis-ichi (webhook, engine→API, BFF→API) | `@Public()` + `@UseGuards(InternalTokenGuard)` |
 | Chinakam ochiq (webhook, companion o'z-tokeni, login-oldi) | `@Public()` |
 | BFF orqali keladigan, bitta IP'dan (charge-message, consume-chat) | `@SkipThrottle()` |
+
+**SEC-11 (Konstitutsiya #10):** `@Roles(...)` bilan himoyalangan yo'lda foydalanuvchi
+roli `OWNER`/`ADMIN` bo'lsa, `RolesGuard` qo'shimcha ravishda `twoFactorEnabled`ni
+talab qiladi (aks holda 403 `reason: 'two_factor_required'`). Bu imtiyozni 2FA
+ortiga oladi, lekin hech kimni QULFLAMAYDI — dekoratorsiz yo'llar (jumladan
+`/auth/2fa/*`) 2FA'siz ham ochiq, ya'ni admin o'zi 2FA'ni yoqib imtiyozini
+qaytaradi. Yangi admin endpoint qo'shganda bu avtomatik qo'llanadi.
 
 ## Tenant-scoping (SEC-06)
 

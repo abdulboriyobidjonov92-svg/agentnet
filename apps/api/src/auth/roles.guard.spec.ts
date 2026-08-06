@@ -33,11 +33,18 @@ function ctxWithUser(user: unknown): ExecutionContext {
   } as unknown as ExecutionContext;
 }
 
-/** Bitta (endpoint-shakli × rol) katakchasini baholaydi. */
+/**
+ * Bitta (endpoint-shakli × rol) katakchasini baholaydi.
+ *
+ * `twoFactorEnabled: true` — ATAYLAB: bu matritsa ROL mantig'ini o'lchaydi,
+ * 2FA esa ortogonal o'lcham (SEC-11, Konstitutsiya #10). Ya'ni bu yerdagi
+ * "admin" — qoidaga MOS admin. 2FA o'lchamining o'zi quyida alohida
+ * `describe` blokida sinaladi (ikkala qiymat uchun).
+ */
 function allows(required: UserRole[] | undefined, role: UserRole): boolean {
   const guard = new RolesGuard(reflectorWith(required));
   try {
-    return guard.canActivate(ctxWithUser({ id: 'u1', role }));
+    return guard.canActivate(ctxWithUser({ id: 'u1', role, twoFactorEnabled: true }));
   } catch (e) {
     if (e instanceof ForbiddenException) return false;
     throw e;
@@ -122,6 +129,53 @@ describe('RolesGuard — autentifikatsiya qilinmagan yo\'llar', () => {
   it("dbUser yo'q, lekin endpointda @Roles(OWNER) bo'lsa ham -> ruxsat", () => {
     const guard = new RolesGuard(reflectorWith(['OWNER']));
     expect(guard.canActivate(ctxWithUser(undefined))).toBe(true);
+  });
+});
+
+/**
+ * SEC-11 (Konstitutsiya qoidasi #10) — "OWNER/ADMIN roli 2FA'siz berilmaydi".
+ *
+ * Jonli bo'shliq: login OTP (email/SMS) — fishing va SIM-swap'ga ochiq kanal.
+ * 2FA'siz OWNER hisobini egallash butun platformani egallash demak edi.
+ */
+describe('RolesGuard — imtiyozli rol uchun 2FA majburiy (SEC-11)', () => {
+  function attempt(required: UserRole[] | undefined, role: UserRole, twoFactorEnabled: boolean) {
+    const guard = new RolesGuard(reflectorWith(required));
+    return () => guard.canActivate(ctxWithUser({ id: 'u1', role, twoFactorEnabled }));
+  }
+
+  for (const role of ['OWNER', 'ADMIN'] as UserRole[]) {
+    it(`${role} + 2FA yo'q -> imtiyozli yo'l RAD ETILADI`, () => {
+      expect(attempt(['OWNER', 'ADMIN'], role, false)).toThrow(ForbiddenException);
+    });
+
+    it(`${role} + 2FA yo'q -> xato sababi 'two_factor_required' (UI aniq xabar bera oladi)`, () => {
+      try {
+        attempt(['OWNER', 'ADMIN'], role, false)();
+        throw new Error('kutilgan ForbiddenException tashlanmadi');
+      } catch (e) {
+        expect((e as ForbiddenException).getResponse()).toEqual(
+          expect.objectContaining({ reason: 'two_factor_required' }),
+        );
+      }
+    });
+
+    it(`${role} + 2FA bor -> imtiyozli yo'l ochiq`, () => {
+      expect(attempt(['OWNER', 'ADMIN'], role, true)()).toBe(true);
+    });
+
+    it(`${role} + 2FA yo'q -> ODDIY (dekoratorsiz) yo'l ochiq — qulflab qo'ymaydi`, () => {
+      // Aynan shu xulq 2FA'ni yoqish imkonini beradi: `/auth/2fa/*` — oddiy yo'l.
+      expect(attempt(undefined, role, false)()).toBe(true);
+    });
+  }
+
+  it("SUPPORT — Contract #10 uni nomma-nom aytmaydi, shuning uchun 2FA'siz ham o'tadi (SEC-12'da ko'riladi)", () => {
+    expect(attempt(['SUPPORT'], 'SUPPORT', false)()).toBe(true);
+  });
+
+  it('MEMBER — imtiyozsiz rol, 2FA talab qilinmaydi', () => {
+    expect(attempt(['MEMBER'], 'MEMBER', false)()).toBe(true);
   });
 });
 

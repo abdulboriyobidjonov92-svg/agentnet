@@ -44,13 +44,22 @@ const ROLE_RANK: Record<UserRole, number> = {
 /** Dekoratorsiz endpoint uchun minimal daraja (AC #4). */
 const DEFAULT_MIN_ROLE: UserRole = 'MEMBER';
 
+/**
+ * SEC-11 — Konstitutsiya qoidasi #10: "OWNER/ADMIN roli 2FA'siz berilmaydi."
+ *
+ * Bu ro'yxat ATAYLAB faqat OWNER va ADMIN: Contract shu ikkitasini nomma-nom
+ * aytadi. SUPPORT (impersonation huquqi bilan) SEC-12'da alohida ko'riladi —
+ * bu yerga "ehtiyot uchun" qo'shish Contract matnidan oshib ketish bo'lardi.
+ */
+const ELEVATED_ROLES: readonly UserRole[] = ['OWNER', 'ADMIN'];
+
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
-    const user = request?.dbUser as { role?: UserRole } | undefined;
+    const user = request?.dbUser as { role?: UserRole; twoFactorEnabled?: boolean } | undefined;
 
     // Autentifikatsiya qilinmagan yo'l — yuqoridagi izohga qarang.
     if (!user) return true;
@@ -70,6 +79,27 @@ export class RolesGuard implements CanActivate {
     if (required && required.length > 0) {
       if (!required.includes(role)) {
         throw new ForbiddenException("Ruxsat yo'q");
+      }
+
+      // SEC-11 (Konstitutsiya #10): imtiyozli rol 2FA'siz KUCHGA KIRMAYDI.
+      //
+      // NEGA aynan shu yerda: tekshiruv faqat `@Roles(...)` bilan himoyalangan
+      // (ya'ni imtiyoz TALAB QILADIGAN) yo'llarda ishlaydi. 2FA'siz OWNER
+      // platformadan oddiy foydalanuvchi sifatida foydalanaveradi va
+      // `/auth/2fa/*` orqali 2FA'ni yoqib, imtiyozini qaytara oladi —
+      // ya'ni bu qoida hech kimni tizimdan QULFLAB QO'YMAYDI, faqat
+      // imtiyozni 2FA ortiga oladi (bootstrap uchun zaxira yo'l shart emas).
+      //
+      // NEGA MUHIM: login OTP (email/SMS kod) — fishing va SIM-swap'ga
+      // ochiq kanal. Usiz OWNER hisobini egallash butun platformani
+      // egallash demak. 2FA — shu yo'ldagi yagona qo'shimcha to'siq.
+      if (ELEVATED_ROLES.includes(role) && !user.twoFactorEnabled) {
+        throw new ForbiddenException({
+          message:
+            "Imtiyozli rol uchun ikki bosqichli tasdiqlash (2FA) yoqilgan bo'lishi shart. " +
+            "Sozlamalar → Xavfsizlik bo'limidan 2FA'ni yoqing.",
+          reason: 'two_factor_required',
+        });
       }
       return true;
     }
