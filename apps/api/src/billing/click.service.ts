@@ -178,10 +178,15 @@ export class ClickService implements PaymentProviderService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) return this.reply(body, ClickError.UserNotFound);
 
-    const amountTiyin = Math.round(Number(body.amount) * 100);
-    if (!Number.isFinite(amountTiyin) || amountTiyin < 100_000) {
+    // A13: tashqi protokol summani `number` (so'm) sifatida yuboradi.
+    // Validatsiya `number`da bajariladi (isFinite/NaN tekshiruvi bigint'da
+    // mumkin emas), so'ng chegara ichida ekani tasdiqlangach BIR MARTA
+    // `bigint`ga o'tkaziladi — ichkarida hamma joyda faqat bigint yuradi.
+    const amountRaw = Math.round(Number(body.amount) * 100);
+    if (!Number.isFinite(amountRaw) || amountRaw < 100_000) {
       return this.reply(body, ClickError.BadAmount);
     }
+    const amountTiyin = BigInt(amountRaw);
 
     const clickTransId = String(body.click_trans_id);
     const existing = await this.prisma.clickTransaction.findUnique({ where: { clickTransId } });

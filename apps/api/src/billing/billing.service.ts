@@ -1,5 +1,6 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { divideTiyin, tiyinToSom } from '../common/money';
 import { PaymeService } from './payme.service';
 import { ClickService } from './click.service';
 import type { PaymentProviderService } from './payment-provider.interface';
@@ -20,9 +21,11 @@ import { Prisma, type User } from '@prisma/client';
  * mantig'i o'sha fayllarda, bu yerda faqat marshrutlash bor.
  */
 
-function intEnv(name: string, fallback: number): number {
+// A13: narx env'lari ham `bigint` — shunda butun pul yo'li BIR TURDA qoladi
+// va hech qayerda number/bigint aralashmaydi.
+function tiyinEnv(name: string, fallback: bigint): bigint {
   const v = Number(process.env[name]);
-  return Number.isFinite(v) && v > 0 ? Math.floor(v) : fallback;
+  return Number.isFinite(v) && v > 0 ? BigInt(Math.floor(v)) : fallback;
 }
 
 @Injectable()
@@ -38,13 +41,13 @@ export class BillingService {
   }
 
   /** Bitta chat xabari narxi (UZS tiyin). Anthropic ulgurji narxiga ustama bilan. */
-  get pricePerMessageTiyin(): number {
-    return intEnv('BILLING_PRICE_PER_MESSAGE_TIYIN', 50_000); // ~500 so'm
+  get pricePerMessageTiyin(): bigint {
+    return tiyinEnv('BILLING_PRICE_PER_MESSAGE_TIYIN', 50_000n); // ~500 so'm
   }
 
   /** Pro tarif 30 kunlik narxi (UZS tiyin). */
-  get proMonthTiyin(): number {
-    return intEnv('BILLING_PRO_MONTH_TIYIN', 2_500_000); // ~25 000 so'm
+  get proMonthTiyin(): bigint {
+    return tiyinEnv('BILLING_PRO_MONTH_TIYIN', 2_500_000n); // ~25 000 so'm
   }
 
   /**
@@ -62,9 +65,9 @@ export class BillingService {
     if (updated.count === 0) {
       throw new HttpException(
         {
-          message: `Balansingiz yetarli emas. Pro tarif narxi: ${Math.round(price / 100)} so'm/oy. Hisobingizni to'ldiring.`,
+          message: `Balansingiz yetarli emas. Pro tarif narxi: ${tiyinToSom(price)} so'm/oy. Hisobingizni to'ldiring.`,
           reason: 'insufficient_balance',
-          proMonthSom: Math.round(price / 100),
+          proMonthSom: tiyinToSom(price),
         },
         HttpStatus.PAYMENT_REQUIRED,
       );
@@ -91,7 +94,7 @@ export class BillingService {
     return {
       plan: 'pro',
       proUntil: fresh.proUntil,
-      balanceSom: Math.round(fresh.balanceTiyin / 100),
+      balanceSom: tiyinToSom(fresh.balanceTiyin),
     };
   }
 
@@ -103,9 +106,9 @@ export class BillingService {
     });
     return {
       balanceTiyin: user.balanceTiyin,
-      balanceSom: Math.round(user.balanceTiyin / 100),
-      pricePerMessageSom: Math.round(this.pricePerMessageTiyin / 100),
-      messagesRemaining: Math.floor(user.balanceTiyin / this.pricePerMessageTiyin),
+      balanceSom: tiyinToSom(user.balanceTiyin),
+      pricePerMessageSom: tiyinToSom(this.pricePerMessageTiyin),
+      messagesRemaining: divideTiyin(user.balanceTiyin, this.pricePerMessageTiyin),
       ledger,
     };
   }
@@ -126,9 +129,9 @@ export class BillingService {
     if (updated.count === 0) {
       throw new HttpException(
         {
-          message: `Balansingiz yetarli emas. Xabar narxi: ${Math.round(amount / 100)} so'm. Hisobingizni to'ldiring.`,
+          message: `Balansingiz yetarli emas. Xabar narxi: ${tiyinToSom(amount)} so'm. Hisobingizni to'ldiring.`,
           reason: 'insufficient_balance',
-          pricePerMessageSom: Math.round(amount / 100),
+          pricePerMessageSom: tiyinToSom(amount),
         },
         HttpStatus.PAYMENT_REQUIRED,
       );

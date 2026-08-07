@@ -43,9 +43,9 @@ function makeSource(overrides: Record<string, any> = {}) {
     name: 'Buxgalter agenti',
     userId: 'creator1',
     isPublished: true,
-    marketplacePrice: 1_000_000, // 10 000 so'm (tiyin)
-    creationPriceTiyin: 1_000_000,
-    monthlyPriceTiyin: 300_000,
+    marketplacePrice: 1_000_000n, // 10 000 so'm (tiyin)
+    creationPriceTiyin: 1_000_000n,
+    monthlyPriceTiyin: 300_000n,
     systemPrompt: 'p', model: 'claude-sonnet-5',
     halalFilterEnabled: true, memoryEnabled: true, toolsConfig: [], vertical: null, description: null,
     ...overrides,
@@ -59,9 +59,9 @@ describe('MarketplaceService.install — yaratuvchi bonusi (Payout)', () => {
     const { prisma, audit } = makeMock();
     prisma.agent.findUnique.mockResolvedValue(makeSource());
     prisma.user.updateMany.mockResolvedValue({ count: 1 });
-    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 5_000_000 });
+    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 5_000_000n });
     prisma.agent.create.mockResolvedValue({ id: 'installed1' });
-    prisma.user.update.mockResolvedValue({ balanceTiyin: 500_000 });
+    prisma.user.update.mockResolvedValue({ balanceTiyin: 500_000n });
     const svc = new MarketplaceService(prisma, audit);
 
     await svc.install('source1', buyer);
@@ -69,25 +69,25 @@ describe('MarketplaceService.install — yaratuvchi bonusi (Payout)', () => {
     // Buyer balansi ATOMIK yechildi
     expect(prisma.user.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'buyer1', balanceTiyin: { gte: 1_000_000 } },
-        data: { balanceTiyin: { decrement: 1_000_000 } },
+        where: { id: 'buyer1', balanceTiyin: { gte: 1_000_000n } },
+        data: { balanceTiyin: { decrement: 1_000_000n } },
       }),
     );
     // 70% revenue-share (mavjud mexanizm, o'zgarmagan)
     expect(prisma.creatorLedger.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ kind: 'install_revenue', amount: 700_000 }) }),
+      expect.objectContaining({ data: expect.objectContaining({ kind: 'install_revenue', amount: 700_000n }) }),
     );
     // 50% bonus — HAQIQIY balansga
     expect(prisma.payout.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ agentId: 'source1', originalCreatorId: 'creator1', buyerId: 'buyer1', bonusAmountTiyin: 500_000 }),
+        data: expect.objectContaining({ agentId: 'source1', originalCreatorId: 'creator1', buyerId: 'buyer1', bonusAmountTiyin: 500_000n }),
       }),
     );
     expect(prisma.user.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'creator1' }, data: { balanceTiyin: { increment: 500_000 } } }),
+      expect.objectContaining({ where: { id: 'creator1' }, data: { balanceTiyin: { increment: 500_000n } } }),
     );
     expect(prisma.creditLedger.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ kind: 'creator_bonus', amount: 500_000 }) }),
+      expect.objectContaining({ data: expect.objectContaining({ kind: 'creator_bonus', amount: 500_000n }) }),
     );
   });
 
@@ -128,7 +128,7 @@ describe('MarketplaceService.install — yaratuvchi bonusi (Payout)', () => {
     const { prisma, audit } = makeMock();
     prisma.agent.findUnique.mockResolvedValue(makeSource());
     prisma.user.updateMany.mockResolvedValue({ count: 1 });
-    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 5_000_000 });
+    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 5_000_000n });
     prisma.agent.create.mockResolvedValue({ id: 'installed2' });
     // Bonus ALLAQACHON shu buyer+agent uchun mavjud
     prisma.payout.findUnique.mockResolvedValue({ id: 'payout-existing' });
@@ -149,9 +149,9 @@ describe('MarketplaceService + AgentBillingService — 2-oy/3-oy to\'lovda bonus
     const { prisma, audit } = makeMock();
     prisma.agent.findUnique.mockResolvedValue(makeSource());
     prisma.user.updateMany.mockResolvedValue({ count: 1 });
-    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 5_000_000 });
+    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 5_000_000n });
     prisma.agent.create.mockResolvedValue({ id: 'installed3' });
-    prisma.user.update.mockResolvedValue({ balanceTiyin: 500_000 });
+    prisma.user.update.mockResolvedValue({ balanceTiyin: 500_000n });
     const marketplace = new MarketplaceService(prisma, audit);
 
     await marketplace.install('source1', buyer);
@@ -166,7 +166,7 @@ describe('MarketplaceService + AgentBillingService — 2-oy/3-oy to\'lovda bonus
     const billing = new AgentBillingService(prisma, audit, connectors);
     const installedAgent = {
       id: 'installed3', userId: 'buyer1', name: 'Buxgalter agenti (o\'rnatildi)',
-      monthlyPriceTiyin: 300_000, chargeRetries: 0,
+      monthlyPriceTiyin: 300_000n, chargeRetries: 0n,
       nextChargeAt: new Date('2026-08-01T00:00:00Z'),
       user: { id: 'buyer1', telegramChatId: null },
     };
@@ -189,7 +189,7 @@ describe('MarketplaceService.publish — "shablonga aylantirish" (Y6)', () => {
     const { prisma, audit } = makeMock();
     const owner = { id: 'owner1' } as unknown as User;
     prisma.agent.findUnique.mockResolvedValue({
-      id: 'agent1', userId: 'owner1', creationPriceTiyin: 1_890_000, monthlyPriceTiyin: 300_000,
+      id: 'agent1', userId: 'owner1', creationPriceTiyin: 1_890_000n, monthlyPriceTiyin: 300_000n,
     });
     prisma.agent.update.mockResolvedValue({ id: 'agent1' });
     const svc = new MarketplaceService(prisma, audit);
@@ -200,8 +200,8 @@ describe('MarketplaceService.publish — "shablonga aylantirish" (Y6)', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           isPublished: true,
-          creationPriceTiyin: 1_890_000,
-          monthlyPriceTiyin: 300_000,
+          creationPriceTiyin: 1_890_000n,
+          monthlyPriceTiyin: 300_000n,
           originalCreatorId: 'owner1',
         }),
       }),
@@ -212,7 +212,7 @@ describe('MarketplaceService.publish — "shablonga aylantirish" (Y6)', () => {
     const { prisma, audit } = makeMock();
     const owner = { id: 'owner1' } as unknown as User;
     prisma.agent.findUnique.mockResolvedValue({
-      id: 'agent1', userId: 'owner1', creationPriceTiyin: 1_890_000, monthlyPriceTiyin: 300_000,
+      id: 'agent1', userId: 'owner1', creationPriceTiyin: 1_890_000n, monthlyPriceTiyin: 300_000n,
     });
     prisma.agent.update.mockResolvedValue({ id: 'agent1' });
     const svc = new MarketplaceService(prisma, audit);
@@ -221,7 +221,7 @@ describe('MarketplaceService.publish — "shablonga aylantirish" (Y6)', () => {
 
     expect(prisma.agent.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ creationPriceTiyin: 500_000, monthlyPriceTiyin: 100_000 }),
+        data: expect.objectContaining({ creationPriceTiyin: 500_000n, monthlyPriceTiyin: 100_000n }),
       }),
     );
   });

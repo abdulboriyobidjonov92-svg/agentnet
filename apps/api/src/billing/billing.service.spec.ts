@@ -22,7 +22,7 @@ function makeProviderMock(providerId: 'payme' | 'click') {
   return { providerId, isConfigured: jest.fn(() => true), createTopupReceipt: jest.fn(async () => ({ provider: providerId, payUrl: `https://${providerId}.example/pay`, amountSom: 5000 })) };
 }
 
-const user = { id: 'u1', balanceTiyin: 100_000, proUntil: null } as unknown as User;
+const user = { id: 'u1', balanceTiyin: 100_000n, proUntil: null } as unknown as User;
 
 describe('BillingService.chargeForMessage (atomik — balansdan ortiq sarflab bo\'lmaydi)', () => {
   beforeEach(() => {
@@ -32,7 +32,7 @@ describe('BillingService.chargeForMessage (atomik — balansdan ortiq sarflab bo
   it('balans yetarli -> yechiladi va usage-ledger yoziladi', async () => {
     const prisma = makeMock();
     prisma.user.updateMany.mockResolvedValue({ count: 1 }); // atomik yechim muvaffaqiyatli
-    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 50_000 });
+    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 50_000n });
     const svc = new BillingService(prisma as any, makeProviderMock('payme') as any, makeProviderMock('click') as any);
 
     await svc.chargeForMessage(user);
@@ -40,12 +40,12 @@ describe('BillingService.chargeForMessage (atomik — balansdan ortiq sarflab bo
     // Atomik shart: WHERE balanceTiyin >= amount
     expect(prisma.user.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'u1', balanceTiyin: { gte: 50_000 } },
-        data: { balanceTiyin: { decrement: 50_000 } },
+        where: { id: 'u1', balanceTiyin: { gte: 50_000n } },
+        data: { balanceTiyin: { decrement: 50_000n } },
       }),
     );
     expect(prisma.creditLedger.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ kind: 'usage', amount: -50_000 }) }),
+      expect.objectContaining({ data: expect.objectContaining({ kind: 'usage', amount: -50_000n }) }),
     );
   });
 
@@ -75,7 +75,7 @@ describe('BillingService.upgradePro (atomik prepaid yechim)', () => {
     const prisma = makeMock();
     prisma.user.updateMany.mockResolvedValue({ count: 1 });
     prisma.user.update.mockResolvedValue({
-      balanceTiyin: 0,
+      balanceTiyin: 0n,
       proUntil: new Date(Date.now() + 30 * 864e5),
     });
     const svc = new BillingService(prisma as any, makeProviderMock('payme') as any, makeProviderMock('click') as any);
@@ -141,7 +141,7 @@ describe('BillingService.refund (L12 — idempotent)', () => {
   it('yangi kalit bilan -> balans oshadi va refund yozuvi idempotencyKey bilan yoziladi', async () => {
     const prisma = makeMock();
     prisma.creditLedger.findUnique.mockResolvedValue(null);
-    prisma.user.update.mockResolvedValue({ balanceTiyin: 150_000 });
+    prisma.user.update.mockResolvedValue({ balanceTiyin: 150_000n });
     const svc = new BillingService(prisma as any, {} as any, {} as any);
 
     await svc.refund(user, 'engine_error', 'req-key-2');

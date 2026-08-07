@@ -3,6 +3,7 @@ import { SkipThrottle } from '@nestjs/throttler';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { IsIn, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
 import { InternalTokenGuard } from '../auth/internal-token.guard';
+import { tiyinToSom } from '../common/money';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Public } from '../auth/public.decorator';
 import { BillingService } from './billing.service';
@@ -54,8 +55,8 @@ export class BillingController {
   @ApiBearerAuth()
   plans() {
     return {
-      pricePerMessageSom: Math.round(this.billing.pricePerMessageTiyin / 100),
-      proMonthSom: Math.round(this.billing.proMonthTiyin / 100),
+      pricePerMessageSom: tiyinToSom(this.billing.pricePerMessageTiyin),
+      proMonthSom: tiyinToSom(this.billing.proMonthTiyin),
       limits: this.usage.limitsCatalog(),
     };
   }

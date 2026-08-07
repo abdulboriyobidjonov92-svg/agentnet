@@ -4,7 +4,7 @@ const DAY = 86_400_000;
 
 function makeService(opts: {
   users?: any[];
-  stats?: { conversations?: number; newAgents?: number; activeAgents?: number; spentTiyin?: number };
+  stats?: { conversations?: number; newAgents?: number; activeAgents?: number; spentTiyin?: bigint };
 }) {
   const sent: { chatId: string; text: string }[] = [];
   const updated: string[] = [];
@@ -71,7 +71,7 @@ describe('BriefingService', () => {
   it('sendWeeklyBriefings — faol foydalanuvchiga yuboradi va lastBriefingAt yangilanadi', async () => {
     const { svc, sent, updated } = makeService({
       users: [baseUser],
-      stats: { conversations: 4, newAgents: 1, activeAgents: 2, spentTiyin: 500_000 },
+      stats: { conversations: 4, newAgents: 1, activeAgents: 2, spentTiyin: 500_000n },
     });
     await svc.sendWeeklyBriefings();
     expect(sent).toHaveLength(1);
@@ -83,7 +83,7 @@ describe('BriefingService', () => {
   it('sendWeeklyBriefings — bo‘sh haftada shovqin YO‘Q (yubormaydi)', async () => {
     const { svc, sent, updated } = makeService({
       users: [baseUser],
-      stats: { conversations: 0, newAgents: 0, activeAgents: 3, spentTiyin: 0 },
+      stats: { conversations: 0, newAgents: 0, activeAgents: 3, spentTiyin: 0n },
     });
     await svc.sendWeeklyBriefings();
     expect(sent).toHaveLength(0);
@@ -97,7 +97,7 @@ describe('BriefingService', () => {
     ];
     const { svc, connectors, prisma } = makeService({
       users,
-      stats: { conversations: 2, newAgents: 0, activeAgents: 1, spentTiyin: 0 },
+      stats: { conversations: 2, newAgents: 0, activeAgents: 1, spentTiyin: 0n },
     });
     // Har foydalanuvchi uchun stats chaqiriladi — mockImplementationOnce faqat birinchisiga
     // yetadi, ikkinchisiga default 0/0 bo'lib qolmasligi uchun countlarni qayta sozlaymiz

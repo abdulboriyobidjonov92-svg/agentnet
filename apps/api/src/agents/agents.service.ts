@@ -13,6 +13,7 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import type { Readable } from 'node:stream';
 import { paginate, type PageQuery } from '../common/pagination/paginate';
+import { somToTiyin, tiyinToSom } from '../common/money';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../auth/auth.service';
 import { UsageService } from '../usage/usage.service';
@@ -21,7 +22,7 @@ import { UpdateAgentDto } from './dto/update-agent.dto';
 import { priceForAgent, usdUzsRate } from './agent-pricing';
 import { AgentBillingService } from './agent-billing.service';
 import { BillingService } from '../billing/billing.service';
-import { Prisma, type User } from '@prisma/client';
+import { Prisma, type AgentFrozenReason, type User } from '@prisma/client';
 
 // Agent-yaratish advisory-lock nommaydoni (foydalanuvchi bo'yicha kalit bilan
 // birga ishlatiladi — bir foydalanuvchining parallel yaratishlari seriyalashadi).
@@ -106,8 +107,11 @@ export class AgentsService {
           const p = priceForAgent(dto.complexity ?? 1, (dto.toolsConfig ?? []).length, fxRate);
           return { creationSom: p.creationSom, monthlySom: p.monthlySom };
         })();
-    const creationPriceTiyin = price.creationSom * 100;
-    const monthlyPriceTiyin = price.monthlySom * 100;
+    // A13: pul yo'li BOSHIDAN `bigint` — Prisma BigInt ustunga `number` ni ham
+    // qabul qiladi, ya'ni bu yerda number qoldirilsa aralashuv KOMPILYATSIYADA
+    // ko'rinmasdan o'tib ketardi.
+    const creationPriceTiyin = somToTiyin(price.creationSom);
+    const monthlyPriceTiyin = somToTiyin(price.monthlySom);
 
     let agent;
     try {
@@ -119,7 +123,7 @@ export class AgentsService {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(${AGENT_CREATE_LOCK_NS}::int, hashtext(${user.id}))`;
         await this.usage.assertCanCreateAgent(user, tx);
 
-        if (creationPriceTiyin > 0) {
+        if (creationPriceTiyin > 0n) {
           const updated = await tx.user.updateMany({
             where: { id: user.id, balanceTiyin: { gte: creationPriceTiyin } },
             data: { balanceTiyin: { decrement: creationPriceTiyin } },
@@ -149,10 +153,10 @@ export class AgentsService {
             userId: user.id,
             creationPriceTiyin,
             monthlyPriceTiyin,
-            isTrialAgent: isFirstAgent && monthlyPriceTiyin > 0,
-            trialStartedAt: isFirstAgent && monthlyPriceTiyin > 0 ? now : null,
+            isTrialAgent: isFirstAgent && monthlyPriceTiyin > 0n,
+            trialStartedAt: isFirstAgent && monthlyPriceTiyin > 0n ? now : null,
             nextChargeAt:
-              monthlyPriceTiyin > 0
+              monthlyPriceTiyin > 0n
                 ? isFirstAgent
                   ? addDays(now, trialDays())
                   : addMonths(now, 1)
@@ -160,7 +164,7 @@ export class AgentsService {
           },
         });
 
-        if (creationPriceTiyin > 0 || dto.idempotencyKey) {
+        if (creationPriceTiyin > 0n || dto.idempotencyKey) {
           const fresh = await tx.user.findUniqueOrThrow({ where: { id: user.id }, select: { balanceTiyin: true } });
           await tx.creditLedger.create({
             data: {
@@ -200,7 +204,7 @@ export class AgentsService {
       action: 'agent.create',
       resourceType: 'agent',
       resourceId: agent.id,
-      metadata: { creationPriceTiyin, monthlyPriceTiyin },
+      metadata: { creationPriceTiyin: creationPriceTiyin.toString(), monthlyPriceTiyin: monthlyPriceTiyin.toString() },
     });
     return agent;
   }
@@ -344,10 +348,10 @@ export class AgentsService {
    * frozen=false bo'ladi, aks holda aniq 402 xato (hali ham yetarli emas).
    */
   /** Muzlatilgan agent uchun sabab-mos aniq xabar (sinov tugashi vs oylik to'lov muvaffaqiyatsizligi). */
-  private frozenErrorPayload(agent: { name: string; monthlyPriceTiyin: number; frozenReason: string | null }) {
+  private frozenErrorPayload(agent: { name: string; monthlyPriceTiyin: bigint; frozenReason: AgentFrozenReason | null }) {
     if (agent.frozenReason === 'trial_expired') {
       return {
-        message: `"${agent.name}" agentining sinov muddati tugadi (${trialDays()} kun yoki ${trialMessageLimit()} xabar). Davom etish uchun oylik to'lovni amalga oshiring (${Math.round(agent.monthlyPriceTiyin / 100).toLocaleString('ru-RU')} so'm/oy).`,
+        message: `"${agent.name}" agentining sinov muddati tugadi (${trialDays()} kun yoki ${trialMessageLimit()} xabar). Davom etish uchun oylik to'lovni amalga oshiring (${tiyinToSom(agent.monthlyPriceTiyin).toLocaleString('ru-RU')} so'm/oy).`,
         reason: 'trial_expired',
       };
     }
@@ -366,7 +370,7 @@ export class AgentsService {
     if (fresh.frozen) {
       throw new HttpException(
         {
-          message: `Balansingiz hali ham yetarli emas. Oylik narx: ${Math.round(fresh.monthlyPriceTiyin / 100).toLocaleString('ru-RU')} so'm. Hisobingizni to'ldiring.`,
+          message: `Balansingiz hali ham yetarli emas. Oylik narx: ${tiyinToSom(fresh.monthlyPriceTiyin).toLocaleString('ru-RU')} so'm. Hisobingizni to'ldiring.`,
           reason: 'insufficient_balance',
         },
         HttpStatus.PAYMENT_REQUIRED,

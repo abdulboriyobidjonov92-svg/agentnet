@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { tiyinToSom } from '../common/money';
 import type { User } from '@prisma/client';
 
 function intEnv(name: string, fallback: number): number {
@@ -25,8 +26,9 @@ export class ReferralService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Ikkala tomonga ham beriladigan bonus (tiyin). Default ~5 000 so'm (~10 xabar). */
-  get bonusTiyin(): number {
-    return intEnv('REFERRAL_BONUS_TIYIN', 500_000);
+  get bonusTiyin(): bigint {
+    // A13: bonus ham `bigint` — u to'g'ridan-to'g'ri balansga qo'shiladi.
+    return BigInt(intEnv('REFERRAL_BONUS_TIYIN', 500_000));
   }
 
   /**
@@ -82,8 +84,8 @@ export class ReferralService {
     return {
       code,
       invitedCount,
-      bonusSom: Math.round(this.bonusTiyin / 100),
-      earnedSom: Math.round((earned._sum.amount ?? 0) / 100),
+      bonusSom: tiyinToSom(this.bonusTiyin),
+      earnedSom: tiyinToSom(earned._sum.amount ?? 0n),
     };
   }
 

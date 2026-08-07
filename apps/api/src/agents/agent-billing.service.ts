@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
+import { tiyinToSom } from '../common/money';
 import { AuditLogService } from '../auth/auth.service';
 import { ConnectorsService } from '../connectors/connectors.service';
 import { addMonths } from './agents.service';
@@ -43,7 +44,7 @@ export class AgentBillingService {
     // bog'liq emas, tizimning o'zi BARCHA foydalanuvchilarning to'lov
     // muddati kelgan agentlarini tekshiradi (bu — uning butun vazifasi).
     const due = await this.prisma.agent.findMany({
-      where: { monthlyPriceTiyin: { gt: 0 }, frozen: false, nextChargeAt: { lte: new Date() } },
+      where: { monthlyPriceTiyin: { gt: 0n }, frozen: false, nextChargeAt: { lte: new Date() } },
       include: { user: true },
     });
     this.logger.log(`Cron: ${due.length} agent oylik to'lov uchun tekshirilmoqda`);
@@ -114,7 +115,9 @@ export class AgentBillingService {
         action: 'agent.monthly_charge',
         resourceType: 'agent',
         resourceId: agent.id,
-        metadata: { amountTiyin: amount, cycle: cycleKey },
+        // A13: `metadata` — Json ustun; BigInt JSON'da xom holda yashamaydi
+        // va audit hash'i uni kanoniklashtira olmaydi. Aniq satrga o'giramiz.
+        metadata: { amountTiyin: amount.toString(), cycle: cycleKey },
       });
       return;
     }
@@ -122,7 +125,7 @@ export class AgentBillingService {
 
     // Balans yetarli emas — qayta urinish siyosati (muzlatish oxirgi chora)
     const retries = agent.chargeRetries + 1;
-    const priceSom = Math.round(amount / 100);
+    const priceSom = tiyinToSom(amount);
     if (retries >= MAX_RETRIES) {
       await this.prisma.agent.update({
         where: { id: agent.id },
@@ -137,7 +140,7 @@ export class AgentBillingService {
         action: 'agent.frozen',
         resourceType: 'agent',
         resourceId: agent.id,
-        metadata: { retries, amountTiyin: amount },
+        metadata: { retries, amountTiyin: amount.toString() },
       });
     } else {
       await this.prisma.agent.update({
@@ -153,7 +156,7 @@ export class AgentBillingService {
         action: 'agent.charge_retry',
         resourceType: 'agent',
         resourceId: agent.id,
-        metadata: { retries, amountTiyin: amount },
+        metadata: { retries, amountTiyin: amount.toString() },
       });
     }
   }
@@ -215,14 +218,14 @@ export class AgentBillingService {
     if (action === 'frozen') {
       await this.notifyUser(
         user,
-        `⏳ "${agent.name}" agentining SINOV muddati tugadi. Davom etish uchun oylik to'lovni (${Math.round(amount / 100).toLocaleString('ru-RU')} so'm) amalga oshiring va agentni qayta faollashtiring.`,
+        `⏳ "${agent.name}" agentining SINOV muddati tugadi. Davom etish uchun oylik to'lovni (${tiyinToSom(amount).toLocaleString('ru-RU')} so'm) amalga oshiring va agentni qayta faollashtiring.`,
       );
       await this.audit.record({
         actorId: user.id,
         action: 'agent.trial_expired',
         resourceType: 'agent',
         resourceId: agent.id,
-        metadata: { amountTiyin: amount },
+        metadata: { amountTiyin: amount.toString() },
       });
     } else if (action === 'converted') {
       await this.audit.record({
@@ -230,7 +233,7 @@ export class AgentBillingService {
         action: 'agent.trial_converted',
         resourceType: 'agent',
         resourceId: agent.id,
-        metadata: { amountTiyin: amount },
+        metadata: { amountTiyin: amount.toString() },
       });
     }
     return result;

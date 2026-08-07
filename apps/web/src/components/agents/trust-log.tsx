@@ -5,6 +5,7 @@ import { useApiClient } from "@/lib/api-client";
 import { useT } from "@/lib/i18n/client";
 import { ShieldCheck, ChevronDown, ChevronUp } from "lucide-react";
 import { ErrorState } from "@/components/ui/error-state";
+import { isPositiveTiyin, tiyinToSom, type TiyinValue } from "@/lib/money";
 
 interface TrustLogEntry {
   action: string;
@@ -14,28 +15,30 @@ interface TrustLogEntry {
 
 function describeEntry(entry: TrustLogEntry, t: (k: string) => string, som: (n: number) => string): string {
   const m = entry.metadata ?? {};
-  const tiyinToSom = (v: unknown) => som(Math.round((Number(v) || 0) / 100));
+  // A13: audit metadata'da pul SATR sifatida saqlanadi (Json BigInt ni
+  // qabul qilmaydi) — umumiy helper ikkala shaklni ham to'g'ri o'qiydi.
+  const price = (v: unknown) => som(tiyinToSom(v as TiyinValue));
 
   switch (entry.action) {
     case "agent.create": {
-      let text = t("trust.created").replace("{price}", tiyinToSom(m.creationPriceTiyin));
-      if (Number(m.monthlyPriceTiyin) > 0) {
-        text += t("trust.createdMonthly").replace("{price}", tiyinToSom(m.monthlyPriceTiyin));
+      let text = t("trust.created").replace("{price}", price(m.creationPriceTiyin));
+      if (isPositiveTiyin(m.monthlyPriceTiyin)) {
+        text += t("trust.createdMonthly").replace("{price}", price(m.monthlyPriceTiyin));
       }
       return text;
     }
     case "agent.delete":
       return t("trust.deleted");
     case "agent.monthly_charge":
-      return t("trust.monthlyCharge").replace("{price}", tiyinToSom(m.amountTiyin));
+      return t("trust.monthlyCharge").replace("{price}", price(m.amountTiyin));
     case "agent.frozen":
-      return t("trust.frozen").replace("{retries}", String(m.retries ?? 0)).replace("{price}", tiyinToSom(m.amountTiyin));
+      return t("trust.frozen").replace("{retries}", String(m.retries ?? 0)).replace("{price}", price(m.amountTiyin));
     case "agent.charge_retry":
       return t("trust.chargeRetry").replace("{retries}", String(m.retries ?? 0));
     case "marketplace.publish":
       return t("trust.published");
     case "marketplace.install":
-      return t("trust.installedByOther").replace("{price}", tiyinToSom(m.pricePaid));
+      return t("trust.installedByOther").replace("{price}", price(m.pricePaid));
     case "agent.install_recommended":
       return t("trust.installRecommended").replace("{domain}", String(m.domain ?? ""));
     default:

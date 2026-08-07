@@ -24,7 +24,7 @@ function makeAgent(overrides: Record<string, any> = {}) {
     id: 'agent1',
     userId: 'u1',
     name: 'Bookkeeper',
-    monthlyPriceTiyin: 300_000,
+    monthlyPriceTiyin: 300_000n,
     chargeRetries: 0,
     nextChargeAt: new Date('2026-07-01T00:00:00Z'),
     user: { id: 'u1', telegramChatId: 'chat1' },
@@ -36,19 +36,19 @@ describe('AgentBillingService.chargeOne', () => {
   it('balans yetarli -> BIR marta yechiladi, nextChargeAt 1 oyga suriladi, chargeRetries=0', async () => {
     const { prisma, audit, connectors } = makeMock();
     prisma.user.updateMany.mockResolvedValue({ count: 1 });
-    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 700_000 });
+    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 700_000n });
     const svc = new AgentBillingService(prisma, audit, connectors);
 
     await svc.chargeOne(makeAgent() as any);
 
     expect(prisma.user.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'u1', balanceTiyin: { gte: 300_000 } },
-        data: { balanceTiyin: { decrement: 300_000 } },
+        where: { id: 'u1', balanceTiyin: { gte: 300_000n } },
+        data: { balanceTiyin: { decrement: 300_000n } },
       }),
     );
     expect(prisma.creditLedger.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ kind: 'agent_monthly', amount: -300_000 }) }),
+      expect.objectContaining({ data: expect.objectContaining({ kind: 'agent_monthly', amount: -300_000n }) }),
     );
     expect(prisma.agent.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ chargeRetries: 0, frozen: false }) }),
@@ -114,7 +114,7 @@ describe('AgentBillingService.resolveTrialEnd', () => {
       id: 'agent1',
       userId: 'u1',
       name: 'Birinchi agent',
-      monthlyPriceTiyin: 300_000,
+      monthlyPriceTiyin: 300_000n,
       isTrialAgent: true,
       frozen: false,
       trialMessageCount: 20,
@@ -127,7 +127,7 @@ describe('AgentBillingService.resolveTrialEnd', () => {
     const { prisma, audit, connectors } = makeMock();
     prisma.agent.findUniqueOrThrow.mockResolvedValue(makeTrialAgent());
     prisma.user.updateMany.mockResolvedValue({ count: 1 });
-    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 700_000 });
+    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 700_000n });
     prisma.agent.update.mockResolvedValue({ ...makeTrialAgent(), isTrialAgent: false, frozen: false, frozenReason: null });
     const svc = new AgentBillingService(prisma, audit, connectors);
 
@@ -135,12 +135,12 @@ describe('AgentBillingService.resolveTrialEnd', () => {
 
     expect(prisma.user.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'u1', balanceTiyin: { gte: 300_000 } },
-        data: { balanceTiyin: { decrement: 300_000 } },
+        where: { id: 'u1', balanceTiyin: { gte: 300_000n } },
+        data: { balanceTiyin: { decrement: 300_000n } },
       }),
     );
     expect(prisma.creditLedger.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ kind: 'agent_monthly', amount: -300_000 }) }),
+      expect.objectContaining({ data: expect.objectContaining({ kind: 'agent_monthly', amount: -300_000n }) }),
     );
     expect(prisma.agent.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ isTrialAgent: false, frozen: false, frozenReason: null }) }),
@@ -191,11 +191,11 @@ describe('AgentBillingService.resolveTrialEnd', () => {
 describe('AgentBillingService.chargeDueAgents — sinov vs oddiy yo\'naltirish', () => {
   it('isTrialAgent=true qator -> resolveTrialEnd chaqiriladi, chargeOne CHAQIRILMAYDI', async () => {
     const { prisma, audit, connectors } = makeMock();
-    const trialDue = { id: 'agent-trial', userId: 'u1', isTrialAgent: true, frozen: false, monthlyPriceTiyin: 300_000, user: { id: 'u1' } };
+    const trialDue = { id: 'agent-trial', userId: 'u1', isTrialAgent: true, frozen: false, monthlyPriceTiyin: 300_000n, user: { id: 'u1' } };
     prisma.agent.findMany.mockResolvedValue([trialDue]);
     prisma.agent.findUniqueOrThrow.mockResolvedValue(trialDue);
     prisma.user.updateMany.mockResolvedValue({ count: 1 });
-    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 500_000 });
+    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 500_000n });
     prisma.agent.update.mockResolvedValue({ ...trialDue, isTrialAgent: false });
     const svc = new AgentBillingService(prisma, audit, connectors);
     const resolveSpy = jest.spyOn(svc, 'resolveTrialEnd');
@@ -209,10 +209,10 @@ describe('AgentBillingService.chargeDueAgents — sinov vs oddiy yo\'naltirish',
 
   it('isTrialAgent=false (oddiy) qator -> chargeOne chaqiriladi, resolveTrialEnd CHAQIRILMAYDI', async () => {
     const { prisma, audit, connectors } = makeMock();
-    const normalDue = { id: 'agent-normal', userId: 'u1', isTrialAgent: false, frozen: false, chargeRetries: 0, monthlyPriceTiyin: 300_000, nextChargeAt: new Date(), user: { id: 'u1', telegramChatId: null } };
+    const normalDue = { id: 'agent-normal', userId: 'u1', isTrialAgent: false, frozen: false, chargeRetries: 0n, monthlyPriceTiyin: 300_000n, nextChargeAt: new Date(), user: { id: 'u1', telegramChatId: null } };
     prisma.agent.findMany.mockResolvedValue([normalDue]);
     prisma.user.updateMany.mockResolvedValue({ count: 1 });
-    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 500_000 });
+    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 500_000n });
     const svc = new AgentBillingService(prisma, audit, connectors);
     const resolveSpy = jest.spyOn(svc, 'resolveTrialEnd');
     const chargeSpy = jest.spyOn(svc, 'chargeOne');

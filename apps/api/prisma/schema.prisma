@@ -167,7 +167,7 @@ model User {
   // Prepaid balans (UZS tiyin) — real Claude chaqiruvlari shundan yechiladi.
   // Balans yetarli bo'lmasa LLM so'rovi hech qachon amalga oshmaydi — shu
   // orqali platforma egasi hech qachon o'z cho'ntagidan to'lamaydi.
-  balanceTiyin           Int                @default(0)
+  balanceTiyin           BigInt             @default(0)
   creditLedger           CreditLedger[]
   paymeTransactions      PaymeTransaction[]
   clickTransactions      ClickTransaction[]
@@ -324,11 +324,11 @@ model Agent {
   org                Org?           @relation(fields: [orgId], references: [id])
   conversations      Conversation[]
   isPublished        Boolean        @default(false)
-  marketplacePrice   Int? // UZS tiyin, null = bepul
+  marketplacePrice   BigInt? // UZS tiyin, null = bepul
 
   // --- Y4: haqiqiy hisob-kitob (kalkulyator emas — bevosita balansdan yechiladi) ---
-  creationPriceTiyin Int                @default(0) // yaratishda BIR MARTA yechilgan narx (UZS tiyin)
-  monthlyPriceTiyin  Int                @default(0) // har oy avtomatik yechiladigan obuna narxi
+  creationPriceTiyin BigInt             @default(0) // yaratishda BIR MARTA yechilgan narx (UZS tiyin)
+  monthlyPriceTiyin  BigInt             @default(0) // har oy avtomatik yechiladigan obuna narxi
   frozen             Boolean            @default(false) // balans yetmagach — o'chirilmaydi, "muzlatiladi"
   frozenReason       AgentFrozenReason? // null = muzlatilmagan
   nextChargeAt       DateTime? // keyingi oylik yechim sanasi (monthlyPriceTiyin>0 bo'lsagina)
@@ -942,7 +942,7 @@ model AgentInstall {
   installedAgentId String   @unique
   userId           String // o'rnatgan foydalanuvchi
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  pricePaid        Int      @default(0) // UZS tiyin
+  pricePaid        BigInt   @default(0) // UZS tiyin
   createdAt        DateTime @default(now())
 
   @@index([sourceAgentId])
@@ -972,7 +972,7 @@ model CreatorLedger {
   creator   User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
   agentId   String?
   kind      String // install_revenue | usage_revenue | payout
-  amount    Int // UZS tiyin; kredit musbat, payout manfiy
+  amount    BigInt // UZS tiyin; kredit musbat, payout manfiy
   currency  String   @default("UZS")
   meta      Json? // { installId, grossAmount, platformShare, note }
   createdAt DateTime @default(now())
@@ -994,7 +994,7 @@ model Payout {
   originalCreator   User     @relation("PayoutCreator", fields: [originalCreatorId], references: [id], onDelete: Cascade)
   buyerId           String
   buyer             User     @relation("PayoutBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
-  bonusAmountTiyin  Int
+  bonusAmountTiyin  BigInt
   paidAt            DateTime @default(now())
   createdAt         DateTime @default(now())
 
@@ -1025,8 +1025,8 @@ model CreditLedger {
   userId         String
   user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   kind           LedgerKind
-  amount         Int // UZS tiyin; kredit musbat, xarajat manfiy
-  balanceAfter   Int // yozuv vaqtidagi yakuniy balans (audit uchun)
+  amount         BigInt // UZS tiyin; kredit musbat, xarajat manfiy
+  balanceAfter   BigInt // yozuv vaqtidagi yakuniy balans (audit uchun)
   meta           Json?
   // Mijoz tomonidan generatsiya qilingan bir martalik kalit — pul bilan
   // ishlaydigan amallar (agent yaratish/oylik yechim) bir xil so'rov ikki
@@ -1051,7 +1051,7 @@ model PaymeTransaction {
   paycomId      String   @unique // Payme tomonidan yuboriladigan tranzaksiya id
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amountTiyin   Int
+  amountTiyin   BigInt
   state         Int      @default(1)
   reason        Int? // bekor qilish sababi (Payme error code)
   createTimeMs  BigInt
@@ -1078,7 +1078,7 @@ model ClickTransaction {
   clickTransId  String   @unique // Click tomonidan yuboriladigan click_trans_id
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amountTiyin   Int
+  amountTiyin   BigInt
   state         Int      @default(0)
   errorCode     Int?
   prepareTimeMs BigInt?

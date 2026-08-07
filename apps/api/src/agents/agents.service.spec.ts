@@ -57,7 +57,7 @@ function makeMock() {
   return { prisma, http, audit, usage, agentBilling, billing };
 }
 
-const user = { id: 'u1', balanceTiyin: 100_000_000 } as unknown as User;
+const user = { id: 'u1', balanceTiyin: 100_000_000n } as unknown as User;
 
 const baseDto = {
   name: 'Test agent',
@@ -77,7 +77,7 @@ describe('AgentsService.create — haqiqiy pul yechish (avval faqat kalkulyator 
     expect(prisma.creditLedger.create).not.toHaveBeenCalled();
     expect(prisma.agent.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ creationPriceTiyin: 0 }),
+        data: expect.objectContaining({ creationPriceTiyin: 0n }),
       }),
     );
   });
@@ -85,13 +85,14 @@ describe('AgentsService.create — haqiqiy pul yechish (avval faqat kalkulyator 
   it('priceOverride bilan (masalan pullik shablon) narx ATOMIK yechiladi, ledger yoziladi', async () => {
     const { prisma, http, audit, usage, agentBilling, billing } = makeMock();
     prisma.user.updateMany.mockResolvedValue({ count: 1 });
-    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 50_000_000 });
+    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 50_000_000n });
     prisma.agent.create.mockResolvedValue({ id: 'agent1', ...baseDto });
     const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing);
 
     const fxRate = usdUzsRate();
     const priceOverride = { creationUsd: 30, monthlyUsd: 15 };
-    const expectedCreationTiyin = Math.round(priceOverride.creationUsd * fxRate) * 100;
+    // A13: servis narxni `bigint` tiyinda hisoblaydi — kutilma ham shunday.
+    const expectedCreationTiyin = BigInt(Math.round(priceOverride.creationUsd * fxRate) * 100);
 
     await svc.create(user, baseDto as any, priceOverride);
 
@@ -153,7 +154,7 @@ describe('AgentsService.create — haqiqiy pul yechish (avval faqat kalkulyator 
   it('parallel so\'rov bir xil kalit bilan g\'olib kelsa (unique constraint) -> g\'olibning agentini qaytaradi', async () => {
     const { prisma, http, audit, usage, agentBilling, billing } = makeMock();
     prisma.user.updateMany.mockResolvedValue({ count: 1 });
-    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 50_000_000 });
+    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 50_000_000n });
     prisma.agent.create.mockResolvedValue({ id: 'agent1', ...baseDto });
     // creditLedger.create ichida unique-constraint xatosi (boshqa parallel so'rov ulgurdi)
     prisma.creditLedger.create.mockRejectedValueOnce(
@@ -406,7 +407,7 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
    * bu testlar faqat run()ning o'sha qarorga to'g'ri munosabatini tekshiradi.
    */
   describe('AgentsService.run — sinov (20-xabar chegarasi)', () => {
-    const trialAgent = { ...agent, isTrialAgent: true, trialStartedAt: new Date(), trialMessageCount: 5, monthlyPriceTiyin: 300_000 };
+    const trialAgent = { ...agent, isTrialAgent: true, trialStartedAt: new Date(), trialMessageCount: 5, monthlyPriceTiyin: 300_000n };
 
     it('limit ostida (5/20) -> trialMessageCount +1, resolveTrialEnd CHAQIRILMAYDI, xabar davom etadi', async () => {
       const { prisma, http, audit, usage, agentBilling, billing } = makeMock();

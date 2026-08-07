@@ -5,7 +5,7 @@ interface Row {
   id: string;
   referralCode: string | null;
   referredById: string | null;
-  balanceTiyin: number;
+  balanceTiyin: bigint;
 }
 
 function makeMockPrisma(users: Row[]) {
@@ -53,7 +53,7 @@ function makeMockPrisma(users: Row[]) {
         _sum: {
           amount: ledger
             .filter((l) => l.userId === where.userId && l.kind === where.kind)
-            .reduce((s, l) => s + l.amount, 0),
+            .reduce((s, l) => s + l.amount, 0n),
         },
       })),
     },
@@ -66,7 +66,7 @@ const asUser = (r: Row) => r as unknown as User;
 
 describe('ReferralService', () => {
   it('getMyReferralInfo — kod lazily yaratiladi va formati to‘g‘ri', async () => {
-    const users: Row[] = [{ id: 'u1', referralCode: null, referredById: null, balanceTiyin: 0 }];
+    const users: Row[] = [{ id: 'u1', referralCode: null, referredById: null, balanceTiyin: 0n }];
     const svc = new ReferralService(makeMockPrisma(users) as any);
     const info = await svc.getMyReferralInfo(asUser(users[0]));
     expect(info.code).toMatch(/^[A-Z2-9]{8}$/);
@@ -76,8 +76,8 @@ describe('ReferralService', () => {
 
   it('applyReferralOnSignup — ikkala tomonga bonus + ledger yoziladi', async () => {
     const users: Row[] = [
-      { id: 'referrer', referralCode: 'ABCD2345', referredById: null, balanceTiyin: 0 },
-      { id: 'newbie', referralCode: null, referredById: null, balanceTiyin: 0 },
+      { id: 'referrer', referralCode: 'ABCD2345', referredById: null, balanceTiyin: 0n },
+      { id: 'newbie', referralCode: null, referredById: null, balanceTiyin: 0n },
     ];
     const prisma = makeMockPrisma(users);
     const svc = new ReferralService(prisma as any);
@@ -91,26 +91,26 @@ describe('ReferralService', () => {
   });
 
   it('applyReferralOnSignup — o‘z-o‘zini taklif rad etiladi', async () => {
-    const users: Row[] = [{ id: 'u1', referralCode: 'ABCD2345', referredById: null, balanceTiyin: 0 }];
+    const users: Row[] = [{ id: 'u1', referralCode: 'ABCD2345', referredById: null, balanceTiyin: 0n }];
     const svc = new ReferralService(makeMockPrisma(users) as any);
     expect(await svc.applyReferralOnSignup('u1', 'ABCD2345')).toBe(false);
-    expect(users[0].balanceTiyin).toBe(0);
+    expect(users[0].balanceTiyin).toBe(0n);
   });
 
   it('applyReferralOnSignup — allaqachon bog‘langan foydalanuvchiga takror bonus YO‘Q', async () => {
     const users: Row[] = [
-      { id: 'referrer', referralCode: 'ABCD2345', referredById: null, balanceTiyin: 0 },
-      { id: 'newbie', referralCode: null, referredById: 'someoneElse', balanceTiyin: 0 },
+      { id: 'referrer', referralCode: 'ABCD2345', referredById: null, balanceTiyin: 0n },
+      { id: 'newbie', referralCode: null, referredById: 'someoneElse', balanceTiyin: 0n },
     ];
     const prisma = makeMockPrisma(users);
     const svc = new ReferralService(prisma as any);
     expect(await svc.applyReferralOnSignup('newbie', 'ABCD2345')).toBe(false);
     expect(prisma._ledger).toHaveLength(0);
-    expect(users[0].balanceTiyin).toBe(0);
+    expect(users[0].balanceTiyin).toBe(0n);
   });
 
   it('applyReferralOnSignup — noma’lum/yaroqsiz kod no-op', async () => {
-    const users: Row[] = [{ id: 'newbie', referralCode: null, referredById: null, balanceTiyin: 0 }];
+    const users: Row[] = [{ id: 'newbie', referralCode: null, referredById: null, balanceTiyin: 0n }];
     const svc = new ReferralService(makeMockPrisma(users) as any);
     expect(await svc.applyReferralOnSignup('newbie', 'YOQKOD99')).toBe(false);
     expect(await svc.applyReferralOnSignup('newbie', '!!bad!!')).toBe(false);

@@ -7,8 +7,14 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { installEngineAuthInterceptor } from './common/engine-auth';
 import { validateEnv } from './common/validate-env';
+import { installBigIntJsonSerializer } from './common/bigint-serialize';
 
 async function bootstrap() {
+  // A13: pul ustunlari BigInt — JSON.stringify(BigInt) sukut bo'yicha
+  // TypeError tashlaydi. Patch HAR NARSADAN OLDIN o'rnatiladi, aks holda
+  // boot paytidagi birinchi xato-log ham yiqilishi mumkin.
+  installBigIntJsonSerializer();
+
   // Konfiguratsiya tekshiruvi — prod'da majburiy env yetishmasa aniq ro'yxat
   // bilan fail-fast (sirli mid-construction crash o'rniga).
   validateEnv();

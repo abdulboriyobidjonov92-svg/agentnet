@@ -199,7 +199,10 @@ export class PaymeService implements PaymentProviderService {
       data: {
         paycomId: params.id,
         userId: user.id,
-        amountTiyin: params.amount,
+        // A13: Payme summani tiyinda (butun son) yuboradi; ichki pul turi
+        // `bigint` bo'lgani uchun chegarada ANIQ o'giramiz (Prisma `number`ni
+        // ham qabul qilardi — ya'ni aralashuv jimgina o'tib ketardi).
+        amountTiyin: BigInt(Math.round(params.amount)),
         state: 1,
         createTimeMs: BigInt(Date.now()),
         purpose: isSubscription ? 'platform_subscription' : 'topup',

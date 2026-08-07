@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../auth/auth.service';
 import { ConnectorsService } from '../connectors/connectors.service';
+import { tiyinToSom } from '../common/money';
 import type { Prisma, User } from '@prisma/client';
 
 /**
@@ -64,19 +65,20 @@ export class PlatformBillingService {
   ) {}
 
   /** 30 kunlik obuna narxi (UZS tiyin). */
-  priceForPlan(plan: SelfServePlatformPlan): number {
-    if (plan === 'max200') return intEnv('PLATFORM_MAX200_PRICE_TIYIN', 252_000_000); // ~2 520 000 so'm (~$200)
-    if (plan === 'max') return intEnv('PLATFORM_MAX_PRICE_TIYIN', 126_000_000); // ~1 260 000 so'm (~$100)
+  priceForPlan(plan: SelfServePlatformPlan): bigint {
+    // A13: pul qiymati — ichkarida doim `bigint`.
+    if (plan === 'max200') return BigInt(intEnv('PLATFORM_MAX200_PRICE_TIYIN', 252_000_000)); // ~2 520 000 so'm (~$200)
+    if (plan === 'max') return BigInt(intEnv('PLATFORM_MAX_PRICE_TIYIN', 126_000_000)); // ~1 260 000 so'm (~$100)
     // Pro — mahalliy bozorga moslangan (avvalgi ~$20 activation'ni bo'g'ardi)
-    return intEnv('PLATFORM_PRO_PRICE_TIYIN', 14_900_000); // ~149 000 so'm (~$12)
+    return BigInt(intEnv('PLATFORM_PRO_PRICE_TIYIN', 14_900_000)); // ~149 000 so'm (~$12)
   }
 
   /** Narxlar sahifasi uchun katalog — env'dagi haqiqiy narxlar. */
   plansCatalog() {
     return {
-      pro: { priceSom: Math.round(this.priceForPlan('pro') / 100) },
-      max: { priceSom: Math.round(this.priceForPlan('max') / 100) },
-      max200: { priceSom: Math.round(this.priceForPlan('max200') / 100) },
+      pro: { priceSom: tiyinToSom(this.priceForPlan('pro')) },
+      max: { priceSom: tiyinToSom(this.priceForPlan('max')) },
+      max200: { priceSom: tiyinToSom(this.priceForPlan('max200')) },
       enterprise: { priceSom: null }, // kelishuv asosida — o'z-o'zidan sotib olinmaydi
     };
   }

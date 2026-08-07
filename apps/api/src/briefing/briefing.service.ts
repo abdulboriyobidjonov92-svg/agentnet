@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
+import { absTiyin, tiyinToSom } from '../common/money';
 import { ConnectorsService } from '../connectors/connectors.service';
 import type { User } from '@prisma/client';
 
@@ -41,7 +42,8 @@ export class BriefingService {
       conversations,
       newAgents,
       activeAgents,
-      spentSom: Math.round(Math.abs(ledger._sum.amount ?? 0) / 100),
+      // A13: `Math.abs` bigint bilan ishlamaydi — kattalikni bigint'da olamiz.
+      spentSom: tiyinToSom(absTiyin(ledger._sum.amount ?? 0n)),
     };
   }
 

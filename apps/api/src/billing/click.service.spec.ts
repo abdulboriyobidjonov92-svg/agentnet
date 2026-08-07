@@ -104,13 +104,13 @@ describe('ClickService.handleWebhook — imzo va Prepare/Complete oqimi', () => 
     expect(res.error).toBe(0);
     expect((res as any).merchant_prepare_id).toBe('ctx1');
     expect(prisma.clickTransaction.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ clickTransId: '111', userId: 'u1', amountTiyin: 500_000 }) }),
+      expect.objectContaining({ data: expect.objectContaining({ clickTransId: '111', userId: 'u1', amountTiyin: 500_000n }) }),
     );
   });
 
   it('Complete: muvaffaqiyatli -> balans BIR marta kreditlanadi', async () => {
     const prisma = makePrismaMock();
-    prisma.clickTransaction.findUnique.mockResolvedValue({ id: 'ctx1', userId: 'u1', amountTiyin: 500_000, state: 0 });
+    prisma.clickTransaction.findUnique.mockResolvedValue({ id: 'ctx1', userId: 'u1', amountTiyin: 500_000n, state: 0 });
     prisma.$transaction.mockImplementation(async (fn: any) => fn(prisma));
     prisma.clickTransaction.update.mockResolvedValue({ id: 'ctx1' });
     prisma.user.update.mockResolvedValue({ balanceTiyin: 500_000 });
@@ -134,14 +134,14 @@ describe('ClickService.handleWebhook — imzo va Prepare/Complete oqimi', () => 
 
     expect(res.error).toBe(0);
     expect(prisma.user.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { balanceTiyin: { increment: 500_000 } } }),
+      expect.objectContaining({ data: { balanceTiyin: { increment: 500_000n } } }),
     );
     expect(prisma.creditLedger.create).toHaveBeenCalledTimes(1);
   });
 
   it('Complete: allaqachon bajarilgan (state=1) -> IKKINCHI marta kreditlanmaydi', async () => {
     const prisma = makePrismaMock();
-    prisma.clickTransaction.findUnique.mockResolvedValue({ id: 'ctx1', userId: 'u1', amountTiyin: 500_000, state: 1 });
+    prisma.clickTransaction.findUnique.mockResolvedValue({ id: 'ctx1', userId: 'u1', amountTiyin: 500_000n, state: 1 });
     const svc = new ClickService(prisma as any, new WalletCreditService(prisma as any), makePlatformBillingMock());
 
     const completeBody: any = {
@@ -222,7 +222,7 @@ describe('ClickService — platforma obunasi to\'lovi (wallet\'ga tegmaydi)', ()
   it('Complete: purpose="platform_subscription" -> activateFromPayment chaqiriladi, wallet.credit CHAQIRILMAYDI', async () => {
     const prisma = makePrismaMock();
     prisma.clickTransaction.findUnique.mockResolvedValue({
-      id: 'ctx1', userId: 'u1', amountTiyin: 25_200_000, state: 0, purpose: 'platform_subscription', subscriptionPlan: 'pro',
+      id: 'ctx1', userId: 'u1', amountTiyin: 25_200_000n, state: 0, purpose: 'platform_subscription', subscriptionPlan: 'pro',
     });
     prisma.$transaction.mockImplementation(async (fn: any) => fn(prisma));
     prisma.clickTransaction.update.mockResolvedValue({ id: 'ctx1' });

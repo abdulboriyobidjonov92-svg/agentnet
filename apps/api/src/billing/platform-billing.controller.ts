@@ -2,6 +2,7 @@ import { Body, Controller, Get, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsIn, IsOptional } from 'class-validator';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { tiyinToSom } from '../common/money';
 import { PlatformBillingService, PLATFORM_PLANS, type SelfServePlatformPlan } from './platform-billing.service';
 import { PaymeService } from './payme.service';
 import { ClickService } from './click.service';
@@ -64,7 +65,7 @@ export class PlatformBillingController {
   @Post('subscribe')
   @ApiBearerAuth()
   subscribe(@CurrentUser() user: User, @Body() dto: SubscribeDto) {
-    const priceSom = Math.round(this.platformBilling.priceForPlan(dto.plan) / 100);
+    const priceSom = tiyinToSom(this.platformBilling.priceForPlan(dto.plan));
     const svc = dto.provider === 'click' ? this.click : this.payme;
     return svc.createSubscriptionReceipt(user, dto.plan, priceSom);
   }

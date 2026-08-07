@@ -19,7 +19,7 @@ export class WalletCreditService {
   /** To'lov tasdiqlanganda balansni oshiradi + CreditLedger yozadi (atomik). */
   async credit(
     userId: string,
-    amountTiyin: number,
+    amountTiyin: bigint,
     meta: Record<string, unknown>,
     client: Prisma.TransactionClient = this.prisma,
   ) {
@@ -36,7 +36,7 @@ export class WalletCreditService {
   /** Bajarilgan to'lov bekor qilinganda (chargeback) — balansdan qaytarib oladi. */
   async debit(
     userId: string,
-    amountTiyin: number,
+    amountTiyin: bigint,
     meta: Record<string, unknown>,
     client: Prisma.TransactionClient = this.prisma,
   ) {

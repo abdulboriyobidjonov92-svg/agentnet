@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { tiyinToSom } from '../common/money';
 import { AuditLogService } from '../auth/auth.service';
 import { addDays, addMonths, trialDays } from '../agents/agents.service';
 import type { User } from '@prisma/client';
@@ -20,8 +21,14 @@ import type { User } from '@prisma/client';
 // Sifat chegarasi — verified belgisi shartlari
 const VERIFIED_MIN_USAGE = 10;
 const VERIFIED_MIN_SUCCESS_RATE = 0.9;
-const CREATOR_SHARE = 0.7; // 70% kreator, 30% platforma
-const CREATOR_BONUS_SHARE = 0.5; // creation_price'ning yarmi — bir martalik bonus
+// A13: ulushlar FOIZ (butun son) sifatida — `bigint` pul ustida float
+// ko'paytirish mumkin emas va u yaxlitlash xatosini keltirib chiqarardi.
+// Butun-son arifmetikasi har doim aniq va determinatsiyalangan.
+const CREATOR_SHARE_PCT = 70n; // 70% kreator, 30% platforma
+const CREATOR_BONUS_SHARE_PCT = 50n; // creation_price'ning yarmi — bir martalik bonus
+// Faqat KO'RSATISH uchun (JSON javobida ulush nisbati).
+const CREATOR_SHARE = Number(CREATOR_SHARE_PCT) / 100;
+const CREATOR_BONUS_SHARE = Number(CREATOR_BONUS_SHARE_PCT) / 100;
 
 const MARKETPLACE_INSTALL_LOCK_NS = 4774;
 
@@ -91,8 +98,12 @@ export class MarketplaceService {
     if (!agent) throw new NotFoundException('Agent topilmadi');
     if (agent.userId !== user.id) throw new ForbiddenException();
 
-    const creationPriceTiyin = price !== undefined ? Math.max(0, Math.round(price)) : agent.creationPriceTiyin;
-    const monthlyPriceTiyin = monthlyPrice !== undefined ? Math.max(0, Math.round(monthlyPrice)) : agent.monthlyPriceTiyin;
+    // A13: HTTP'dan `number` (tiyin) keladi -> darhol `bigint`ga o'giramiz.
+    // Manfiy narx qabul qilinmaydi (0 ga qisqaradi) — ilgarigi xulq saqlanadi.
+    const creationPriceTiyin =
+      price !== undefined ? BigInt(Math.max(0, Math.round(price))) : agent.creationPriceTiyin;
+    const monthlyPriceTiyin =
+      monthlyPrice !== undefined ? BigInt(Math.max(0, Math.round(monthlyPrice))) : agent.monthlyPriceTiyin;
 
     const updated = await this.prisma.agent.update({
       where: { id: agentId },
@@ -122,7 +133,7 @@ export class MarketplaceService {
     const source = await this.prisma.agent.findUnique({ where: { id: publishedAgentId } });
     if (!source || !source.isPublished) throw new NotFoundException('Marketplace agenti topilmadi');
 
-    const price = source.marketplacePrice ?? 0;
+    const price = source.marketplacePrice ?? 0n;
     const isSelfInstall = source.userId === user.id;
 
     let installed;
@@ -140,7 +151,7 @@ export class MarketplaceService {
             where: { id: user.id, balanceTiyin: { gte: price } },
             data: { balanceTiyin: { decrement: price } },
           });
-          if (updated.count === 0) throw new InsufficientBalanceError(Math.round(price / 100));
+          if (updated.count === 0) throw new InsufficientBalanceError(tiyinToSom(price));
 
           const fresh = await tx.user.findUniqueOrThrow({ where: { id: user.id }, select: { balanceTiyin: true } });
           await tx.creditLedger.create({
@@ -204,8 +215,8 @@ export class MarketplaceService {
         });
 
         // Daromad taqsimoti (mavjud, o'zgarmagan) — haqiqiy buxgalteriya, CreatorLedger
-        if (price > 0 && !isSelfInstall) {
-          const creatorShare = Math.round(price * CREATOR_SHARE);
+        if (price > 0n && !isSelfInstall) {
+          const creatorShare = (price * CREATOR_SHARE_PCT) / 100n;
           await tx.creatorLedger.create({
             data: {
               creatorId: source.userId,
@@ -231,12 +242,12 @@ export class MarketplaceService {
         // kafolatlaydi (interaktiv tranzaksiya ichida unique-xatoni "tutib"
         // davom ettirib bo'lmaydi — Postgres tranzaksiyani abort qiladi —
         // shuning uchun bu yerda oldindan tekshiruv bilan oldini olamiz).
-        if (price > 0 && !isSelfInstall) {
-          const bonus = Math.round(price * CREATOR_BONUS_SHARE);
-          const alreadyBonused = bonus > 0
+        if (price > 0n && !isSelfInstall) {
+          const bonus = (price * CREATOR_BONUS_SHARE_PCT) / 100n;
+          const alreadyBonused = bonus > 0n
             ? await tx.payout.findUnique({ where: { agentId_buyerId: { agentId: source.id, buyerId: user.id } } })
             : { id: 'n/a' };
-          if (bonus > 0 && !alreadyBonused) {
+          if (bonus > 0n && !alreadyBonused) {
             await tx.payout.create({
               data: {
                 agentId: source.id,
@@ -280,7 +291,7 @@ export class MarketplaceService {
 
     await this.audit.record({
       actorId: user.id, action: 'marketplace.install', resourceType: 'agent', resourceId: publishedAgentId,
-      metadata: { installedId: installed.id, pricePaid: price },
+      metadata: { installedId: installed.id, pricePaid: price.toString() },
     });
     return installed;
   }
@@ -402,14 +413,14 @@ export class MarketplaceService {
     return {
       agents,
       ledger,
-      balance_tiyin: balance._sum.amount ?? 0,
-      balance_uzs: Math.round((balance._sum.amount ?? 0) / 100),
+      balance_tiyin: balance._sum.amount ?? 0n,
+      balance_uzs: tiyinToSom(balance._sum.amount ?? 0n),
       revenue_share: { creator: CREATOR_SHARE, platform: 1 - CREATOR_SHARE },
       payout_note: 'Pul yechish kanali (Payme/Click merchant payout) hali ulanmagan — balansingiz saqlanadi, ulanishi bilan yechib olasiz.',
       payout_available: false,
       creatorBonus: {
-        totalTiyin: bonusTotal._sum.bonusAmountTiyin ?? 0,
-        totalSom: Math.round((bonusTotal._sum.bonusAmountTiyin ?? 0) / 100),
+        totalTiyin: bonusTotal._sum.bonusAmountTiyin ?? 0n,
+        totalSom: tiyinToSom(bonusTotal._sum.bonusAmountTiyin ?? 0n),
         payouts: bonusPayouts,
         share: CREATOR_BONUS_SHARE,
         note: "Har yangi xaridorning BIRINCHI to'lovida creation_price'ning yarmi — HAQIQIY balansga, bir martalik.",
@@ -432,7 +443,7 @@ export class MarketplaceService {
       where: { creatorId: user.id },
       _sum: { amount: true },
     });
-    const amount = balance._sum.amount ?? 0;
+    const amount = balance._sum.amount ?? 0n;
     if (amount <= 0) throw new BadRequestException("Yechib olinadigan balans yo'q");
 
     // Balansga TEGMAYDI — faqat niyatni qayd etamiz (rails ulangach qayta ishlanadi).
@@ -441,7 +452,7 @@ export class MarketplaceService {
       action: 'marketplace.payout_requested',
       resourceType: 'creator_ledger',
       resourceId: user.id,
-      metadata: { requestedTiyin: amount },
+      metadata: { requestedTiyin: amount.toString() },
     });
 
     throw new HttpException(
@@ -451,7 +462,7 @@ export class MarketplaceService {
           "Balansingiz saqlanib qoladi va kanal ulanishi bilan to'liq yechib olasiz.",
         reason: 'payout_not_available',
         balanceTiyin: amount,
-        balanceUzs: Math.round(amount / 100),
+        balanceUzs: tiyinToSom(amount),
       },
       HttpStatus.SERVICE_UNAVAILABLE,
     );

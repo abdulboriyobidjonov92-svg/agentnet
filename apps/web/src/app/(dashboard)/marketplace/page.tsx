@@ -5,6 +5,7 @@ import { Bot, Download, Search, Check, BadgeCheck, Star, TrendingUp, Wallet, Loa
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useT } from "@/lib/i18n/client";
+import { formatSom, isPositiveTiyin } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ErrorState } from "@/components/ui/error-state";
@@ -116,7 +117,7 @@ export default function MarketplacePage() {
             </div>
             <Button
               onClick={() => payoutMutation.mutate()}
-              disabled={payoutMutation.isPending || creator.balance_tiyin <= 0}
+              disabled={payoutMutation.isPending || !isPositiveTiyin(creator.balance_tiyin)}
             >
               {payoutMutation.isPending ? <Loader2 className="animate-spin" /> : <Wallet />}
               {t("market.payout")}
@@ -139,7 +140,7 @@ export default function MarketplacePage() {
                     <td>{a.installCount}</td>
                     <td>{a.usageCount}</td>
                     <td>{a.ratingAvg ? a.ratingAvg.toFixed(1) : "—"}</td>
-                    <td className="text-right">{a.marketplacePrice ? `${Math.round(a.marketplacePrice / 100).toLocaleString()} so'm` : "bepul"}</td>
+                    <td className="text-right">{isPositiveTiyin(a.marketplacePrice) ? `${formatSom(a.marketplacePrice)} so'm` : "bepul"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -160,7 +161,7 @@ export default function MarketplacePage() {
           )}
 
           {/* Y5: yaratuvchi bonusi — har yangi xaridorning birinchi to'lovida bir martalik, HAQIQIY balansga */}
-          {!!creator.creatorBonus?.totalTiyin && (
+          {isPositiveTiyin(creator.creatorBonus?.totalTiyin) && (
             <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium">{t("market.creatorBonus")}</p>
@@ -247,7 +248,7 @@ export default function MarketplacePage() {
                   ) : (
                     <>
                       <Download />
-                      {agent.marketplacePrice ? `${Math.round(agent.marketplacePrice / 100).toLocaleString()} so'm` : t("market.install")}
+                      {isPositiveTiyin(agent.marketplacePrice) ? `${formatSom(agent.marketplacePrice)} so'm` : t("market.install")}
                     </>
                   )}
                 </Button>
