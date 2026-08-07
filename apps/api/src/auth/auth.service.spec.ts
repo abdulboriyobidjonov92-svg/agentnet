@@ -1,6 +1,5 @@
 import { ForbiddenException, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { authenticator } from 'otplib';
-import * as crypto from 'crypto';
 import {
   AuditLogService,
   TwoFactorService,
@@ -9,6 +8,7 @@ import {
   RolesGuard,
 } from './auth.service';
 import { verifyToken } from './token.util';
+import { AUDIT_GENESIS, computeEntryHash } from './audit-hash';
 
 /**
  * Auth xizmatlari uchun testlar: hash-chained audit-log, majburiy 2FA (TOTP),
@@ -33,12 +33,22 @@ function makeCryptoStub() {
 // ------------------------------------------------------------------
 
 describe('AuditLogService.record — hash-chained audit jurnali', () => {
-  function makePrisma() {
+  // A17/ADR-008: hash endi SAQLANGAN qatordan hisoblanadi. `create` bo'sh
+  // `entryHash` bilan yoziladi, so'ng DB qaytargan qiymatlardan hisoblangan
+  // hash `update` bilan o'rnatiladi — shu sabab mock `update`ni ham beradi.
+  function makePrisma(stored?: Record<string, unknown>) {
     const tx = {
       $executeRaw: jest.fn(),
       auditLog: {
         findFirst: jest.fn(async () => null as any),
-        create: jest.fn(async (a: any) => ({ id: 'log1', ...a.data })),
+        create: jest.fn(async (a: any) => ({
+          id: 'log1',
+          seq: 1,
+          ...a.data,
+          // DB normalizatsiyasini modellaymiz (jsonb kalitlarni qayta tartiblaydi)
+          ...(stored ?? {}),
+        })),
+        update: jest.fn(async (a: any) => a),
       },
     };
     const prisma: any = {
@@ -47,41 +57,67 @@ describe('AuditLogService.record — hash-chained audit jurnali', () => {
     return { prisma, tx };
   }
 
-  const computeHash = (prevHash: string, payload: unknown) =>
-    crypto.createHash('sha256').update(prevHash + JSON.stringify(payload)).digest('hex');
+  /** `update` chaqiruvida o'rnatilgan yakuniy hash. */
+  const writtenHash = (tx: any) => tx.auditLog.update.mock.calls[0][0].data.entryHash;
 
   it('birinchi yozuv -> prevHash = GENESIS', async () => {
     const { prisma, tx } = makePrisma();
     const svc = new AuditLogService(prisma);
-    const params = { actorId: 'u1', action: 'agent.create', resourceType: 'agent', resourceId: 'a1', metadata: { x: 1 } };
 
-    await svc.record(params);
+    await svc.record({ actorId: 'u1', action: 'agent.create', resourceType: 'agent', resourceId: 'a1', metadata: { x: 1 } });
 
     expect(tx.$executeRaw).toHaveBeenCalled();
     expect(tx.auditLog.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        actorId: 'u1',
-        action: 'agent.create',
-        prevHash: 'GENESIS',
-        entryHash: computeHash('GENESIS', params),
-      }),
+      data: expect.objectContaining({ actorId: 'u1', action: 'agent.create', prevHash: AUDIT_GENESIS }),
     });
   });
 
-  it('keyingi yozuv -> prevHash = oldingi entryHash (zanjir uzilmaydi)', async () => {
+  it('keyingi yozuv -> prevHash = shu AKTORdagi oldingi entryHash', async () => {
     const { prisma, tx } = makePrisma();
     tx.auditLog.findFirst.mockResolvedValue({ entryHash: 'abc123hash' } as any);
     const svc = new AuditLogService(prisma);
-    const params = { actorId: 'u2', action: '2fa.enable', resourceType: 'user', resourceId: 'u2' };
 
-    await svc.record(params);
+    await svc.record({ actorId: 'u2', action: '2fa.enable', resourceType: 'user', resourceId: 'u2' });
 
+    // Oxirgi yozuv AYNAN shu aktor bo'yicha qidiriladi (per-actor zanjir).
+    expect(tx.auditLog.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { actorId: 'u2' } }),
+    );
     expect(tx.auditLog.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        prevHash: 'abc123hash',
-        entryHash: computeHash('abc123hash', params),
-      }),
+      data: expect.objectContaining({ prevHash: 'abc123hash' }),
     });
+  });
+
+  it('entryHash SAQLANGAN qatordan hisoblanadi (kirish obyektidan EMAS)', async () => {
+    // DB qaytargan metadata kirishdagidan boshqa kalit tartibida — eski
+    // implementatsiya kirish obyektini hash qilgani uchun bu farq sezilmasdi
+    // va zanjirni keyin tekshirib bo'lmasdi.
+    const createdAt = new Date('2026-08-07T10:00:00.000Z');
+    const { prisma, tx } = makePrisma({ metadata: { b: 2, a: 1 }, createdAt });
+    const svc = new AuditLogService(prisma);
+
+    await svc.record({ actorId: 'u3', action: 'test', resourceType: 'x', resourceId: 'r', metadata: { a: 1, b: 2 } });
+
+    const expected = computeEntryHash(AUDIT_GENESIS, {
+      actorId: 'u3',
+      action: 'test',
+      resourceType: 'x',
+      resourceId: 'r',
+      createdAt,
+      metadata: { b: 2, a: 1 },
+    });
+    expect(writtenHash(tx)).toBe(expected);
+  });
+
+  it('lock PER-ACTOR olinadi (global emas)', async () => {
+    const { prisma, tx } = makePrisma();
+    const svc = new AuditLogService(prisma);
+
+    await svc.record({ actorId: 'u4', action: 'x', resourceType: 'y' });
+
+    // Prisma tagged-template: parametrlar orasida actorId bo'lishi SHART.
+    const values = tx.$executeRaw.mock.calls[0].slice(1);
+    expect(values).toContain('u4');
   });
 
   it('DB xatosi bo\'lsa ham record() throw qilmaydi (asosiy oqim bloklanmasligi kerak)', async () => {

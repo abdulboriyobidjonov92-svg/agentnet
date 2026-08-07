@@ -20,6 +20,7 @@ import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CryptoService } from '../crypto/crypto.service';
 import { signToken } from './token.util';
+import { AUDIT_GENESIS, computeEntryHash } from './audit-hash';
 
 // SQLite enum'ni qo'llab-quvvatlamaydi — role String sifatida saqlanadi.
 export type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
@@ -42,9 +43,13 @@ export interface AuthenticatedUser {
 // Audit Log — hash-chained, o'zgartirib bo'lmas jurnal
 // ----------------------------------------------------------------
 
-// Butun audit-zanjiri uchun yagona advisory-lock kaliti (ixtiyoriy bigint).
-// Barcha audit yozuvlari shu kalit ustida seriyalashadi — zanjir chiziqli qoladi.
-const AUDIT_CHAIN_LOCK = 4771n;
+// Audit-zanjir advisory-lock'ining NOMMAYDONI (A17/ADR-008).
+// Ikki argumentli shakl ishlatiladi: `(4771, hashtext(actorId))` — ya'ni
+// seriyalash HAR AKTOR uchun alohida. Ilgari bu bitta global kalit edi va
+// platformadagi har audit yozuvi bitta navbatda turardi.
+// Nommaydon boshqa lock'lar bilan to'qnashmasligi uchun ajratilgan
+// (4772 — agent yaratish, 4779 — suhbatga xabar qo'shish).
+const AUDIT_CHAIN_LOCK = 4771;
 
 @Injectable()
 export class AuditLogService {
@@ -63,33 +68,49 @@ export class AuditLogService {
     try {
       // Hash-zanjir ketma-ket bo'lishi SHART: "oxirgi hash'ni o'qi → yangi yozuv"
       // atomik bo'lmasa, ikki parallel yozuv bir xil prevHash oladi va zanjir
-      // ikkiga bo'linadi (buzilish-sezish kafolati yo'qoladi). Butun zanjir uchun
-      // bitta transaksiya-doirasidagi advisory lock — audit yozuvlari o'zaro
-      // seriyalashadi, boshqa jadvallarga esa ta'sir qilmaydi.
+      // ikkiga bo'linadi (buzilish-sezish kafolati yo'qoladi).
+      //
+      // A17/ADR-008: lock endi GLOBAL emas, PER-ACTOR
+      // (`pg_advisory_xact_lock(namespace, hashtext(actorId))`). Ilgari
+      // platformadagi HAR audit yozuvi bitta navbatda turardi — yozuv hajmi
+      // oshganda bu birinchi DB bottleneck bo'lardi. Per-actor zanjir bir xil
+      // isbot-kuchini beradi: yozuvni o'zgartirish/o'chirish shu aktor
+      // zanjirini baribir uzadi.
       await this.prisma.$transaction(async (tx) => {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(${AUDIT_CHAIN_LOCK})`;
+        // `::int` cast MAJBURIY: Postgres'da faqat `pg_advisory_xact_lock(bigint)`
+        // va `(int, int)` shakllari bor. Prisma raqamli parametrni bigint deb
+        // yuboradi, natijada `(bigint, integer)` — mavjud bo'lmagan imzo.
+        // Usiz har audit yozuvi jimgina yiqilardi (xato `catch` bilan yutiladi).
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(${AUDIT_CHAIN_LOCK}::int, hashtext(${params.actorId}))`;
 
-        // @system-scope: audit-zanjirning O'ZI global (hali per-actor'ga
-        // bo'linmagan — Engineering Contract A17/Phase 3, hali qilinmagan) —
-        // "oxirgi yozuv"ni topish tizimning ichki hash-zanjir holati, biror
-        // foydalanuvchining ma'lumoti emas.
         const last = await tx.auditLog.findFirst({
+          where: { actorId: params.actorId },
           orderBy: { seq: 'desc' }, // monotonik — millisekund-teng holatida ham aniq
         });
-        const prevHash = last?.entryHash ?? 'GENESIS';
-        const entryHash = this.computeHash(prevHash, params);
+        const prevHash = last?.entryHash ?? AUDIT_GENESIS;
 
-        await tx.auditLog.create({
+        // `createdAt` ANIQ o'rnatiladi (DB default'iga tashlanmaydi): u hash
+        // ichiga kiradi, ya'ni keyin vaqt belgisini o'zgartirish zanjirni buzadi.
+        const created = await tx.auditLog.create({
           data: {
             actorId: params.actorId,
             action: params.action,
             resourceType: params.resourceType,
             resourceId: params.resourceId ?? null,
             metadata: (params.metadata ?? {}) as object,
+            createdAt: new Date(),
             prevHash,
-            entryHash,
+            entryHash: '', // quyida SAQLANGAN qiymatlardan hisoblanadi
           },
         });
+
+        // MUHIM: hash `created` (ya'ni RETURNING bilan DB'DAN QAYTGAN) qiymatlardan
+        // hisoblanadi — kiritilgan obyektdan EMAS. Sabab: `metadata` `jsonb`
+        // sifatida normallashadi (kalit tartibi, son formati). Shu tartibda
+        // hash keyinchalik saqlangan qatordan AYNAN qayta hisoblanadi.
+        const entryHash = computeEntryHash(prevHash, created);
+
+        await tx.auditLog.update({ where: { id: created.id }, data: { entryHash } });
       });
       this.logger.log(`AUDIT: ${params.actorId} -> ${params.action}`);
     } catch (e) {
@@ -97,11 +118,36 @@ export class AuditLogService {
     }
   }
 
-  private computeHash(prevHash: string, payload: unknown): string {
-    return crypto
-      .createHash('sha256')
-      .update(prevHash + JSON.stringify(payload))
-      .digest('hex');
+  /**
+   * A17/ADR-008 — bitta aktorning zanjirini tekshiradi: har yozuvning hash'i
+   * SAQLANGAN qiymatlardan qayta hisoblanadi va bog'lanish uzilmaganini
+   * tasdiqlaydi.
+   *
+   * Buzilish topilsa qaysi yozuvda ekani qaytariladi (`brokenAt`) — audit
+   * ko'ruvchisi (P4) shuni ko'rsatadi.
+   */
+  async verifyChain(actorId: string): Promise<{
+    ok: boolean;
+    checked: number;
+    brokenAt?: { id: string; seq: number; reason: 'prev_mismatch' | 'hash_mismatch' };
+  }> {
+    const rows = await this.prisma.auditLog.findMany({
+      where: { actorId },
+      orderBy: { seq: 'asc' },
+    });
+
+    let prevHash = AUDIT_GENESIS;
+    for (const row of rows) {
+      if (row.prevHash !== prevHash) {
+        return { ok: false, checked: rows.length, brokenAt: { id: row.id, seq: row.seq, reason: 'prev_mismatch' } };
+      }
+      if (computeEntryHash(prevHash, row) !== row.entryHash) {
+        return { ok: false, checked: rows.length, brokenAt: { id: row.id, seq: row.seq, reason: 'hash_mismatch' } };
+      }
+      prevHash = row.entryHash;
+    }
+
+    return { ok: true, checked: rows.length };
   }
 }
 
