@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import type { DeviceCategory } from '@prisma/client';
 import { DeviceControlService } from './device-control.service';
 import type { User } from '@prisma/client';
 
@@ -67,9 +68,12 @@ describe('DeviceControlService', () => {
   it('setPermission — noma\'lum toifa rad etiladi', async () => {
     const prisma = makeMockPrisma();
     const svc = new DeviceControlService(prisma as any);
-    await expect(svc.setPermission(user, 'computer', 'nuclear_launch', true)).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    // Cast ATAYLAB: kompilyator bu qiymatni endi o'zi rad etadi (enum), lekin
+    // HTTP'dan kelgan xom matn tip tizimini chetlab o'ta oladi — shuning uchun
+    // service ichidagi ISH VAQTI tekshiruvi hamon kerak va shu test uni qo'riqlaydi.
+    await expect(
+      svc.setPermission(user, 'computer', 'nuclear_launch' as DeviceCategory, true),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('setPermission — yoqilgach getStatus\'da aks etadi va log yoziladi', async () => {

@@ -7,7 +7,7 @@ import { DeviceControlService } from './device-control.service';
 import { ConnectorsService } from '../connectors/connectors.service';
 import { BillingService } from '../billing/billing.service';
 import { UsageService } from '../usage/usage.service';
-import type { DeviceCompanion, User } from '@prisma/client';
+import type { DeviceCompanion, User, CommandKind, CommandStatus, DeviceCategory } from '@prisma/client';
 
 /**
  * BOSQICH 2/3 — Companion protokoli. Real qurilma (desktop/telefon) serverga
@@ -27,7 +27,7 @@ import type { DeviceCompanion, User } from '@prisma/client';
  */
 
 // Buyruq turi -> ruxsat toifasi (DevicePermission.isAllowed uchun) + qurilma turi.
-const COMMAND_RULES: Record<string, { kind: 'computer' | 'phone'; category: string }> = {
+const COMMAND_RULES: Record<CommandKind, { kind: 'computer' | 'phone'; category: DeviceCategory }> = {
   send_sms: { kind: 'phone', category: 'sms' },
   call: { kind: 'phone', category: 'calls' },
   open_app: { kind: 'phone', category: 'apps' },
@@ -96,9 +96,11 @@ export class DeviceCompanionService {
   }
 
   /** Buyruq navbatga qo'yadi (ruxsat tekshiriladi). */
-  async enqueue(user: User, cmdKind: string, payload: Record<string, unknown>) {
+  async enqueue(user: User, cmdKindRaw: string, payload: Record<string, unknown>) {
+    // HTTP'dan kelgan xom matn — registrda borligini tekshirib enum'ga toraytiramiz.
+    const cmdKind = cmdKindRaw as CommandKind;
     const rule = COMMAND_RULES[cmdKind];
-    if (!rule) throw new BadRequestException(`Noma'lum buyruq: ${cmdKind}`);
+    if (!rule) throw new BadRequestException(`Noma'lum buyruq: ${cmdKindRaw}`);
 
     const allowed = await this.device.isAllowed(user.id, rule.kind, rule.category);
     if (!allowed) {
@@ -252,14 +254,20 @@ export class DeviceCompanionService {
     // natija yozib bo'lmasligini shu maydon kafolatlaydi).
     const cmd = await this.prisma.deviceCommand.findFirst({ where: { id: commandId, companionId: companion.id } });
     if (!cmd) throw new NotFoundException('Buyruq topilmadi');
-    const final = ['done', 'failed', 'denied'].includes(status) ? status : 'done';
+    const finalAllowed: CommandStatus[] = ['done', 'failed', 'denied'];
+    const final: CommandStatus = finalAllowed.includes(status as CommandStatus)
+      ? (status as CommandStatus)
+      : 'done';
     await this.prisma.deviceCommand.update({
       where: { id: cmd.id },
       data: { status: final, result: (result ?? null) as object },
     });
     await this.device.logAction(companion.userId, {
       deviceType: companion.kind,
-      category: COMMAND_RULES[cmd.kind]?.category ?? cmd.kind,
+      // COMMAND_RULES — CommandKind bo'yicha TO'LIQ registr, shuning uchun
+      // qiymat doim mavjud (ilgari `?? cmd.kind` fallback'i buyruq TURINI
+      // toifa sifatida yozib yuborardi — endi bunday bo'lishi mumkin emas).
+      category: COMMAND_RULES[cmd.kind].category,
       action: `Buyruq bajarildi: ${cmd.kind} (${final})`,
       detail: typeof result === 'string' ? result.slice(0, 400) : JSON.stringify(result ?? '').slice(0, 400),
       status: final === 'done' ? 'ok' : 'failed',

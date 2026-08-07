@@ -36,6 +36,7 @@ import { DeviceControlService } from './device-control.service';
 import { DeviceCompanionService } from './device-companion.service';
 import { CallRecordingService } from './call-recording.service';
 import { CapabilityRouterService } from './capability-router.service';
+import { DeviceCategory } from '@prisma/client';
 import type { User } from '@prisma/client';
 
 class BrowserRunDto {
@@ -59,9 +60,11 @@ class PermissionDto {
   @IsIn(['computer', 'phone'])
   deviceType: string;
 
-  @IsString()
-  @MaxLength(40)
-  category: string;
+  // Domen DB enum'idan OLINADI (Object.values) — DTO validatsiyasi va sxema
+  // hech qachon ayrilib keta olmaydi. Ilgari bu @IsString()+@MaxLength(40)
+  // edi, ya'ni ixtiyoriy matn service'ning assertValid'igacha o'tib borardi.
+  @IsIn(Object.values(DeviceCategory))
+  category: DeviceCategory;
 
   @IsBoolean()
   enabled: boolean;

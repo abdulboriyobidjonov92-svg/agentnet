@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { WalletCreditService } from './wallet-credit.service';
 import { PlatformBillingService, type SelfServePlatformPlan } from './platform-billing.service';
 import type { PaymentProviderService, TopupReceipt } from './payment-provider.interface';
-import type { User } from '@prisma/client';
+import type { User, PaymentPurpose } from '@prisma/client';
 
 /**
  * Click Merchant API (Prepare/Complete) — https://docs.click.uz
@@ -167,7 +167,7 @@ export class ClickService implements PaymentProviderService {
   }
 
   /** transaction_param'ni ochadi: oddiy "userId" (topup) yoki "userId::sub::plan" (obuna). */
-  private parseTransactionParam(raw: string): { userId: string; purpose: string; plan: string | null } {
+  private parseTransactionParam(raw: string): { userId: string; purpose: PaymentPurpose; plan: string | null } {
     const [userId, kind, plan] = String(raw).split('::');
     if (kind === 'sub' && plan) return { userId, purpose: 'platform_subscription', plan };
     return { userId, purpose: 'topup', plan: null };

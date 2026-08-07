@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import type { User } from '@prisma/client';
+import type { User, DeviceCategory, DeviceActionCategory } from '@prisma/client';
 
 /**
  * BOSQICH 1 — Qurilma Boshqaruvi: ruxsatlar + xavfsizlik-log.
@@ -10,14 +10,15 @@ import type { User } from '@prisma/client';
  * yoqqan toifada ish qila oladi (fail-closed). Har harakat audit-logga yoziladi.
  */
 
-export const DEVICE_CATEGORIES: Record<string, string[]> = {
+export const DEVICE_CATEGORIES: Record<string, DeviceCategory[]> = {
   computer: ['browser', 'files', 'apps', 'screen'],
   phone: ['apps', 'calls', 'sms', 'screen'],
 };
 
 export interface DeviceActionInput {
   deviceType: string;
-  category: string;
+  // Jurnal ruxsat-toifalaridan tashqari 'connect' hodisasini ham yozadi.
+  category: DeviceActionCategory;
   action: string;
   detail?: string;
   status?: 'ok' | 'blocked' | 'failed';
@@ -46,7 +47,7 @@ export class DeviceControlService {
   }
 
   /** Bitta toifa ruxsatini yoqadi/o'chiradi (upsert). */
-  async setPermission(user: User, deviceType: string, category: string, enabled: boolean) {
+  async setPermission(user: User, deviceType: string, category: DeviceCategory, enabled: boolean) {
     this.assertValid(deviceType, category);
     await this.prisma.devicePermission.upsert({
       where: { userId_deviceType_category: { userId: user.id, deviceType, category } },
@@ -89,7 +90,7 @@ export class DeviceControlService {
   }
 
   /** Ruxsatni tekshiradi — kelajakdagi agentlar (B2/B3) shu orqali fail-closed. */
-  async isAllowed(userId: string, deviceType: string, category: string): Promise<boolean> {
+  async isAllowed(userId: string, deviceType: string, category: DeviceCategory): Promise<boolean> {
     const row = await this.prisma.devicePermission.findUnique({
       where: { userId_deviceType_category: { userId: userId, deviceType, category } },
     });
@@ -120,7 +121,7 @@ export class DeviceControlService {
     });
   }
 
-  private assertValid(deviceType: string, category: string) {
+  private assertValid(deviceType: string, category: DeviceCategory) {
     const categories = DEVICE_CATEGORIES[deviceType];
     if (!categories) throw new BadRequestException(`Noma'lum qurilma-turi: ${deviceType}`);
     if (!categories.includes(category)) {

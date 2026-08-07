@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import type { FeedbackStatus } from '@prisma/client';
 import type { User } from '@prisma/client';
 
 const ALLOWED_KINDS = ['suggestion', 'bug', 'question'] as const;
@@ -51,7 +52,12 @@ export class FeedbackService {
     // Mavjud emas id'da Prisma P2025 (500) o'rniga tushunarli 404
     const exists = await this.prisma.feedback.findUnique({ where: { id }, select: { id: true } });
     if (!exists) throw new NotFoundException('Fikr topilmadi');
-    const next = ['new', 'seen', 'resolved'].includes(status) ? status : 'seen';
+    // Controller'dan ixtiyoriy matn kelishi mumkin — enum domeniga qisqartiramiz
+    // (noma'lum qiymat 'seen'ga tushadi, ilgarigidek). Tip endi DB bilan bir xil.
+    const allowed: FeedbackStatus[] = ['new', 'seen', 'resolved'];
+    const next: FeedbackStatus = allowed.includes(status as FeedbackStatus)
+      ? (status as FeedbackStatus)
+      : 'seen';
     return this.prisma.feedback.update({
       where: { id },
       data: { status: next },
