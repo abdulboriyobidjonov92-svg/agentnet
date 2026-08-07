@@ -357,6 +357,10 @@ model Agent {
   updatedAt DateTime       @updatedAt
 
   @@index([userId])
+  // Phase 3 (Rule #25): kursorli ro'yxat AYNAN shu tartibda o'qiydi —
+  // where(userId) + ORDER BY createdAt DESC, id DESC. Mos kompozit indeks
+  // bo'lmasa Postgres har sahifa uchun to'liq sort qilardi.
+  @@index([userId, createdAt])
   @@index([orgId])
   @@index([isPublished])
   @@index([sourceAgentId])
@@ -375,6 +379,8 @@ model Conversation {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+  // Phase 3 (Rule #25): where(userId) + ORDER BY updatedAt DESC, id DESC.
+  @@index([userId, updatedAt])
   @@index([agentId])
 }
 
@@ -1030,6 +1036,8 @@ model CreditLedger {
   createdAt      DateTime   @default(now())
 
   @@index([userId])
+  // Phase 3 (Rule #25): balans tarixi — where(userId) + sana bo'yicha tartib.
+  @@index([userId, createdAt])
   @@index([kind])
 }
 
