@@ -253,6 +253,9 @@ model User {
   @@index([clerkId])
   @@index([email])
   @@index([phone])
+  // Phase 4 (Rule #25): admin foydalanuvchilar ro'yxati —
+  // ORDER BY createdAt DESC, id DESC. Usiz 10k qatorda Seq Scan + Sort edi.
+  @@index([createdAt])
   @@index([orgId])
 }
 
@@ -464,6 +467,9 @@ model Goal {
 
   @@index([userId])
   @@index([status])
+  // Phase 4 (Rule #25): admin fikrlar ro'yxati — status filtri + createdAt tartibi.
+  @@index([status, createdAt])
+  @@index([createdAt])
 }
 
 model GoalTask {

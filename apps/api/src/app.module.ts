@@ -28,6 +28,7 @@ import { UsageModule } from './usage/usage.module';
 import { BillingModule } from './billing/billing.module';
 import { TemplatesModule } from './templates/templates.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { AdminModule } from './admin/admin.module';
 import { ShareModule } from './share/share.module';
 import { ReferralModule } from './referral/referral.module';
 import { BriefingModule } from './briefing/briefing.module';
@@ -62,6 +63,7 @@ import { HealthController } from './health.controller';
     BillingModule,
     TemplatesModule,
     FeedbackModule,
+    AdminModule,
     ShareModule,
     ReferralModule,
     BriefingModule,
