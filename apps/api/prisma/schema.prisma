@@ -245,7 +245,10 @@ model User {
   payoutsAsBuyer        Payout[]               @relation("PayoutBuyer")
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
-  deletedAt             DateTime?
+  // Phase 3 / Contract A15: `deletedAt` (soft delete) OLIB TASHLANDI —
+  // u hech qayerda filtrlanmasdi, ya'ni "o'chirilgan" foydalanuvchi baribir
+  // har so'rovga tushardi. Yagona o'chirish yo'li — GDPR hard-delete +
+  // AuditLog (`users.service.deleteAccount()`).
 
   @@index([clerkId])
   @@index([email])
@@ -368,21 +371,18 @@ model Agent {
 }
 
 model Conversation {
-  id             String    @id @default(cuid())
-  userId         String
-  user           User      @relation(fields: [userId], references: [id])
-  agentId        String
-  agent          Agent     @relation(fields: [agentId], references: [id])
-  // A15 (Contract A12): xabarlar endi `Message` jadvalida. Bu LEGACY ustun —
-  // backfill'dan keyin MUZLATILGAN (hech qayerda o'qilmaydi/yozilmaydi) va
-  // rollback-oynasi yopilgach keyingi migratsiyada TASHLANADI (Sprint 7
-  // naqshi, Contract Rule #28: dual-write -> backfill -> cutover -> drop).
-  // `@map`: Prisma maydon nomi `messages`ni yangi relation'ga bo'shatadi,
-  // DB ustuni esa o'zgarishsiz qoladi (rollback shu ustunga tayanadi).
-  legacyMessages Json?     @map("messages")
-  messages       Message[]
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  agentId   String
+  agent     Agent     @relation(fields: [agentId], references: [id])
+  // A15 (Contract A12) YAKUNLANDI: xabarlar faqat `Message` jadvalida.
+  // Legacy `messages` jsonb ustuni backfill tasdiqlangach tashlandi
+  // (20260808120000_phase3_drop_legacy_messages) — Rule #28 zanjiri
+  // dual-write -> backfill -> cutover -> drop to'liq yopildi.
+  messages  Message[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@index([userId])
   // Phase 3 (Rule #25): where(userId) + ORDER BY updatedAt DESC, id DESC.

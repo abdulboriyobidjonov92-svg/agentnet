@@ -1,20 +1,19 @@
--- ORQAGA QAYTARISH — 20260808100000_phase3_message_table
+-- ORQAGA QAYTARISH — 20260808120000_phase3_drop_legacy_messages
 -- (Contract Rule #27: har migratsiya orqaga qaytarish rejasi bilan keladi).
 --
 -- Ishga tushirish:
---   npx prisma db execute --file prisma/migrations/20260808100000_phase3_message_table/rollback.sql --schema prisma/schema.prisma
---   DELETE FROM "_prisma_migrations" WHERE migration_name = '20260808100000_phase3_message_table';
+--   npx prisma db execute --file prisma/migrations/20260808120000_phase3_drop_legacy_messages/rollback.sql --schema prisma/schema.prisma
+--   DELETE FROM "_prisma_migrations" WHERE migration_name = '20260808120000_phase3_drop_legacy_messages';
 -- So'ng kodni oldingi commit'ga qaytaring (`git revert`) va `npx prisma generate`.
 --
--- MUHIM XUSUSIYAT: legacy JSON shunchaki "tiklanmaydi" — u `Message`
--- jadvalidan QAYTA QURILADI. Cutover'dan KEYIN yozilgan yangi xabarlar faqat
--- jadvalda bor; eski JSON'ni qoldirish ularni YO'QOTGAN bo'lardi. Jadval esa
--- backfill tufayli tarixiy xabarlarning ham to'liq manbai. Ya'ni bu rollback
--- istalgan vaqtda ma'lumot yo'qotishsiz ishlaydi.
+-- MA'LUMOT YO'QOLMAYDI: ustun qayta yaratiladi va JSON `Message` jadvalidan
+-- QAYTA QURILADI — ya'ni tarixiy xabarlar ham, drop'dan keyin yozilgan yangi
+-- xabarlar ham JSON'ga tushadi. Shakl A15 rollback'i bilan AYNAN bir xil
+-- (`halalFlag` faqat mavjud bo'lsa, `demoMode` faqat true bo'lsa, timestamp
+-- JS `toISOString()` formatida).
 --
--- Shakl asl JSON bilan SEMANTIK bir xil: `halalFlag` faqat mavjud bo'lsa,
--- `demoMode` faqat true bo'lsa yoziladi (asl yozuvlarda ham kalit faqat
--- qiymat bo'lganda mavjud edi); `timestamp` — JS `toISOString()` formati.
+-- Bu rollback `Message` jadvalini TASHLAMAYDI — u A15 relizining artefakti
+-- va o'z rollback'iga ega (20260808100000/rollback.sql).
 
 -- ⚠️ TIMESTAMP — `AT TIME ZONE 'UTC'` ISHLATMANG (jonli bazada topilgan xato):
 -- `Message.createdAt` — `timestamp(3)` (vaqt mintaqasiz, UTC qiymat saqlaydi).
@@ -23,6 +22,8 @@
 -- SILJIYDI. Bu xato dev bazada 6 xabarni buzgan (aniqlandi: xabar sanasi
 -- `Conversation.updatedAt` dan 5 soat KEYIN chiqib qolgan) va tuzatildi.
 -- Ustun allaqachon UTC saqlaydi -> to'g'ridan-to'g'ri `to_char` qilinadi.
+
+ALTER TABLE "Conversation" ADD COLUMN "messages" JSONB;
 
 UPDATE "Conversation" c
 SET "messages" = COALESCE(
@@ -44,6 +45,3 @@ SET "messages" = COALESCE(
   ),
   '[]'::jsonb
 );
-
-DROP TABLE "Message";
-DROP TYPE "MessageRole";

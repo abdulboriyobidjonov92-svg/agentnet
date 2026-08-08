@@ -102,10 +102,8 @@ export class ConversationsService {
     if (!conv) throw new NotFoundException('Suhbat topilmadi');
     if (conv.userId !== user.id) throw new ForbiddenException();
 
-    // Legacy ustun tashqariga CHIQMAYDI (muzlatilgan ichki artefakt);
     // `messages` — jadvaldan, eski JSON bilan bir xil shaklda.
-    const { legacyMessages: _legacy, messages, ...rest } = conv;
-    void _legacy;
+    const { messages, ...rest } = conv;
     return { ...rest, messages: messages.map(toApiMessage) };
   }
 

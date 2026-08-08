@@ -77,9 +77,31 @@ tushadi, hech narsa yo'qolmaydi. Qayta-apply ham toza: backfill id'lari
 deterministik, tekshiruv skripti qayta o'tadi (dev'da to'liq sikl bajarilgan:
 rollback → yangi xabar JSON'da ✓ → re-apply → mazmun mos ✓).
 
-## 6. Legacy ustunni tashlash (KEYINGI bosqich)
+## 6. Legacy ustunni tashlash — `20260808120000_phase3_drop_legacy_messages`
 
-Prod'da 4-qadam yashil bo'lib, bir necha kun barqaror ishlagach — alohida
-migratsiya bilan `ALTER TABLE "Conversation" DROP COLUMN "messages"` va
-sxemadan `legacyMessages` olib tashlanadi. Undan OLDIN o'chirmang — rollback
-oynasi shunga bog'liq.
+Migratsiya **yozilgan va dev'da to'liq sinalgan** (apply → rollback →
+re-apply). U ustunni tashlashdan OLDIN tranzaksiya ichida JSON'dagi har bir
+xabar `Message` jadvalida borligini QAYTA tekshiradi va topilmasa
+`RAISE EXCEPTION` bilan to'xtaydi.
+
+> ⚠️ **RELIZ TARTIBI — MAJBURIY.** Bu migratsiya A15 (`20260808100000`)
+> bilan **bitta relizda prod'ga chiqmasligi** kerak: `prisma migrate deploy`
+> kutilayotgan migratsiyalarning HAMMASINI ketma-ket qo'llaydi va rollback
+> oynasini butunlay yo'q qiladi.
+>
+> To'g'ri tartib: **A15 relizi** → prod'da 4-qadam tekshiruvi yashil →
+> bir necha kun barqaror ishlash → **DROP relizi**.
+
+`message-backfill-verify.mjs` skripti DROP relizida o'chirilgan — u legacy
+ustunni o'qigani uchun ustun bilan birga yashaydi. 4-qadam tekshiruvini
+A15 relizi jonli bo'lgan paytda bajaring.
+
+### Vaqt-mintaqa xatosi (tuzatilgan — qayta kiritmang)
+
+Rollback skriptlarida `to_char(m."createdAt" AT TIME ZONE 'UTC', ...)`
+ishlatilgan edi. `createdAt` — `timestamp(3)` (mintaqasiz, UTC saqlaydi);
+`AT TIME ZONE 'UTC'` uni `timestamptz`ga aylantiradi va `to_char` **sessiya
+mintaqasida** render qiladi → Asia/Tashkent (UTC+5) da har timestamp
+**+5 soatga siljiydi**. Dev bazasida 6 xabar shu tarzda buzilgan va
+tiklangan. Ustun allaqachon UTC saqlaydi — `to_char` to'g'ridan-to'g'ri
+chaqiriladi. Batafsil: `docs/status/phase3-final-audit.md`.

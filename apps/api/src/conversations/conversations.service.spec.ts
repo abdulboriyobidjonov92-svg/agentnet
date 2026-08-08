@@ -147,7 +147,6 @@ describe('ConversationsService — o\'qish', () => {
     prisma.conversation.findUnique.mockResolvedValue({
       id: 'conv1',
       userId: 'u1',
-      legacyMessages: [{ eski: 'json' }], // muzlatilgan ustun — TASHQARIGA CHIQMASLIGI shart
       messages: [row({ id: 'a' }), row({ id: 'b', role: 'assistant', content: 'javob' })],
       agent: { name: 'A' },
     });
@@ -166,7 +165,6 @@ describe('ConversationsService — o\'qish', () => {
       expect.objectContaining({ role: 'user', content: 'salom' }),
       expect.objectContaining({ role: 'assistant', content: 'javob' }),
     ]);
-    expect('legacyMessages' in res).toBe(false);
   });
 
   it('messages() — kursorli sahifa, eng yangilari birinchi', async () => {
