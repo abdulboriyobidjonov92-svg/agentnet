@@ -3,6 +3,7 @@ import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { ConversationsService } from './conversations.service';
 import { PageQueryDto } from '../common/pagination/page-query.dto';
+import { AddMessageDto, AddMessagesDto } from './dto/add-message.dto';
 import type { User } from '@prisma/client';
 
 @ApiTags('conversations')
@@ -32,21 +33,21 @@ export class ConversationsController {
     return this.conversations.findOne(id, user);
   }
 
+  /** A15: DTO domeni DB enum'idan olinadi; timestamp berilmasa server vaqti. */
   @Post(':id/messages')
-  addMessage(@CurrentUser() user: User, @Param('id') id: string, @Body() message: any) {
-    return this.conversations.addMessage(id, user, {
-      ...message,
-      timestamp: message.timestamp ?? new Date().toISOString(),
-    });
+  addMessage(@CurrentUser() user: User, @Param('id') id: string, @Body() message: AddMessageDto) {
+    return this.conversations.addMessage(id, user, message);
   }
 
   @Post(':id/messages/bulk')
-  addMessages(@CurrentUser() user: User, @Param('id') id: string, @Body() body: { messages: any[] }) {
-    const stamped = (body.messages ?? []).map((m) => ({
-      ...m,
-      timestamp: m.timestamp ?? new Date().toISOString(),
-    }));
-    return this.conversations.addMessages(id, user, stamped);
+  addMessages(@CurrentUser() user: User, @Param('id') id: string, @Body() body: AddMessagesDto) {
+    return this.conversations.addMessages(id, user, body.messages ?? []);
+  }
+
+  /** A15: xabarlar sahifasi — eng yangilari birinchi, katta tarixni yuklamaslik uchun. */
+  @Get(':id/messages')
+  messages(@CurrentUser() user: User, @Param('id') id: string, @Query() page: PageQueryDto) {
+    return this.conversations.messages(id, user, page);
   }
 
   @Delete(':id/messages')

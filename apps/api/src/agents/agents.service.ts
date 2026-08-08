@@ -30,9 +30,10 @@ import { Prisma, type AgentFrozenReason, type User } from '@prisma/client';
 // seriyalashadi — aks holda manual create + batch-install parallel ishlab
 // agent-chegarasidan oshib ketishi mumkin edi.
 export const AGENT_CREATE_LOCK_NS = 4772;
-// Suhbatga xabar qo'shishni bir suhbat bo'yicha seriyalash uchun (parallel
-// xabarlar JSON massivda bir-birini o'chirib yubormasligi uchun).
-const CONVERSATION_APPEND_LOCK_NS = 4779;
+// A15: ilgari bu yerda CONVERSATION_APPEND_LOCK_NS (4779) advisory-lock
+// nommaydoni bor edi — JSON massivga read-modify-write yozuvni seriyalash
+// uchun. `Message` jadvaliga o'tilgach append = mustaqil INSERT, lock va
+// nommaydon butunlay olib tashlandi (Rule #38: o'lik kod qoldirilmaydi).
 
 // Sinov shartlari (FAQAT foydalanuvchining birinchi agenti): 3 kun YOKI 20
 // xabar — qaysi biri oldin tugasa. Kod o'zgartirilmasdan sozlash uchun env.
@@ -456,10 +457,15 @@ export class AgentsService {
       throw new BadGatewayException({ message: "Agent engine bilan aloqa yo'q", reason: 'engine_unavailable' });
     }
 
-    // Conversation ga yozish — IDOR himoyasi + parallel-yozuv seriyalash.
-    // Mijoz yuborgan conversationId FAQAT shu foydalanuvchiga tegishli bo'lsa
-    // ishlatiladi (begona/mavjud-emas bo'lsa jimgina yangi suhbat ochiladi —
-    // boshqa foydalanuvchi suhbatiga yozib bo'lmaydi, mavjud-emas id 500 bermaydi).
+    // Conversation ga yozish — IDOR himoyasi. Mijoz yuborgan conversationId
+    // FAQAT shu foydalanuvchiga tegishli bo'lsa ishlatiladi (begona/mavjud-emas
+    // bo'lsa jimgina yangi suhbat ochiladi — boshqa foydalanuvchi suhbatiga
+    // yozib bo'lmaydi, mavjud-emas id 500 bermaydi).
+    //
+    // A15: JSON davridagi o'qi-o'zgartir-yoz sikli va u talab qilgan advisory
+    // lock YO'QOLDI — har xabar mustaqil INSERT (`Message` jadvali), parallel
+    // yozuvlar bir-birini o'chira olmaydi. Juftlik tartibi: ketma-ket create,
+    // teng timestamp'da cuid (jarayon ichida monotonik) teng-buzuvchi.
     const assistantContent = data.messages?.at(-1)?.content ?? '';
     const convId = await this.prisma.$transaction(async (tx) => {
       let id = conversationId;
@@ -468,18 +474,16 @@ export class AgentsService {
         if (!owned || owned.userId !== user.id) id = undefined;
       }
       if (!id) {
-        id = (await tx.conversation.create({ data: { userId: user.id, agentId: agent.id, messages: [] } })).id;
+        id = (await tx.conversation.create({ data: { userId: user.id, agentId: agent.id } })).id;
       }
-      // Bir suhbat bo'yicha advisory lock — parallel xabarlar read-modify-write'da
-      // bir-birini o'chirmasligi uchun.
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${CONVERSATION_APPEND_LOCK_NS}::int, hashtext(${id}))`;
-      const existing = await tx.conversation.findUnique({ where: { id }, select: { messages: true } });
-      const messages = (existing?.messages as any[]) ?? [];
-      messages.push(
-        { role: 'user', content: message, timestamp: new Date().toISOString() },
-        { role: 'assistant', content: assistantContent, halalFlag: data.halal_flag, timestamp: new Date().toISOString() },
-      );
-      await tx.conversation.update({ where: { id }, data: { messages } });
+      await tx.message.create({
+        data: { conversationId: id, role: 'user', content: message },
+      });
+      await tx.message.create({
+        data: { conversationId: id, role: 'assistant', content: assistantContent, halalFlag: data.halal_flag ?? null },
+      });
+      // Suhbat ro'yxati "oxirgi faollik" bo'yicha tartiblanadi.
+      await tx.conversation.update({ where: { id }, data: { updatedAt: new Date() } });
       return id;
     });
 

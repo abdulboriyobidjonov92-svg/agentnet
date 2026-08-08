@@ -33,8 +33,12 @@ function makeMock() {
     },
     conversation: {
       create: jest.fn(async (a: any) => ({ id: 'conv1', ...a.data })),
-      findUnique: jest.fn(async () => ({ id: 'conv1', messages: [] })),
+      findUnique: jest.fn(async () => ({ id: 'conv1', userId: 'u1' })),
       update: jest.fn(async (a: any) => a),
+    },
+    // A15: xabarlar Message jadvalida
+    message: {
+      create: jest.fn(async (a: any) => ({ id: 'm1', createdAt: new Date(), ...a.data })),
     },
     $executeRaw: jest.fn(),
     $transaction: jest.fn(async (fn: any) => fn(prisma)),

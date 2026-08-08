@@ -70,7 +70,18 @@ export class UsersService {
 
     const [agents, conversations, creditLedger, connectors, feedback, usage] = await Promise.all([
       this.prisma.agent.findMany({ where: { userId } }),
-      this.prisma.conversation.findMany({ where: { userId } }),
+      // A15: xabarlar endi Message jadvalida — GDPR eksport ularni ham beradi
+      // (legacy Json ustuni muzlatilgan, eksportga kirmaydi).
+      this.prisma.conversation.findMany({
+        where: { userId },
+        select: {
+          id: true, agentId: true, createdAt: true, updatedAt: true,
+          messages: {
+            orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+            select: { role: true, content: true, halalFlag: true, demoMode: true, createdAt: true },
+          },
+        },
+      }),
       this.prisma.creditLedger.findMany({ where: { userId }, orderBy: { createdAt: 'asc' } }),
       // Konnektor SIRLARI (shifrlangan `config`) eksport qilinmaydi — faqat metama'lumot.
       this.prisma.connectorConfig.findMany({

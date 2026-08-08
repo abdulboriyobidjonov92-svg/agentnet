@@ -42,8 +42,12 @@ function makeMock() {
     },
     conversation: {
       create: jest.fn(async (a: any) => ({ id: 'conv1', ...a.data })),
-      findUnique: jest.fn(async () => ({ id: 'conv1', messages: [] })),
+      findUnique: jest.fn(async () => ({ id: 'conv1', userId: 'u1' })),
       update: jest.fn(async (a: any) => a),
+    },
+    // A15: xabarlar endi Message jadvalida (mustaqil INSERT'lar)
+    message: {
+      create: jest.fn(async (a: any) => ({ id: 'm_' + Math.random().toString(36).slice(2), createdAt: new Date(), halalFlag: null, demoMode: false, ...a.data })),
     },
     $executeRaw: jest.fn(),
     $transaction: jest.fn(async (fn: any) => fn(prisma)),
@@ -293,16 +297,14 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
     expect(prisma.conversation.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ userId: 'u1', agentId: 'agent1' }) }),
     );
+    // A15: juftlik ikkita mustaqil INSERT — tartib kiritilgan tartib.
+    expect(prisma.message.create.mock.calls.map((c: any) => c[0].data)).toEqual([
+      expect.objectContaining({ conversationId: 'conv1', role: 'user', content: 'salom' }),
+      expect.objectContaining({ conversationId: 'conv1', role: 'assistant', content: 'Salom!', halalFlag: 'ok' }),
+    ]);
+    // Suhbat "oxirgi faollik" uchun faqat updatedAt bilan yangilanadi.
     expect(prisma.conversation.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'conv1' },
-        data: expect.objectContaining({
-          messages: [
-            expect.objectContaining({ role: 'user', content: 'salom' }),
-            expect.objectContaining({ role: 'assistant', content: 'Salom!', halalFlag: 'ok' }),
-          ],
-        }),
-      }),
+      expect.objectContaining({ where: { id: 'conv1' }, data: { updatedAt: expect.any(Date) } }),
     );
     expect(res.conversationId).toBe('conv1');
   });
@@ -313,7 +315,6 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
     prisma.conversation.findUnique.mockResolvedValue({
       id: 'conv-existing',
       userId: 'u1', // egasi shu foydalanuvchi — IDOR tekshiruvidan o'tadi
-      messages: [{ role: 'user', content: 'oldingi', timestamp: 't0' }],
     });
     http.post.mockReturnValue(of({ data: { messages: [{ content: 'Davom etamiz' }] } }));
     const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing);
@@ -322,8 +323,11 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
 
     expect(prisma.conversation.create).not.toHaveBeenCalled();
     expect(res.conversationId).toBe('conv-existing');
-    const updateCall = prisma.conversation.update.mock.calls[0][0];
-    expect(updateCall.data.messages).toHaveLength(3); // oldingi + user + assistant
+    // A15: mavjud tarix O'QILMAYDI (O(n) yo'qoldi) — faqat 2 yangi INSERT.
+    expect(prisma.message.create).toHaveBeenCalledTimes(2);
+    expect(prisma.message.create.mock.calls[1][0].data).toEqual(
+      expect.objectContaining({ conversationId: 'conv-existing', role: 'assistant' }),
+    );
   });
 
   it('Halal Filter bloklasa (422) -> UnprocessableEntityException', async () => {

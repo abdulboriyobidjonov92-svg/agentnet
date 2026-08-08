@@ -368,20 +368,65 @@ model Agent {
 }
 
 model Conversation {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  agentId   String
-  agent     Agent    @relation(fields: [agentId], references: [id])
-  // JSON array of { role, content, halalFlag?, timestamp }
-  messages  Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id])
+  agentId        String
+  agent          Agent     @relation(fields: [agentId], references: [id])
+  // A15 (Contract A12): xabarlar endi `Message` jadvalida. Bu LEGACY ustun —
+  // backfill'dan keyin MUZLATILGAN (hech qayerda o'qilmaydi/yozilmaydi) va
+  // rollback-oynasi yopilgach keyingi migratsiyada TASHLANADI (Sprint 7
+  // naqshi, Contract Rule #28: dual-write -> backfill -> cutover -> drop).
+  // `@map`: Prisma maydon nomi `messages`ni yangi relation'ga bo'shatadi,
+  // DB ustuni esa o'zgarishsiz qoladi (rollback shu ustunga tayanadi).
+  legacyMessages Json?     @map("messages")
+  messages       Message[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([userId])
   // Phase 3 (Rule #25): where(userId) + ORDER BY updatedAt DESC, id DESC.
   @@index([userId, updatedAt])
   @@index([agentId])
+}
+
+/// Xabar roli (A15). `tool`/`system` — mavjud `ConversationMessage`
+/// interfeysi va frontend tiplaridagi qiymatlar (jonli ma'lumotda hozircha
+/// faqat user/assistant bor, lekin interfeys shartnomasi to'liq qamraladi).
+enum MessageRole {
+  user
+  assistant
+  tool
+  system
+}
+
+/// A15 (Contract A12 / ADR-009): `Conversation.messages Json` o'rniga
+/// normallashgan jadval. Sabab: JSON'da har yangi xabar = butun massivni
+/// o'qish+yozish (O(n), TOAST), xabar-darajali pagination/qidiruv/analitika
+/// esa umuman mumkin emas edi.
+///
+/// TARTIB SHARTNOMASI: `(conversationId, createdAt, id)` — `id` (cuid,
+/// jarayon ichida monotonik) teng `createdAt`da teng-buzuvchi. Pagination
+/// `paginate()` helper orqali (u `id` tiebreaker'ni o'zi qo'shadi).
+///
+/// Contract A12 ro'yxatidagi `tokensIn/tokensOut` ATAYLAB YO'Q: token
+/// ma'lumoti bugun hech qayerda mavjud emas (engine `usage` qaytarishi —
+/// Phase 7). Bo'sh ustun qo'shish = o'lik sxema; Phase 7 ularni o'z
+/// migratsiyasi bilan qo'shadi.
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           MessageRole
+  content        String
+  /// Halal-filtr belgisi (faqat assistant xabarlarida bo'lishi mumkin).
+  halalFlag      String?
+  /// Engine demo rejimda javob bergan (real LLM emas; pul qaytarilgan).
+  /// Jonli JSON'da mavjud bo'lgan maydon — ma'lumot saqlanadi.
+  demoMode       Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
 }
 
 // --- Life Twin: foydalanuvchining raqamli egizagi (ma'lumot umurtqasi) ---
