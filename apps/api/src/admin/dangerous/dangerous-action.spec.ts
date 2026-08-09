@@ -70,13 +70,19 @@ function makeDeps(overrides: { target?: TargetUser | null; ownerCount?: number }
   };
   const alerts = { dangerousActionRequested: jest.fn(async () => undefined) };
 
+  // SEC-12: pul yo'li mavjud `WalletCreditService` orqali o'tadi.
+  const wallet = {
+    credit: jest.fn(async () => ({ id: 'led1', balanceAfter: 1000n })),
+  };
+
   const svc = new DangerousActionService(
     prisma as never,
     twoFactor as never,
     audit as never,
     alerts as never,
+    wallet as never,
   );
-  return { svc, prisma, twoFactor, audit, alerts };
+  return { svc, prisma, twoFactor, audit, alerts, wallet };
 }
 
 const validRequest = {

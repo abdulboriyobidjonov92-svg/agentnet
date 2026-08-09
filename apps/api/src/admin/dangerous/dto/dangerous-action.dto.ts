@@ -1,5 +1,14 @@
 import { Transform } from 'class-transformer';
-import { IsEnum, IsIn, IsOptional, IsString, Length, MaxLength, MinLength } from 'class-validator';
+import {
+  IsEnum,
+  IsIn,
+  IsOptional,
+  IsString,
+  Length,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { DangerousActionKind, UserRole } from '@prisma/client';
 
 /**
@@ -55,6 +64,26 @@ export class CreateDangerousActionDto {
   @IsOptional()
   @IsIn(Object.values(UserRole))
   newRole?: UserRole;
+
+  /**
+   * SEC-12 `credit_manual` uchun summa — TIYINDA va SATR sifatida.
+   *
+   * NEGA SATR: pul ustunlari `BigInt` (A13) va JSON `number` 2^53 dan
+   * keyin aniqlikni yo'qotadi. Butun API pulni satr sifatida uzatadi
+   * (`bigint-serialize.ts`), kirish yo'li ham shunday bo'lishi shart —
+   * aks holda mijoz yuborgan katta son JIMGINA yaxlitlanardi.
+   *
+   * `@Matches` faqat MUSBAT butun sonni o'tkazadi: minus belgisi, o'nlik
+   * nuqta, bo'shliq, eksponent — hammasi rad etiladi. Ya'ni "manfiy
+   * kredit orqali balansdan yechish" (§6.1 da bu ALOHIDA, faqat OWNER'ga
+   * ruxsat etilgan amal) bu yo'ldan MUMKIN EMAS.
+   */
+  @IsOptional()
+  @IsString()
+  @Matches(/^[1-9][0-9]{0,18}$/, {
+    message: "Summa musbat butun son (tiyinda, satr sifatida) bo'lishi shart",
+  })
+  amountTiyin?: string;
 }
 
 /**

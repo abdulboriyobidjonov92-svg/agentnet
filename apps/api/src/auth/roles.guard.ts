@@ -2,6 +2,8 @@ import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '@prisma/client';
 import { ROLES_KEY } from './roles.decorator';
+import { ROLE_RANK } from './role-rank';
+import type { ImpersonationContext } from './impersonation.types';
 
 /**
  * SEC-05 — global RBAC guard (Engineering Contract A8 / ADR-002).
@@ -27,19 +29,6 @@ import { ROLES_KEY } from './roles.decorator';
  * Ya'ni bu "fail-open" emas: bu yo'llar o'z guard'lariga ega yoki ataylab
  * ochiq; RolesGuard ularning avtorizatsiya modeli emas.
  */
-
-/**
- * Ierarxiya faqat DEKORATORSIZ endpointlar uchun ishlatiladi (2-rejim).
- * Kichik raqam = yuqori huquq. Tartib `schema.prisma`dagi `enum UserRole`
- * bilan mos bo'lishi SHART — ikkalasini birga o'zgartiring.
- */
-const ROLE_RANK: Record<UserRole, number> = {
-  OWNER: 0,
-  ADMIN: 1,
-  SUPPORT: 2,
-  MEMBER: 3,
-  VIEWER: 4,
-};
 
 /** Dekoratorsiz endpoint uchun minimal daraja (AC #4). */
 const DEFAULT_MIN_ROLE: UserRole = 'MEMBER';
@@ -77,6 +66,27 @@ export class RolesGuard implements CanActivate {
     }
 
     if (required && required.length > 0) {
+      // SEC-12 §10 — IMTIYOZ YO'LI IMPERSONATION UCHUN BUTUNLAY YOPIQ.
+      //
+      // Bu tekshiruv `required.includes(role)` dan OLDIN turadi va ataylab
+      // nishonning ROLIGA UMUMAN QARAMAYDI. Sababi "confused deputy":
+      // impersonation paytida `dbUser` — KO'RILAYOTGAN foydalanuvchi, ya'ni
+      // nishon ADMIN bo'lsa, oddiy rol tekshiruvi uni O'TKAZIB YUBORARDI va
+      // SUPPORT operatori ADMIN endpointiga kirib olardi. Rol solishtiruvi
+      // shu yerda hech qachon impersonation kontekstida bajarilmaydi.
+      //
+      // Amaliy natija: `@Roles(...)` bilan himoyalangan HAR BIR yo'l
+      // (butun `admin/*` yuzasi, jumladan SEC-11 xavfli amallari)
+      // impersonation sessiyasidan 403 oladi — ro'yxat saqlanmaydi.
+      if (request?.impersonation) {
+        const ctx = request.impersonation as ImpersonationContext;
+        throw new ForbiddenException({
+          message: "Impersonation sessiyasida imtiyozli yo'llar ochilmaydi",
+          reason: 'impersonation_privileged_route',
+          impersonationId: ctx.impersonationId,
+        });
+      }
+
       if (!required.includes(role)) {
         throw new ForbiddenException("Ruxsat yo'q");
       }

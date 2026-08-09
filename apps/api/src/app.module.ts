@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD, APP_FILTER } from '@nestjs/core';
+import { APP_GUARD, APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -7,6 +7,8 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
 import { AuthGuard } from './auth/auth.guard';
 import { RolesGuard } from './auth/roles.guard';
+import { ImpersonationGuard } from './auth/impersonation.guard';
+import { ImpersonationAuditInterceptor } from './auth/impersonation-audit.interceptor';
 import { PrismaModule } from './prisma/prisma.module';
 import { CryptoModule } from './crypto/crypto.module';
 import { AgentsModule } from './agents/agents.module';
@@ -88,9 +90,18 @@ import { HealthController } from './health.controller';
     // ko'radi. `@Public()` yo'llarda dbUser yo'q, RolesGuard o'zi ham aralashmaydi
     // (roles.guard.ts).
     { provide: APP_GUARD, useClass: RolesGuard },
+    // SEC-12 §8: impersonation sessiyasidagi taqiqlar (read-only + maxfiy
+    // o'qish yo'llari). RolesGuard'dan KEYIN — guardlar shu tartibda
+    // ishlaydi, ya'ni imtiyozli yo'l allaqachon RolesGuard'da yopilgan
+    // bo'ladi va bu guard qolgan (oddiy foydalanuvchi) yuzasini qamraydi.
+    // Impersonation bo'lmagan so'rovlarda darhol `true` qaytaradi.
+    { provide: APP_GUARD, useClass: ImpersonationGuard },
     // Global xato-filtri (observability) — har bir ishlov berilmagan xatoni
     // strukturaviy loglaydi (5xx to'liq stack bilan). Render loglarida ko'rinadi.
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
+    // SEC-12 §6.6: impersonation orqali o'tgan HAR SO'ROV auditlanadi
+    // (ruxsat berilganlari — bu yerda; rad etilganlari — guard'da).
+    { provide: APP_INTERCEPTOR, useClass: ImpersonationAuditInterceptor },
   ],
 })
 export class AppModule {}

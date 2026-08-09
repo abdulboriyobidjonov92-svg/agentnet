@@ -33,6 +33,14 @@ export class AdminUsersQueryDto extends PageQueryDto {
   @IsString()
   @MaxLength(200)
   q?: string;
+
+  /**
+   * SEC-12 §6.4 — "bloklanganlar" filtri (`@@index([blockedAt])` shu uchun).
+   * `'1'` — faqat bloklanganlar, `'0'` — faqat faol hisoblar.
+   */
+  @IsOptional()
+  @IsIn(['0', '1'])
+  blocked?: '0' | '1';
 }
 
 export class AdminAuditQueryDto extends PageQueryDto {

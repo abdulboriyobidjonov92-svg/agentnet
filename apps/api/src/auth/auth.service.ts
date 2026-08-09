@@ -63,6 +63,20 @@ export class AuditLogService {
     resourceType: string;
     resourceId?: string;
     metadata?: Record<string, unknown>;
+    /**
+     * SEC-12 (ADR-008) — impersonation orqali bajarilgan amalda KO'RILGAN
+     * foydalanuvchi. `actorId` DOIM haqiqiy operator bo'lib qoladi.
+     *
+     * IKKI JOYGA yoziladi (ataylab):
+     *   • `metadata.impersonatedUserId` — kanonik hash ICHIDA, ya'ni
+     *     buzilmas dalil (mavjud hash formati O'ZGARMAYDI, chunki metadata
+     *     allaqachon hashlanadi);
+     *   • `AuditLog.impersonatedUserId` ustuni — indekslanadigan ko'chirma
+     *     (admin jurnalida "impersonatedBy?" ustuni va nishon bo'yicha
+     *     filtr shundan ishlaydi).
+     * Ustunni o'zgartirish metadata bilan solishtirilganda darhol ko'rinadi.
+     */
+    impersonatedUserId?: string;
   }): Promise<void> {
     // Audit-log hech qachon asosiy oqimni bloklamasligi kerak.
     try {
@@ -91,13 +105,20 @@ export class AuditLogService {
 
         // `createdAt` ANIQ o'rnatiladi (DB default'iga tashlanmaydi): u hash
         // ichiga kiradi, ya'ni keyin vaqt belgisini o'zgartirish zanjirni buzadi.
+        // SEC-12: impersonation belgisi metadata ICHIGA ham kiritiladi —
+        // hash aynan shu obyektni qamraydi (ustun esa qamramaydi).
+        const metadata = params.impersonatedUserId
+          ? { ...(params.metadata ?? {}), impersonatedUserId: params.impersonatedUserId }
+          : (params.metadata ?? {});
+
         const created = await tx.auditLog.create({
           data: {
             actorId: params.actorId,
             action: params.action,
             resourceType: params.resourceType,
             resourceId: params.resourceId ?? null,
-            metadata: (params.metadata ?? {}) as object,
+            metadata: metadata as object,
+            impersonatedUserId: params.impersonatedUserId ?? null,
             createdAt: new Date(),
             prevHash,
             entryHash: '', // quyida SAQLANGAN qiymatlardan hisoblanadi
@@ -253,9 +274,31 @@ export class AuthService {
 
   /** Har bir muvaffaqiyatli login imzolangan token bilan qaytadi. */
   issueSession(
-    u: { id: string; email: string; phone: string | null; role: string; name: string | null; tokenVersion: number },
+    u: {
+      id: string;
+      email: string;
+      phone: string | null;
+      role: string;
+      name: string | null;
+      tokenVersion: number;
+      blockedAt?: Date | null;
+    },
     isNewUser: boolean,
   ) {
+    // SEC-12 §24 — bloklangan hisobga sessiya BERILMAYDI.
+    //
+    // Bu yerda, chunki `issueSession` login tokenining YAGONA chiqish
+    // nuqtasi (dev-login ham, OTP ham shundan o'tadi). `AuthGuard` baribir
+    // har so'rovda blokni tekshiradi, ya'ni bu qatlam qo'shimcha to'siq
+    // emas — u login oqimida ANIQ sabab beradi ("bloklangan"), aks holda
+    // foydalanuvchi kirgandek bo'lib, keyin har so'rovda 403 olardi.
+    if (u.blockedAt) {
+      throw new ForbiddenException({
+        message: 'Hisobingiz bloklangan. Qo\'llab-quvvatlash xizmatiga murojaat qiling.',
+        reason: 'account_blocked',
+      });
+    }
+
     return {
       userId: u.id,
       email: u.email,

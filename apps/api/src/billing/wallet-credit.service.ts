@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import type { Prisma } from '@prisma/client';
+import type { LedgerKind, Prisma } from '@prisma/client';
 
 /**
  * To'lov muvaffaqiyatli bo'lganda balansni yangilaydigan UMUMIY logika —
@@ -16,12 +16,20 @@ import type { Prisma } from '@prisma/client';
 export class WalletCreditService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** To'lov tasdiqlanganda balansni oshiradi + CreditLedger yozadi (atomik). */
+  /**
+   * To'lov tasdiqlanganda balansni oshiradi + CreditLedger yozadi (atomik).
+   *
+   * `kind` — daftar yozuvining PROVENANSI. Default `topup` (to'lov
+   * provayderidan kelgan pul). SEC-12 admin "qo'lda kredit" amali
+   * `admin_credit` beradi: shu bitta parametr tufayli ikkinchi
+   * balans-mutatsiya yo'li yozilmadi (Contract §11 — pul yo'li bitta).
+   */
   async credit(
     userId: string,
     amountTiyin: bigint,
     meta: Record<string, unknown>,
     client: Prisma.TransactionClient = this.prisma,
+    kind: LedgerKind = 'topup',
   ) {
     const fresh = await client.user.update({
       where: { id: userId },
@@ -29,7 +37,7 @@ export class WalletCreditService {
       select: { balanceTiyin: true },
     });
     return client.creditLedger.create({
-      data: { userId, kind: 'topup', amount: amountTiyin, balanceAfter: fresh.balanceTiyin, meta: meta as any },
+      data: { userId, kind, amount: amountTiyin, balanceAfter: fresh.balanceTiyin, meta: meta as any },
     });
   }
 

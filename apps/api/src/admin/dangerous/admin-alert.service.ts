@@ -23,6 +23,19 @@ import { TelegramService } from '../../telegram/telegram.service';
  * xizmat). Signal xatosi xavfli amalni TO'XTATMAYDI — audit yozuvi
  * (§6.5(4)) birlamchi, buzilmas dalil; Telegram — qulaylik qatlami.
  */
+/**
+ * Telegram `parse_mode: 'HTML'` uchun matnni xavfsizlashtiradi.
+ *
+ * NEGA KERAK: signal matniga OPERATOR YOZGAN sabab va foydalanuvchi
+ * kiritgan email tushadi. Ular ichida `<` bo'lsa Telegram butun xabarni
+ * RAD ETADI (400 "can't parse entities") — ya'ni bitta noto'g'ri belgi
+ * nazorat signalini JIMGINA yo'q qilardi. Qo'shimcha foyda: HTML
+ * in'ektsiyasi (soxta havola) ham yopiladi.
+ */
+export function escapeTelegramHtml(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 @Injectable()
 export class AdminAlertService {
   private readonly logger = new Logger(AdminAlertService.name);
@@ -43,12 +56,38 @@ export class AdminAlertService {
     const text =
       `⚠️ <b>Xavfli amal so'raldi</b>\n` +
       `Amal: <code>${params.kind}</code>\n` +
-      `Kim: ${params.actorEmail}\n` +
-      `Kimga: ${params.targetEmail}\n` +
-      `Sabab: ${params.reason}\n` +
+      `Kim: ${escapeTelegramHtml(params.actorEmail)}\n` +
+      `Kimga: ${escapeTelegramHtml(params.targetEmail)}\n` +
+      `Sabab: ${escapeTelegramHtml(params.reason)}\n` +
       `ID: <code>${params.actionId}</code>`;
 
     await this.send(text, params.actionId);
+  }
+
+  /**
+   * SEC-12 §6.6 — impersonation boshlanishi ham nazorat kanaliga chiqadi.
+   *
+   * NEGA: impersonation §6.5 ma'nosida "xavfli amal" emas (u o'qish
+   * sessiyasi), LEKIN u BOSHQA ODAMNING hisobiga kirish — OWNER buni
+   * real vaqtda ko'rishi kerak. Yangi kanal yaratilmaydi: ayni shu
+   * `send()` yo'li ishlatiladi (sozlanmagan bo'lsa — strukturaviy log).
+   */
+  async impersonationStarted(params: {
+    actorEmail: string;
+    targetEmail: string;
+    reason: string;
+    sessionId: string;
+    expiresAt: Date;
+  }): Promise<void> {
+    const text =
+      `🔎 <b>Impersonation boshlandi</b> (faqat o'qish)\n` +
+      `Kim: ${escapeTelegramHtml(params.actorEmail)}\n` +
+      `Kimning hisobi: ${escapeTelegramHtml(params.targetEmail)}\n` +
+      `Sabab: ${escapeTelegramHtml(params.reason)}\n` +
+      `Tugaydi: ${params.expiresAt.toISOString()}\n` +
+      `ID: <code>${params.sessionId}</code>`;
+
+    await this.send(text, params.sessionId);
   }
 
   private async send(text: string, actionId: string): Promise<void> {
@@ -58,7 +97,7 @@ export class AdminAlertService {
       // Sozlanmagan — LEKIN signal yo'qolmaydi.
       this.logger.error(
         `OWNER signali yuborilmadi (OWNER_ALERT_TELEGRAM_CHAT_ID sozlanmagan). ` +
-          `Xavfli amal: ${actionId}. Matn: ${text.replace(/<[^>]+>/g, '')}`,
+          `Hodisa: ${actionId}. Matn: ${text.replace(/<[^>]+>/g, '')}`,
       );
       return;
     }

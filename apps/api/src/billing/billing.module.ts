@@ -15,6 +15,9 @@ import { ConnectorsModule } from '../connectors/connectors.module';
   imports: [AuthModule, UsageModule, ConnectorsModule],
   controllers: [BillingController, WebhooksController, PlatformBillingController],
   providers: [BillingService, WalletCreditService, PaymeService, ClickService, PlatformBillingService],
-  exports: [BillingService, PlatformBillingService],
+  // SEC-12: `WalletCreditService` eksport qilinadi — admin "qo'lda kredit"
+  // amali MAVJUD atomik pul yo'lidan o'tishi SHART (yangi balans-mutatsiyasi
+  // yozilmaydi, Contract §11 "Pul" qoidalari).
+  exports: [BillingService, PlatformBillingService, WalletCreditService],
 })
 export class BillingModule {}

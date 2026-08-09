@@ -15,17 +15,22 @@ import {
 /**
  * SEC-11 §6.5 — xavfli amallar yuzasi.
  *
- * `@Roles(OWNER)`: hozirgi ikkala amal ham §6.1 matritsasida FAQAT OWNER
- * (rol tayinlash · sessiyalarni ommaviy bekor qilish). Bu — BIRINCHI
- * darvoza; ikkinchisi registrdagi `allowedRoles` (servis ichida), ya'ni
- * controller kengaytirilsa ham amal o'z chegarasini saqlaydi.
+ * `@Roles(OWNER, ADMIN)` — SEC-12 da kengaytirildi: §6.1 matritsasida
+ * "Qo'lda kredit berish" va "Foydalanuvchini bloklash" ADMIN uchun ham
+ * ruxsat etilgan. Bu — BIRINCHI darvoza; IKKINCHISI registrdagi
+ * `allowedRoles` (servis ichida, so'rov/bajarish/bekor qilishning
+ * HAMMASIDA tekshiriladi), ya'ni `role_assign` va `session_revoke`
+ * controller kengayganidan keyin ham FAQAT OWNER'da qoladi. Aynan shu
+ * ikki darvozali dizayn SEC-11 da shu maqsad uchun qurilgan edi.
+ *
+ * SUPPORT ATAYLAB YO'Q: §6.1 da uchala yozish amalida ham "❌".
  *
  * `@Throttle`: §6.5 "admin xavfli amallari — 10/soat/admin".
  */
 @ApiTags('admin')
 @ApiBearerAuth()
 @Controller('admin/dangerous-actions')
-@Roles(UserRole.OWNER)
+@Roles(UserRole.OWNER, UserRole.ADMIN)
 @Throttle({ default: { limit: 10, ttl: 60 * 60 * 1000 } })
 export class DangerousActionController {
   constructor(

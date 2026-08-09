@@ -33,6 +33,10 @@ const USER_LIST_SELECT = {
   platformPlanFrozen: true,
   balanceTiyin: true,
   twoFactorEnabled: true,
+  // SEC-12: blok holati ro'yxatda ko'rinadi — operator kimni bloklash/
+  // blokdan chiqarish mumkinligini ekrandan biladi.
+  blockedAt: true,
+  blockedReason: true,
   createdAt: true,
 } satisfies Prisma.UserSelect;
 
@@ -98,6 +102,9 @@ export class AdminUsersService {
     const where: Prisma.UserWhereInput = {};
     if (query.role) where.role = query.role;
     if (query.platformPlan) where.platformPlan = query.platformPlan;
+    // SEC-12: blok filtri (`@@index([blockedAt])`).
+    if (query.blocked === '1') where.blockedAt = { not: null };
+    if (query.blocked === '0') where.blockedAt = null;
 
     const q = query.q?.trim();
     if (q) {

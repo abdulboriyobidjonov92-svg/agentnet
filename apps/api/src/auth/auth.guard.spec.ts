@@ -18,6 +18,22 @@ function publicReflector(): Reflector {
   return { getAllAndOverride: (key: string) => (key === IS_PUBLIC_KEY ? true : undefined) } as unknown as Reflector;
 }
 
+
+/**
+ * SEC-12: `AuthGuard` endi `ImpersonationService` ga ham bog'liq. Bu
+ * testlarda impersonation YO'Q (oddiy sessiya yo'li) — servis chaqirilmasligi
+ * kerak, shuning uchun mock `resolve()` ataylab yiqiladi.
+ */
+const noImpersonation = {
+  resolve: jest.fn(async () => {
+    throw new Error('impersonation kutilmagan edi');
+  }),
+} as any;
+
+function makeGuard(prisma: any, reflector: Reflector = noopReflector) {
+  return new AuthGuard(prisma, reflector, noImpersonation);
+}
+
 function ctxWith(headers: Record<string, any>): { ctx: ExecutionContext; request: any } {
   const request: any = { headers };
   const ctx = {
@@ -35,7 +51,7 @@ describe('AuthGuard', () => {
 
   it('Authorization sarlavhasi yo\'q -> UnauthorizedException', async () => {
     const prisma = { user: { findUnique: jest.fn() } } as any;
-    const guard = new AuthGuard(prisma, noopReflector);
+    const guard = makeGuard(prisma);
     const { ctx } = ctxWith({});
 
     await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(UnauthorizedException);
@@ -44,7 +60,7 @@ describe('AuthGuard', () => {
 
   it('"Bearer" bo\'lmagan sxema -> UnauthorizedException', async () => {
     const prisma = { user: { findUnique: jest.fn() } } as any;
-    const guard = new AuthGuard(prisma, noopReflector);
+    const guard = makeGuard(prisma);
     const { ctx } = ctxWith({ authorization: 'Basic dXNlcjpwYXNz' });
 
     await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(UnauthorizedException);
@@ -52,7 +68,7 @@ describe('AuthGuard', () => {
 
   it('soxta/imzosiz token -> UnauthorizedException (userId endi kirish uchun yetarli emas)', async () => {
     const prisma = { user: { findUnique: jest.fn() } } as any;
-    const guard = new AuthGuard(prisma, noopReflector);
+    const guard = makeGuard(prisma);
     const { ctx } = ctxWith({ authorization: 'Bearer just-a-user-id' });
 
     await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(UnauthorizedException);
@@ -62,7 +78,7 @@ describe('AuthGuard', () => {
   it('muddati o\'tgan token -> UnauthorizedException', async () => {
     const expired = signToken({ sub: 'u1' }, -10);
     const prisma = { user: { findUnique: jest.fn() } } as any;
-    const guard = new AuthGuard(prisma, noopReflector);
+    const guard = makeGuard(prisma);
     const { ctx } = ctxWith({ authorization: `Bearer ${expired}` });
 
     await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(UnauthorizedException);
@@ -71,7 +87,7 @@ describe('AuthGuard', () => {
   it('yaroqli token, lekin foydalanuvchi bazada yo\'q -> UnauthorizedException', async () => {
     const token = signToken({ sub: 'ghost' });
     const prisma = { user: { findUnique: jest.fn(async () => null) } } as any;
-    const guard = new AuthGuard(prisma, noopReflector);
+    const guard = makeGuard(prisma);
     const { ctx } = ctxWith({ authorization: `Bearer ${token}` });
 
     await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(UnauthorizedException);
@@ -81,7 +97,7 @@ describe('AuthGuard', () => {
     const token = signToken({ sub: 'u1', email: 'a@b.com', tv: 0 });
     const user = { id: 'u1', email: 'a@b.com', tokenVersion: 0 };
     const prisma = { user: { findUnique: jest.fn(async () => user) } } as any;
-    const guard = new AuthGuard(prisma, noopReflector);
+    const guard = makeGuard(prisma);
     const { ctx, request } = ctxWith({ authorization: `Bearer ${token}` });
 
     const result = await guard.canActivate(ctx);
@@ -97,7 +113,7 @@ describe('AuthGuard', () => {
     const oldToken = signToken({ sub: 'u1', email: 'a@b.com' });
     const user = { id: 'u1', email: 'a@b.com', tokenVersion: 0 };
     const prisma = { user: { findUnique: jest.fn(async () => user) } } as any;
-    const guard = new AuthGuard(prisma, noopReflector);
+    const guard = makeGuard(prisma);
     const { ctx } = ctxWith({ authorization: `Bearer ${oldToken}` });
 
     await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(UnauthorizedException);
@@ -108,7 +124,7 @@ describe('AuthGuard', () => {
     // Foydalanuvchi keyinchalik 2FA yoqdi -> tokenVersion 1ga oshdi
     const user = { id: 'u1', email: 'a@b.com', tokenVersion: 1 };
     const prisma = { user: { findUnique: jest.fn(async () => user) } } as any;
-    const guard = new AuthGuard(prisma, noopReflector);
+    const guard = makeGuard(prisma);
     const { ctx } = ctxWith({ authorization: `Bearer ${staleToken}` });
 
     await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(UnauthorizedException);
@@ -118,7 +134,7 @@ describe('AuthGuard', () => {
     const freshToken = signToken({ sub: 'u1', email: 'a@b.com', tv: 1 });
     const user = { id: 'u1', email: 'a@b.com', tokenVersion: 1 };
     const prisma = { user: { findUnique: jest.fn(async () => user) } } as any;
-    const guard = new AuthGuard(prisma, noopReflector);
+    const guard = makeGuard(prisma);
     const { ctx, request } = ctxWith({ authorization: `Bearer ${freshToken}` });
 
     const result = await guard.canActivate(ctx);
@@ -130,7 +146,7 @@ describe('AuthGuard', () => {
   // SEC-05 (Option B)
   it("@Public() -> ruxsat, token butunlay tekshirilmaydi (dbUser o'rnatilmaydi)", async () => {
     const prisma = { user: { findUnique: jest.fn() } } as any;
-    const guard = new AuthGuard(prisma, publicReflector());
+    const guard = makeGuard(prisma, publicReflector());
     const { ctx, request } = ctxWith({}); // Authorization sarlavhasi UMUMAN yo'q
 
     const result = await guard.canActivate(ctx);

@@ -124,6 +124,11 @@ enum LedgerKind {
   marketplace_install
   creator_bonus
   referral_bonus
+  /// SEC-12 — admin tomonidan QO'LDA berilgan kredit. `topup` dan ATAYLAB
+  /// ajratilgan: to'lov provayderidan kelgan pul bilan operator qo'li bilan
+  /// yozilgan pulni daftar darajasida farqlab bo'lmasa, moliyaviy
+  /// solishtirish (§6.2 `/admin/billing/reconcile`) ma'nosini yo'qotadi.
+  admin_credit
 }
 
 /// SEC-11 §6.5 — xavfli admin amali turi. Har tur `DANGEROUS_ACTIONS`
@@ -132,6 +137,14 @@ enum LedgerKind {
 enum DangerousActionKind {
   role_assign
   session_revoke
+  // SEC-12 (Sprint 7 "Users yozish amallari") — qo'lda kredit va blok/blokdan
+  // chiqarish. §6.5 nomma-nom faqat "qo'lda kredit >500k so'm"ni xavfli deb
+  // ataydi; bu yerda CHEGARADAN QAT'I NAZAR butun pul yo'li oqimga olindi
+  // (ikkinchi tasdiqlash mexanizmi yaratmaslik uchun — Rule: bitta oqim).
+  // 500k/kun chegarasi ADMIN uchun registrda alohida majburlanadi.
+  credit_manual
+  user_block
+  user_unblock
 }
 
 /// SEC-11 §6.5 — holat mashinasi: pending -> executed | cancelled | expired.
@@ -193,6 +206,86 @@ model DangerousAction {
   @@index([actorId, createdAt])
 }
 
+/// SEC-12 §6.6 — impersonation rejimi.
+///
+/// ATAYLAB BITTA A'ZO. §6.1 matritsasi "Impersonation (write)" ni OWNER uchun
+/// ruxsat etadi, LEKIN §6.5 uni XAVFLI AMAL deb tasniflaydi — ya'ni u SEC-11
+/// oqimi (sabab + TOTP + yozib tasdiqlash + ikki audit) bilan birga kelishi
+/// kerak va SEC-12 doirasiga kirmaydi. Bir a'zoli enum — "yozish rejimi hali
+/// mavjud emas" degan kafolatni DB darajasida beradi (A14 mantig'i): hech
+/// qanday kod yo'li READ_WRITE qatorini yarata olmaydi, chunki bunday qiymat
+/// umuman yo'q. Yozish rejimi qo'shilganda — additive `ALTER TYPE ADD VALUE`.
+enum ImpersonationMode {
+  READ_ONLY
+}
+
+/// SEC-12 — impersonation sessiyasining holati.
+/// active -> ended (aniq to'xtatish) | expired (30 daqiqa o'tdi).
+/// Boshqa o'tish YO'Q; ikkalasi ham shartli `updateMany` bilan atomik.
+enum ImpersonationStatus {
+  active
+  ended
+  expired
+}
+
+/// SEC-12 §6.6 — impersonation sessiyasi (server tomonidagi HAQIQAT).
+///
+/// NEGA JADVAL KERAK, faqat JWT yetarli emas: (a) tokenni BEKOR QILISH
+/// (§17 "aniq to'xtatish") imzolangan tokenni qaytarib ololmaydi — server
+/// tomonda holat bo'lishi SHART; (b) "har so'rov auditlanadi" (§6.6) uchun
+/// sessiya identifikatori davomli bo'lishi kerak; (c) tugash (aniq yoki
+/// muddat bilan) farqlanadigan hodisa sifatida yozilishi kerak.
+///
+/// JWT bu qatorga HAVOLA (`imp` = id) — ikki manba emas, bitta manba +
+/// imzolangan havola. Har so'rovda qator o'qiladi va tekshiriladi.
+model ImpersonationSession {
+  id     String              @id @default(cuid())
+  status ImpersonationStatus @default(active)
+  mode   ImpersonationMode   @default(READ_ONLY)
+
+  /// HAQIQIY aktor (admin/support). Avtorizatsiya HAR DOIM shu shaxsga
+  /// tegishli — `targetUserId` faqat KO'RILAYOTGAN identifikator.
+  actorId String
+  actor   User   @relation("ImpersonationActor", fields: [actorId], references: [id])
+
+  /// Kimning hisobi ko'rilmoqda.
+  targetUserId String
+  targetUser   User   @relation("ImpersonationTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  /// §6.6 "sabab majburiy" (min 20 belgi — SEC-11 bilan bir xil konvensiya).
+  reason String
+
+  /// Aktorning sessiya boshlanganidagi `tokenVersion`i. Har so'rovda joriy
+  /// qiymat bilan solishtiriladi: aktorning sessiyalari bekor qilinsa
+  /// (SEC-03), impersonation ham SHU ZAHOTI o'ladi. Nishonning
+  /// `tokenVersion`i tokenning `tv` da — uni `AuthGuard` allaqachon
+  /// tekshiradi, ya'ni nishon sessiyalari bekor qilinsa ham token o'ladi.
+  actorTokenVersion Int
+
+  /// §6.6 "maks. 30 daqiqa" — server tomonidagi HAQIQAT (JWT `exp` bilan
+  /// bir xil, lekin token o'zgartirilsa ham bu qator o'zgarmaydi).
+  expiresAt DateTime
+
+  endedAt     DateTime?
+  /// 'manual' (operator to'xtatdi) | 'expired' (muddat) | 'revoked' (aktor
+  /// sessiyalari bekor qilindi) — tugash sababi ANIQ farqlanadi (§13).
+  endedReason String?
+
+  /// Shu sessiya orqali o'tgan so'rovlar soni (audit yozuvlari bilan
+  /// solishtirish uchun tez ko'rsatkich).
+  requestCount Int @default(0)
+
+  /// Nishonga bildirishnoma yuborilgan vaqt (§6.6 oxirgi banti). `null` =
+  /// hali yuborilmagan yoki kanal yo'q — takror yubormaslik uchun.
+  notifiedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([targetUserId, createdAt])
+  @@index([status, expiresAt])
+}
+
 /// To'lov maqsadi (PaymeTransaction/ClickTransaction.purpose).
 enum PaymentPurpose {
   topup
@@ -227,20 +320,37 @@ model User {
   // (do'kon, avtoservis...) bunga bog'liq emas. Wallet-balansdan EMAS — alohida
   // oylik "kvitansiya" (Payme/Click), hozircha QO'LDA to'lanadi (karta-token
   // avtomatik yechim keyingi bosqich).
-  platformPlan           PlatformPlan       @default(none)
+  platformPlan           PlatformPlan @default(none)
   platformPlanUntil      DateTime? // joriy to'langan davr oxiri
-  platformPlanFrozen     Boolean            @default(false) // muddatida yangilanmadi — kirish to'xtatilgan
+  platformPlanFrozen     Boolean      @default(false) // muddatida yangilanmadi — kirish to'xtatilgan
   platformReminderSentAt DateTime? // oxirgi "muddati yaqinlashmoqda" eslatmasi (takror-yubormaslik uchun)
   // Prepaid balans (UZS tiyin) — real Claude chaqiruvlari shundan yechiladi.
   // Balans yetarli bo'lmasa LLM so'rovi hech qachon amalga oshmaydi — shu
   // orqali platforma egasi hech qachon o'z cho'ntagidan to'lamaydi.
-  balanceTiyin           BigInt             @default(0)
+  balanceTiyin           BigInt       @default(0)
+
+  // --- SEC-12 §6.1 "Foydalanuvchini bloklash" ---
+  // ATAYLAB alohida `status` enum'i EMAS: platformada allaqachon uch xil
+  // "to'xtatilgan" o'qi bor (`Agent.frozen`, `platformPlanFrozen`, endi
+  // hisob bloki) — ularni bitta status maydoniga siqish mavjud mantiqni
+  // qayta yozishni talab qilardi. `blockedAt` — vaqt belgisi sifatida
+  // ham bayroq, ham dalil (qachon bloklangani auditda emas, qatorda ham
+  // ko'rinadi). `null` = bloklanmagan.
+  blockedAt     DateTime?
+  blockedReason String?
+  /// Bloklagan admin (audit yozuvidan tashqari, qatorda ham ko'rinadi).
+  /// FK QO'YILMAGAN — ataylab: bloklagan admin keyinchalik o'chirilsa,
+  /// blok holati (xavfsizlik qarori) yo'qolmasligi kerak.
+  blockedById   String?
+
   creditLedger           CreditLedger[]
   paymeTransactions      PaymeTransaction[]
   clickTransactions      ClickTransaction[]
   feedbackItems          Feedback[]
-  dangerousActionsRaised DangerousAction[]  @relation("DangerousActionActor")
-  dangerousActionsTarget DangerousAction[]  @relation("DangerousActionTarget")
+  dangerousActionsRaised DangerousAction[]      @relation("DangerousActionActor")
+  dangerousActionsTarget DangerousAction[]      @relation("DangerousActionTarget")
+  impersonationsAsActor  ImpersonationSession[] @relation("ImpersonationActor")
+  impersonationsAsTarget ImpersonationSession[] @relation("ImpersonationTarget")
   sharedResults          SharedResult[]
 
   // --- Proaktiv haftalik brifing (cron -> Telegram) ---
@@ -326,6 +436,8 @@ model User {
   // ORDER BY createdAt DESC, id DESC. Usiz 10k qatorda Seq Scan + Sort edi.
   @@index([createdAt])
   @@index([orgId])
+  // SEC-12: admin ro'yxatida "bloklanganlar" filtri (§6.4 Users filtrlari).
+  @@index([blockedAt])
 }
 
 // Org = AgentOS ish maydoni. Bitta AgentNet hisobi ham shaxs (Life Twin),
@@ -558,24 +670,37 @@ model GoalTask {
 }
 
 model AuditLog {
-  id           String   @id @default(cuid())
+  id                 String   @id @default(cuid())
   // Monotonik ketma-ketlik — hash-zanjirning "oxirgi" yozuvini bir ma'noda
   // aniqlaydi (createdAt millisekundda teng bo'lib qolishi mumkin, seq — hech qachon).
-  seq          Int      @unique @default(autoincrement())
-  actorId      String
-  actor        User     @relation(fields: [actorId], references: [id])
-  action       String // masalan: "auth.login", "agent.create", "halal_filter.block"
-  resourceType String // masalan: "user", "agent", "conversation"
-  resourceId   String?
-  metadata     Json?
+  seq                Int      @unique @default(autoincrement())
+  actorId            String
+  actor              User     @relation(fields: [actorId], references: [id])
+  action             String // masalan: "auth.login", "agent.create", "halal_filter.block"
+  resourceType       String // masalan: "user", "agent", "conversation"
+  resourceId         String?
+  metadata           Json?
+  /// SEC-12 / ADR-008: impersonation orqali bajarilgan amalda — KO'RILGAN
+  /// foydalanuvchi. `actorId` esa DOIM haqiqiy operator bo'lib qoladi, ya'ni
+  /// "foydalanuvchi o'zi qildi" va "admin uning nomidan qildi" hech qachon
+  /// chalkashmaydi (§11).
+  ///
+  /// KANONIK HASH O'ZGARMAYDI (§12 talabi): bu ustun `computeEntryHash`
+  /// kirishida YO'Q — mavjud zanjir formati buzilmasin. Buzilmas nusxa
+  /// `metadata.impersonatedUserId` da yashaydi (metadata hash ichida), ya'ni
+  /// bu ustun faqat INDEKSLANADIGAN ko'chirma: uni o'zgartirish dalilni
+  /// o'zgartirmaydi (metadata bilan solishtirilganda darhol ko'rinadi).
+  impersonatedUserId String?
   // Hash-chain: har bir yozuv oldingi yozuv hash'iga bog'langan
-  prevHash     String
-  entryHash    String   @unique
-  createdAt    DateTime @default(now())
+  prevHash           String
+  entryHash          String   @unique
+  createdAt          DateTime @default(now())
 
   @@index([actorId])
   @@index([action])
   @@index([createdAt])
+  // SEC-12 §6.4: "impersonation tarixi" — nishon bo'yicha jurnal.
+  @@index([impersonatedUserId, seq])
 }
 
 // Ulashilgan natija — foydalanuvchi agenti chiqargan natijaning (masalan "bu oy

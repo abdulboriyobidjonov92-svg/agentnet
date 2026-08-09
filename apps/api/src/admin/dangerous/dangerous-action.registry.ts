@@ -27,7 +27,7 @@ export interface DangerousActionSpec {
    * Bajarishdan oldin MAJBURIY kutish (ms).
    *
    * Contract §6.5(5): kechiktirilgan bajarish FAQAT o'chirish uchun.
-   * Shuning uchun hozirgi ikki amalda 0 — ular darhol bajarilishi mumkin.
+   * Shuning uchun hozirgi amallarda 0 — ular darhol bajarilishi mumkin.
    * Bekor qilish oynasi baribir REAL: tasdiq `expiresAt` gacha yashaydi
    * va shu vaqt ichida bekor qilinadi (`dangerous-action.service.ts`).
    */
@@ -50,7 +50,52 @@ export const DANGEROUS_ACTIONS: Record<DangerousActionKind, DangerousActionSpec>
     confirmVerb: 'REVOKE',
     executionDelayMs: 0,
   },
+  // §6.1: "Qo'lda kredit berish — OWNER ✅, ADMIN ✅ (≤500k so'm/kun), SUPPORT ❌"
+  //
+  // §6.5 xavfli ro'yxatida "qo'lda kredit >500k so'm" turibdi, ya'ni
+  // matn bo'yicha kichik summa oqimdan tashqarida qolardi. ATAYLAB
+  // shunday QILINMADI: bu ikkinchi (nazoratsiz) kredit yo'lini talab
+  // qilardi — SEC-12 buyrug'i esa "ikkinchi tasdiqlash mexanizmi
+  // yaratilmaydi" deydi. Chegara yo'qolmadi: u `ADMIN_DAILY_CREDIT_CAP`
+  // sifatida ADMIN uchun KUNLIK limitga aylandi (quyida).
+  credit_manual: {
+    allowedRoles: [UserRole.OWNER, UserRole.ADMIN],
+    confirmVerb: 'CREDIT',
+    executionDelayMs: 0,
+  },
+  // §6.1: "Foydalanuvchini bloklash — OWNER ✅, ADMIN ✅, SUPPORT ❌"
+  user_block: {
+    allowedRoles: [UserRole.OWNER, UserRole.ADMIN],
+    confirmVerb: 'BLOCK',
+    executionDelayMs: 0,
+  },
+  // Blokdan chiqarish ham SHU oqimdan o'tadi: u xavfsizlik qarorini
+  // BEKOR QILADI (bloklangan hisob qaytadan ishlay boshlaydi), ya'ni
+  // bloklashning o'zi kabi sabab + TOTP + ikki audit yozuvi talab qiladi.
+  user_unblock: {
+    allowedRoles: [UserRole.OWNER, UserRole.ADMIN],
+    confirmVerb: 'UNBLOCK',
+    executionDelayMs: 0,
+  },
 };
+
+/**
+ * §6.1 — ADMIN uchun qo'lda kreditning KUNLIK chegarasi: 500 000 so'm.
+ * Tiyinda: 500_000 × 100. OWNER uchun chegara YO'Q (matritsada "✅").
+ */
+export const ADMIN_DAILY_CREDIT_CAP_TIYIN = 50_000_000n;
+
+/**
+ * Bitta amaldagi MUTLAQ chegara (10 mln so'm) — rolidan qat'i nazar.
+ *
+ * Bu ruxsat emas, XATOGA QARSHI to'siq: tiyin/so'm chalkashligi yoki
+ * ortiqcha nol bitta klikda hamyonga 100× ko'p pul yozardi. Chegaradan
+ * katta summa — bir necha amal (har biri alohida auditlanadi).
+ */
+export const MAX_SINGLE_CREDIT_TIYIN = 1_000_000_000n;
+
+/** Kunlik chegara oynasi (ms) — "kun" sifatida oxirgi 24 soat. */
+export const CREDIT_CAP_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 /** §6.5(3) — server kutayotgan ANIQ tasdiqlash satri. */
 export function expectedConfirmation(kind: DangerousActionKind, targetUserId: string): string {
