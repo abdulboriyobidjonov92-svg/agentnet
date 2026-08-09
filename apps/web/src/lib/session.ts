@@ -99,3 +99,52 @@ export function clearClientSession(): void {
 
 export const SESSION_COOKIE = COOKIE;
 export const TOKEN_COOKIE = TOKEN;
+
+// ---- SEC-12: impersonation cookie'lari ----
+//
+// IKKI COOKIE, sessiya cookie'lari bilan AYNAN bir xil naqshda:
+//   1. agentnet_imp (httpOnly) — impersonation JWT. Middleware uni
+//      Authorization sifatida qo'yadi; brauzer JS ko'rmaydi.
+//   2. agentnet_imp_meta — TOKENSIZ metadata (nishon emaili, tugash vaqti,
+//      sessiya id'si) — faqat BANNER ko'rsatishi uchun.
+//
+// MUHIM: haqiqiy operator tokeni (agentnet_token) O'CHIRILMAYDI. Shu
+// tufayli "to'xtatish" — imp cookie'sini o'chirish + serverga aniq
+// to'xtatish so'rovi; operator qaytadan login qilmaydi (§17).
+//
+// META COOKIE'GA ISHONILMAYDI: u faqat matn ko'rsatadi. Rejim, muddat va
+// taqiqlar serverda majburlanadi — meta'ni o'zgartirish hech qanday
+// imtiyoz bermaydi (banner noto'g'ri vaqt ko'rsatadi, xolos).
+export const IMPERSONATION_TOKEN_COOKIE = "agentnet_imp";
+export const IMPERSONATION_META_COOKIE = "agentnet_imp_meta";
+
+export interface ImpersonationMeta {
+  impersonationId: string;
+  targetEmail: string;
+  targetName?: string | null;
+  /** ISO 8601 — banner shundan sanoqni hisoblaydi. */
+  expiresAt: string;
+  mode: "READ_ONLY";
+}
+
+export function encodeImpersonationMeta(m: ImpersonationMeta): string {
+  return typeof window === "undefined"
+    ? Buffer.from(JSON.stringify(m)).toString("base64")
+    : btoa(unescape(encodeURIComponent(JSON.stringify(m))));
+}
+
+export function decodeImpersonationMeta(
+  raw: string | undefined | null,
+): ImpersonationMeta | null {
+  if (!raw) return null;
+  try {
+    const json =
+      typeof window === "undefined"
+        ? Buffer.from(raw, "base64").toString("utf-8")
+        : decodeURIComponent(escape(atob(raw)));
+    const m = JSON.parse(json);
+    return m?.impersonationId && m?.expiresAt ? m : null;
+  } catch {
+    return null;
+  }
+}

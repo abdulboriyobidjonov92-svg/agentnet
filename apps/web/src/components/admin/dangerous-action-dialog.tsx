@@ -30,11 +30,30 @@ import { useT } from "@/lib/i18n/client";
  * Foydalanuvchi 1-bosqichdan keyin to'xtasa, amal bekor qilinadi.
  */
 
-export type DangerousKind = "role_assign" | "session_revoke";
+export type DangerousKind =
+  | "role_assign"
+  | "session_revoke"
+  // SEC-12 — Users yozish amallari. ATAYLAB SHU dialogga qo'shildi:
+  // ikkinchi tasdiqlash oqimi yaratilmaydi (server tomonda ham bitta
+  // framework).
+  | "credit_manual"
+  | "user_block"
+  | "user_unblock";
 
 const VERB: Record<DangerousKind, string> = {
   role_assign: "ROLE",
   session_revoke: "REVOKE",
+  credit_manual: "CREDIT",
+  user_block: "BLOCK",
+  user_unblock: "UNBLOCK",
+};
+
+const TITLE_KEY: Record<DangerousKind, string> = {
+  role_assign: "admin.dangerRoleTitle",
+  session_revoke: "admin.dangerRevokeTitle",
+  credit_manual: "admin.dangerCreditTitle",
+  user_block: "admin.dangerBlockTitle",
+  user_unblock: "admin.dangerUnblockTitle",
 };
 
 interface Props {
@@ -46,6 +65,8 @@ interface Props {
 }
 
 const MIN_REASON = 20;
+/** So'mdan tiyinga — API pulni TIYINDA va SATR sifatida kutadi (A13). */
+const TIYIN_PER_SOM = 100n;
 
 export function DangerousActionDialog({ kind, target, newRole, onClose }: Props) {
   const { t } = useT();
@@ -55,8 +76,15 @@ export function DangerousActionDialog({ kind, target, newRole, onClose }: Props)
   const [reason, setReason] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [totp, setTotp] = useState("");
+  /** Faqat `credit_manual` uchun — SO'MDA kiritiladi. */
+  const [amountSom, setAmountSom] = useState("");
 
   const expected = `${VERB[kind]} ${target.id}`;
+  const needsAmount = kind === "credit_manual";
+  const amountTiyin =
+    needsAmount && /^[1-9][0-9]{0,12}$/.test(amountSom)
+      ? (BigInt(amountSom) * TIYIN_PER_SOM).toString()
+      : null;
 
   const run = useMutation({
     mutationFn: async () => {
@@ -68,6 +96,7 @@ export function DangerousActionDialog({ kind, target, newRole, onClose }: Props)
         totp,
         confirmation: confirmation.trim(),
         ...(newRole ? { newRole } : {}),
+        ...(amountTiyin ? { amountTiyin } : {}),
       });
       // 2-bosqich — bajarish (TOTP qayta yuboriladi)
       return api.post(`/admin/dangerous-actions/${action.id}/execute`, { totp });
@@ -85,9 +114,10 @@ export function DangerousActionDialog({ kind, target, newRole, onClose }: Props)
   const reasonOk = reason.trim().length >= MIN_REASON;
   const confirmOk = confirmation.trim() === expected;
   const totpOk = /^\d{6}$/.test(totp);
-  const ready = reasonOk && confirmOk && totpOk && !run.isPending;
+  const amountOk = !needsAmount || amountTiyin !== null;
+  const ready = reasonOk && confirmOk && totpOk && amountOk && !run.isPending;
 
-  const title = kind === "role_assign" ? t("admin.dangerRoleTitle") : t("admin.dangerRevokeTitle");
+  const title = t(TITLE_KEY[kind]);
 
   return (
     <AlertDialog open onOpenChange={(o) => !o && onClose()}>
@@ -122,6 +152,20 @@ export function DangerousActionDialog({ kind, target, newRole, onClose }: Props)
         </AlertDialogHeader>
 
         <div className="space-y-3">
+          {needsAmount && (
+            <label className="block space-y-1">
+              <span className="text-xs font-medium">{t("admin.dangerAmount")}</span>
+              <Input
+                value={amountSom}
+                onChange={(e) => setAmountSom(e.target.value.replace(/\D/g, "").slice(0, 13))}
+                inputMode="numeric"
+                placeholder="100000"
+                aria-label={t("admin.dangerAmount")}
+              />
+              <span className="text-xs text-muted-foreground">{t("admin.dangerAmountHint")}</span>
+            </label>
+          )}
+
           <label className="block space-y-1">
             <span className="text-xs font-medium">{t("admin.dangerReason")}</span>
             <textarea

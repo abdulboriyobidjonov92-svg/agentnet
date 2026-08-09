@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { tokenPayload, TOKEN_COOKIE } from "@/lib/session";
+import { IMPERSONATION_TOKEN_COOKIE, tokenPayload, TOKEN_COOKIE } from "@/lib/session";
 
 /**
  * Device Control brauzer-agent BFF — httpOnly cookie'dagi tokenni o'qib,
@@ -10,6 +10,20 @@ import { tokenPayload, TOKEN_COOKIE } from "@/lib/session";
  * agentnet_token qabul qilinadi.
  */
 export async function POST(req: NextRequest) {
+  // SEC-12 — impersonation paytida yopiq (ikki sabab): qurilma boshqaruvi
+  // §6.6 da "hech qachon ruxsat etilmaydi" ro'yxatida, VA bu route
+  // `middleware.ts` proksisidan o'tmaydi (cookie'ni o'zi o'qiydi), ya'ni
+  // aks holda so'rov OPERATORNING o'z tokeni bilan ketardi.
+  if (req.cookies.get(IMPERSONATION_TOKEN_COOKIE)) {
+    return new Response(
+      JSON.stringify({
+        message: "Impersonation FAQAT O'QISH rejimida",
+        reason: "impersonation_read_only",
+      }),
+      { status: 403, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
   const token = req.cookies.get(TOKEN_COOKIE)?.value;
   if (!token || !tokenPayload(token)?.sub) {
     return new Response("Unauthorized", { status: 401 });

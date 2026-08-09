@@ -44,6 +44,23 @@ interface ApiErrorPayload {
 export function apiErrorMessage(err: unknown, t: (key: string) => string): string {
   const e = err as { message?: string; payload?: ApiErrorPayload } | undefined;
   const reason = e?.payload?.reason;
+  // SEC-12 §20 — impersonation cheklovlari MARKAZLASHGAN joyda tushuntiriladi.
+  //
+  // NEGA har bir tugmani alohida o'chirib chiqmadik: mutatsiya boshqaruvlari
+  // ro'yxatini frontendda qo'lda saqlash — eskiradigan ro'yxat (yangi tugma
+  // qo'shilganda unutiladi). Server esa YOZISHNI METOD darajasida to'liq rad
+  // etadi, ya'ni har qanday mutatsiya baribir 403 oladi va foydalanuvchi
+  // AYNAN shu yerda aniq sabab ko'radi.
+  if (reason === "impersonation_read_only") return t("imp.readOnlyBlocked");
+  if (reason === "impersonation_forbidden_resource") return t("imp.forbiddenResource");
+  if (reason === "impersonation_privileged_route") return t("imp.readOnlyBlocked");
+  if (
+    reason === "impersonation_expired" ||
+    reason === "impersonation_ended" ||
+    reason === "impersonation_revoked"
+  ) {
+    return t("imp.expired");
+  }
   if (reason === "engine_unavailable") return t("common.engineUnavailable");
   if (reason === "insufficient_balance" && e?.payload?.creationPriceSom != null) {
     return t("common.insufficientBalance").replace(

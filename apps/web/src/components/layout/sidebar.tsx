@@ -106,7 +106,10 @@ export function Sidebar({ email, name, onNavigate }: { email?: string; name?: st
   const initial = (name || email || "?").charAt(0).toUpperCase();
 
   return (
-    <aside className="glass-dark flex h-screen w-60 shrink-0 flex-col border-r border-white/[0.06]">
+    // `h-full` — balandlik qobiqdan keladi (`dashboard-shell.tsx` izohiga
+    // qarang). `h-screen` bo'lsa SEC-12 banneri ostida sidebar oynadan
+    // 58px oshib ketardi va pastki elementlar kesilardi.
+    <aside className="glass-dark flex h-full w-60 shrink-0 flex-col border-r border-white/[0.06]">
       {/* Brend — mono, tirik nuqta bilan */}
       <div className="flex h-16 items-center gap-3 px-5">
         <span

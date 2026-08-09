@@ -1,7 +1,29 @@
 import { NextRequest } from "next/server";
-import { tokenPayload, TOKEN_COOKIE } from "@/lib/session";
+import { IMPERSONATION_TOKEN_COOKIE, tokenPayload, TOKEN_COOKIE } from "@/lib/session";
 
 export async function POST(req: NextRequest) {
+  // SEC-12 — IMPERSONATION PAYTIDA BU YO'L YOPIQ.
+  //
+  // NEGA ALOHIDA TEKSHIRUV KERAK: bu route `middleware.ts` proksisidan
+  // O'TMAYDI — u cookie'ni O'ZI o'qiydi. Ya'ni impersonation tokeni
+  // (`agentnet_imp`) bu yerga umuman yetib kelmaydi va so'rov OPERATORNING
+  // O'Z tokeni bilan ketardi: chat operator hisobidan pul yechib, uning
+  // kvotasini sarflab, jurnalda esa oddiy admin amali bo'lib ko'rinardi —
+  // "faqat o'qish" kafolati aynan shu yerda jimgina buzilardi.
+  //
+  // Server tomonda ham yopiq (POST -> `ImpersonationGuard` 403), lekin bu
+  // yerda TO'XTATAMIZ: aks holda `charge-message` javobi "to'lovni
+  // tasdiqlab bo'lmadi" degan chalg'ituvchi xabar bilan qaytardi.
+  if (req.cookies.get(IMPERSONATION_TOKEN_COOKIE)) {
+    return new Response(
+      JSON.stringify({
+        message: "Impersonation FAQAT O'QISH rejimida",
+        reason: "impersonation_read_only",
+      }),
+      { status: 403, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
   // Token httpOnly cookie'da (XSS himoyasi). SEC-04: legacy profil-cookie
   // fallback olib tashlandi — faqat httpOnly agentnet_token qabul qilinadi.
   const token = req.cookies.get(TOKEN_COOKIE)?.value;

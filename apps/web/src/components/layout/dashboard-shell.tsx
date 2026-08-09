@@ -29,7 +29,10 @@ export function DashboardShell({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="relative flex h-screen bg-black">
+    // `h-full` (`h-screen` emas): balandlikni layout beradi. SEC-12 banneri
+    // qo'shilganda qobiq QOLGAN joyni egallaydi, bannersiz esa layout'ning
+    // `h-screen` konteyneri to'liq oynani beradi — ko'rinish o'zgarmaydi.
+    <div className="relative flex h-full bg-black">
       <SceneCanvas />
 
       {/* Desktop rail */}
