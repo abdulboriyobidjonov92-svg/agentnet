@@ -7,6 +7,8 @@ import { DataTable, type Column } from "@/components/admin/data-table";
 import { useAdminList } from "@/components/admin/use-admin-list";
 import { AdminPageHeader, RoleBadge, useDebounced } from "@/components/admin/admin-ui";
 import { formatSom } from "@/lib/money";
+import { Button } from "@/components/ui/button";
+import { DangerousActionDialog, type DangerousKind } from "@/components/admin/dangerous-action-dialog";
 import { useT } from "@/lib/i18n/client";
 
 interface AdminUser {
@@ -30,6 +32,10 @@ export default function AdminUsersPage() {
   const { t, locale } = useT();
   const [role, setRole] = useState<string>("");
   const [rawQuery, setRawQuery] = useState("");
+  // SEC-11: tanlangan xavfli amal (dialog server oqimini boshqaradi).
+  const [danger, setDanger] = useState<
+    { kind: DangerousKind; target: AdminUser; newRole?: string } | null
+  >(null);
   // Qidiruv har harfda so'rov yubormaydi.
   const q = useDebounced(rawQuery, 350);
 
@@ -76,6 +82,38 @@ export default function AdminUsersPage() {
       header: t("admin.colBalance"),
       align: "right",
       cell: (u) => <span className="nums tabular-nums">{formatSom(u.balanceTiyin)}</span>,
+    },
+    {
+      id: "actions",
+      header: t("admin.colActions"),
+      align: "right",
+      cell: (u) => (
+        <div className="flex justify-end gap-1.5">
+          {/* Rol tanlash -> darhol tasdiqlash oqimi ochiladi */}
+          <select
+            value=""
+            onChange={(e) =>
+              e.target.value && setDanger({ kind: "role_assign", target: u, newRole: e.target.value })
+            }
+            aria-label={t("admin.actionRole")}
+            className="h-8 rounded-lg border bg-card px-2 text-xs outline-none focus-visible:ring-1 focus-visible:ring-vein-cyan"
+          >
+            <option value="">{t("admin.actionRole")}</option>
+            {ROLES.filter((r) => r !== u.role).map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+          <Button
+            variant="destructive-ghost"
+            className="h-8 px-2 text-xs"
+            onClick={() => setDanger({ kind: "session_revoke", target: u })}
+          >
+            {t("admin.actionRevoke")}
+          </Button>
+        </div>
+      ),
     },
     {
       id: "created",
@@ -136,6 +174,15 @@ export default function AdminUsersPage() {
         onLoadMore={() => list.fetchNextPage()}
         emptyText={t("admin.usersEmpty")}
       />
+
+      {danger && (
+        <DangerousActionDialog
+          kind={danger.kind}
+          target={{ id: danger.target.id, email: danger.target.email }}
+          newRole={danger.newRole}
+          onClose={() => setDanger(null)}
+        />
+      )}
     </div>
   );
 }
