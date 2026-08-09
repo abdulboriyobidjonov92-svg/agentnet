@@ -126,6 +126,73 @@ enum LedgerKind {
   referral_bonus
 }
 
+/// SEC-11 §6.5 — xavfli admin amali turi. Har tur `DANGEROUS_ACTIONS`
+/// registrida (dangerous-action.registry.ts) o'z avtorizatsiyasi,
+/// tasdiqlash-satri va bajaruvchisi bilan e'lon qilinadi.
+enum DangerousActionKind {
+  role_assign
+  session_revoke
+}
+
+/// SEC-11 §6.5 — holat mashinasi: pending -> executed | cancelled | expired.
+/// Boshqa o'tish YO'Q (server tomonda majburlanadi).
+enum DangerousActionStatus {
+  pending
+  executed
+  cancelled
+  expired
+}
+
+/// SEC-11 §6.5 — xavfli amalning DAVOMLI holati.
+///
+/// NEGA JADVAL KERAK: §6.5 "bekor qilish oynasi"ni talab qiladi, ya'ni amal
+/// so'ralgan payt bilan bajarilgan payt ORASIDA holat bo'lishi shart. Uni
+/// xotirada saqlash ko'p instansda ishlamaydi (Contract A19/§8) va restartda
+/// yo'qoladi — shuning uchun Postgres.
+///
+/// IKKI BOSQICH: so'rov (pending) -> bajarish (executed). Contract §6.5(5)
+/// kechiktirilgan bajarishni FAQAT o'chirish uchun talab qiladi; qolgan
+/// amallar darhol bajarilishi mumkin, LEKIN bekor qilish oynasi baribir
+/// real: tasdiq `expiresAt` gacha yashaydi va shu vaqt ichida bekor
+/// qilinishi mumkin. `executableAfter` — o'chirish sinfi uchun majburiy
+/// kutish (24s); hozirgi ikki amalda u `createdAt` ga teng.
+model DangerousAction {
+  id     String                @id @default(cuid())
+  kind   DangerousActionKind
+  status DangerousActionStatus @default(pending)
+
+  /// Amalni so'ragan admin (OWNER). Restrict — aktor o'chirilsa xavfli-amal
+  /// tarixi jimgina yo'qolmasligi kerak.
+  actorId String
+  actor   User   @relation("DangerousActionActor", fields: [actorId], references: [id])
+
+  /// Amal qaratilgan foydalanuvchi.
+  targetUserId String
+  targetUser   User   @relation("DangerousActionTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  /// §6.5(1) — sabab (min 20 belgi, DTO tekshiradi). Auditga ham yoziladi.
+  reason String
+
+  /// Amalga xos parametrlar (masalan {"newRole":"ADMIN"}). Sxemasiz
+  /// metadata — Rule #29 ruxsat beradi (asosiy biznes obyekti emas).
+  payload Json?
+
+  /// Bajarish shu vaqtdan OLDIN mumkin emas (o'chirish sinfi uchun +24s).
+  executableAfter DateTime
+  /// Shu vaqtdan keyin tasdiq eskiradi — bajarib bo'lmaydi (§6.5 oynasi).
+  expiresAt       DateTime
+
+  executedAt    DateTime?
+  cancelledAt   DateTime?
+  cancelledById String?
+
+  createdAt DateTime @default(now())
+
+  @@index([status, expiresAt])
+  @@index([targetUserId])
+  @@index([actorId, createdAt])
+}
+
 /// To'lov maqsadi (PaymeTransaction/ClickTransaction.purpose).
 enum PaymentPurpose {
   topup
@@ -172,6 +239,8 @@ model User {
   paymeTransactions      PaymeTransaction[]
   clickTransactions      ClickTransaction[]
   feedbackItems          Feedback[]
+  dangerousActionsRaised DangerousAction[]  @relation("DangerousActionActor")
+  dangerousActionsTarget DangerousAction[]  @relation("DangerousActionTarget")
   sharedResults          SharedResult[]
 
   // --- Proaktiv haftalik brifing (cron -> Telegram) ---
@@ -467,9 +536,6 @@ model Goal {
 
   @@index([userId])
   @@index([status])
-  // Phase 4 (Rule #25): admin fikrlar ro'yxati — status filtri + createdAt tartibi.
-  @@index([status, createdAt])
-  @@index([createdAt])
 }
 
 model GoalTask {
@@ -548,6 +614,9 @@ model Feedback {
 
   @@index([userId])
   @@index([status])
+  // Phase 4 (Rule #25): admin fikrlar ro'yxati — status filtri + createdAt tartibi.
+  @@index([status, createdAt])
+  @@index([createdAt])
 }
 
 // Bir martalik login kodi (email/SMS OTP). Kod o'zi saqlanmaydi — faqat

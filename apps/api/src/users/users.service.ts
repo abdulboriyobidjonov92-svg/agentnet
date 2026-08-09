@@ -1,9 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { TwoFactorService } from '../auth/auth.service';
+import type { DeleteAccountDto } from './dto/delete-account.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly twoFactor: TwoFactorService,
+  ) {}
 
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
@@ -103,8 +108,65 @@ export class UsersService {
    * daftari, konnektorlar, hisoblagichlar, to'lovlar...) avtomatik tozalaydi.
    * Hammasi bitta $transaction'da — yarim-o'chirilgan holat qolmaydi.
    */
-  async deleteAccount(userId: string) {
+  /** GDPR o'chirish uchun kutilgan tasdiqlash satri (server hisoblaydi). */
+  static expectedDeleteConfirmation(userId: string): string {
+    return `DELETE ${userId}`;
+  }
+
+  /**
+   * GDPR hisobni butunlay o'chirish (hard delete — Contract A15).
+   *
+   * SEC-11 TEKSHIRUVI: ilgari bu endpoint HECH QANDAY qo'shimcha dalil
+   * so'ramasdan hisobni yo'q qilardi — ya'ni O'G'IRLANGAN SESSIYA
+   * (OTP fishing / SIM-swap) butun hisobni, balansni, agentlarni va
+   * suhbatlarni bir so'rovda yo'q qila olardi. Endi:
+   *   1. yozib tasdiqlash (`DELETE <id>`) — server kutilgan satrni o'zi
+   *      hisoblaydi, mijoz bayrog'iga ishonilmaydi;
+   *   2. TOTP qayta-autentifikatsiya — 2FA yoqilgan bo'lsa MAJBURIY.
+   * Sabab/24-soat/Telegram ATAYLAB talab qilinmaydi — izoh
+   * `dto/delete-account.dto.ts` da (GDPR huquqi, admin amali emas).
+   */
+  async deleteAccount(userId: string, dto: DeleteAccountDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, twoFactorEnabled: true },
+    });
+    if (!user) throw new NotFoundException("Foydalanuvchi topilmadi");
+
+    const expected = UsersService.expectedDeleteConfirmation(userId);
+    if (dto.confirmation?.trim() !== expected) {
+      throw new BadRequestException({
+        message: `Tasdiqlash satri mos emas. Kutilgan: "${expected}"`,
+        reason: "confirmation_mismatch",
+      });
+    }
+
+    // 2FA yoqilgan bo'lsa TOTP MAJBURIY. `verifyLogin` 2FA o'chiq bo'lsa
+    // `true` qaytaradi (login semantikasi), shuning uchun bayroqni ALOHIDA
+    // tekshiramiz — aks holda 2FA'li hisobda kodsiz o'tib ketilardi.
+    if (user.twoFactorEnabled) {
+      if (!dto.totp) {
+        throw new UnauthorizedException({
+          message: "Hisobni o'chirish uchun TOTP kodi shart",
+          reason: "totp_required",
+        });
+      }
+      const valid = await this.twoFactor.verifyLogin(userId, dto.totp);
+      if (!valid) {
+        throw new UnauthorizedException({
+          message: "TOTP kodi noto'g'ri",
+          reason: "invalid_totp",
+        });
+      }
+    }
+
     await this.prisma.$transaction(async (tx) => {
+      // DIQQAT (hujjatlashtirilgan cheklov): foydalanuvchining audit
+      // yozuvlari ham o'chadi — `AuditLog.actorId` NON-NULL FK bo'lgani
+      // uchun ular saqlanib qololmaydi va GDPR o'chirish ularni baribir
+      // talab qiladi. Contract A15 esa "GDPR hard-delete + AuditLog yozuvi"
+      // deydi — davomli o'chirish-yozuvi uchun tizim-aktori kerak.
+      // Batafsil va tanlangan dizayn: docs/status/sec11-audit.md.
       await tx.auditLog.deleteMany({ where: { actorId: userId } });
       await tx.conversation.deleteMany({ where: { userId } });
       await tx.agent.deleteMany({ where: { userId } });

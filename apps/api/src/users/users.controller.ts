@@ -1,6 +1,7 @@
 import { Controller, Get, Patch, Post, Delete, Body } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { DeleteAccountDto } from './dto/delete-account.dto';
 import { UsersService } from './users.service';
 import { OnboardingService } from './onboarding.service';
 import { OnboardingDto, InstallRecommendationsDto } from './dto/onboarding.dto';
@@ -34,10 +35,13 @@ export class UsersController {
     return this.users.exportData(user.id);
   }
 
-  /** Hisobni va unga bog'liq barcha ma'lumotlarni butunlay o'chiradi. */
+  /**
+   * Hisobni va unga bog'liq barcha ma'lumotlarni butunlay o'chiradi.
+   * SEC-11: yozib tasdiqlash + (2FA yoqilgan bo'lsa) TOTP majburiy.
+   */
   @Delete('me')
-  deleteAccount(@CurrentUser() user: User) {
-    return this.users.deleteAccount(user.id);
+  deleteAccount(@CurrentUser() user: User, @Body() dto: DeleteAccountDto) {
+    return this.users.deleteAccount(user.id, dto);
   }
 
   @Patch('me')
