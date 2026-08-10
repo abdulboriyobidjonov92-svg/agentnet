@@ -5,7 +5,22 @@ import Link from "next/link";
 import { Loader2, ArrowRight, ArrowLeft, Mail, Phone, ShieldCheck } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+/**
+ * SEC-13 — login chaqiruvlari SAME-ORIGIN BFF proksisidan o'tadi.
+ *
+ * Ilgari bu yerda `NEXT_PUBLIC_API_URL` turardi va brauzer NestJS'ga
+ * TO'G'RIDAN-TO'G'RI borardi. Bu ikkita shartnomani buzardi:
+ *   • Konstitutsiya #2 / A4: "brauzer NestJS'ga to'g'ridan-to'g'ri
+ *     bormaydi" — butun ilovada YAGONA istisno shu edi;
+ *   • SEC-13 AC: "connect-src faqat o'z origin" — aks holda CSP'ga
+ *     tashqi API origin'ini kiritishga majbur bo'lardik.
+ *
+ * `/api/backend/*` middleware tomonidan `${API_URL}/api/*` ga rewrite
+ * qilinadi. Endpointlar, DTO'lar va javob shakli AYNAN O'ZGARMADI —
+ * faqat transport yo'li o'zgardi. Yon foyda: login endi API'da brauzer
+ * CORS'iga umuman tayanmaydi.
+ */
+const API_BASE = "/api/backend";
 
 type Method = "email" | "phone";
 type Step = "identify" | "code" | "twofa";
@@ -106,7 +121,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     setError("");
     setBusy(true);
     try {
-      const res = await fetch(`${API_URL}/api/auth/otp/request`, {
+      const res = await fetch(`${API_BASE}/auth/otp/request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(identifierPayload),
@@ -134,7 +149,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     setError("");
     setBusy(true);
     try {
-      const res = await fetch(`${API_URL}/api/auth/otp/verify`, {
+      const res = await fetch(`${API_BASE}/auth/otp/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...identifierPayload, code, name: name.trim() || undefined, ref: refCode || undefined }),
@@ -161,7 +176,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     setError("");
     setBusy(true);
     try {
-      const res = await fetch(`${API_URL}/api/auth/2fa/login-verify`, {
+      const res = await fetch(`${API_BASE}/auth/2fa/login-verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, token: twoFaCode }),

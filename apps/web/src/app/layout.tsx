@@ -19,20 +19,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locale = await getLocale();
   const dict = await loadDictionary(locale);
   return (
+    // Liquid Obsidian — yagona rejim: chuqur qora. Light bekor qilingan.
+    //
+    // SEC-13: `dark` klassi ilgari inline `<script>` bilan qo'yilardi. Bu
+    // ilovadagi YAGONA inline skript edi va CSP uchun nonce talab qilardi.
+    // Rejim BITTA bo'lgani uchun uni server-render qilingan `className`ga
+    // ko'chirdik: bir belgi ham JS ishlashini kutmaydi (FOUC ham yo'qoladi),
+    // CSP esa endi ilovaning O'Z inline skriptini umuman ko'rmaydi.
     <html
       lang={locale}
       suppressHydrationWarning
       data-scroll-behavior="smooth"
-      className={`${GeistSans.variable} ${GeistMono.variable}`}
+      className={`dark ${GeistSans.variable} ${GeistMono.variable}`}
     >
-      <head>
-        {/* Liquid Obsidian — yagona rejim: chuqur qora. Light bekor qilindi. */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `document.documentElement.classList.add('dark')`,
-          }}
-        />
-      </head>
       <body className="font-sans antialiased">
         <Providers initialLocale={locale} initialDict={dict}>{children}</Providers>
       </body>
