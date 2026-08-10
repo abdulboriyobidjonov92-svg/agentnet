@@ -6,7 +6,6 @@ import { CompetitorPriceService } from './competitor-price.service';
 import { ManualPosAdapter } from './manual-pos.adapter';
 import { POS_ADAPTER } from './pos-adapter';
 import { AuthModule } from '../auth/auth.module';
-import { AuthGuard } from '../auth/auth.guard';
 import { ConnectorsModule } from '../connectors/connectors.module';
 import { UsageModule } from '../usage/usage.module';
 
@@ -16,7 +15,6 @@ import { UsageModule } from '../usage/usage.module';
   providers: [
     RetailService,
     CompetitorPriceService,
-    AuthGuard,
     ManualPosAdapter,
     { provide: POS_ADAPTER, useExisting: ManualPosAdapter },
   ],
