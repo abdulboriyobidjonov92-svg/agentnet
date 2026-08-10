@@ -1,0 +1,57 @@
+# SEC-14 — gitleaks konfiguratsiyasi (CI'da BLOKLOVCHI).
+#
+# Qoidalar to'plami: gitleaks'ning RASMIY default to'plami (`useDefault`).
+# O'z qoidalarimiz yozilmaydi — provayder formatlari (AWS, Anthropic, Slack,
+# Stripe, private key'lar, ...) yuqori oqimda kuzatiladi va yangilanadi.
+#
+# ALLOWLIST INTIZOMI:
+#   • Bu yerga HECH QACHON haqiqiy sir qo'shilmaydi.
+#   • Butun fayl/papkani ochib qo'yish TAQIQLANADI — aks holda o'sha faylga
+#     tasodifan tushgan HAQIQIY sir ham jimgina o'tib ketardi.
+#   • Har istisno — ANIQ qiymat yoki tor regex + sabab izohi.
+#   • Har istisno repo'da tekshirilgan topilmaga asoslanadi (taxmin emas).
+
+title = "AgentNet gitleaks"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "AgentNet — tekshirilgan noto'g'ri topilmalar (haqiqiy sir YO'Q)"
+
+# Faqat MISOL fayllari va hujjatlardagi PLASTIK to'ldiruvchilar.
+# DIQQAT: bu yerda `paths` ATAYLAB ishlatilmaydi — `.env.example` ni butunlay
+# ochib qo'ysak, unga tasodifan yopishtirilgan haqiqiy kalit ham o'tib
+# ketardi. Shuning uchun faqat to'ldiruvchi QIYMATLARNING o'zi ro'yxatda.
+regexes = [
+  # `.env.example`, `docs/status/prototip-holati.md` va CI'dagi Anthropic
+  # to'ldiruvchisi. Haqiqiy kalit `sk-ant-api03-<88 belgi>` ko'rinishida
+  # bo'ladi va bu regexlarga TUSHMAYDI.
+  '''sk-ant-\.\.\.''',
+  '''sk-ant-placeholder''',
+
+  # `apps/api/src/device-control/device-companion.service.ts` —
+  # juftlash kodini generatsiya qilish uchun BASE32 ALIFBOSI (RFC 4648),
+  # sir emas. Qiymat aynan shu, o'zgarmaydi.
+  '''ABCDEFGHIJKLMNOPQRSTUVWXYZ234567''',
+
+  # `apps/api/src/crypto/crypto.service.ts` — DEV derivativ kalit URUG'I.
+  # Bu sir emas: u ochiq kodda turishi ATAYLAB (dev'da barqaror kalit
+  # kerak) va nomining o'zi prod'da ishlatilmasligini aytadi. Prod'da
+  # `ENCRYPTION_KEY` majburiy (CryptoService fail-closed).
+  '''agentnet-dev-encryption-key-do-not-use-in-prod''',
+
+  # `apps/api/src/auth/internal-token.guard.spec.ts` — test uchun ochiq-oydin
+  # SOXTA yorliqlar (entropiyasi past, nomining o'zi tavsif).
+  '''a-strong-random-secret-64hex-(etc|XXX)''',
+]
+
+# Yaratiladigan/keshlangan artefaktlar — manba emas, ular repo'ga
+# commit qilinmaydi (`.gitignore`), lekin lokal skan ularni ko'rmasin.
+paths = [
+  '''(^|/)node_modules/''',
+  '''(^|/)\.next/''',
+  '''(^|/)dist/''',
+  '''(^|/)\.venv/''',
+  '''(^|/)package-lock\.json$''',
+]

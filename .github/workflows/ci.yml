@@ -5,12 +5,80 @@ on:
     branches: [main, master, develop]
   pull_request:
     branches: [main, master, develop]
+  # SEC-14: git tarixi bo'yicha sir skanini qo'lda ishga tushirish uchun.
+  workflow_dispatch:
 
 env:
   NODE_VERSION: "20"
   PYTHON_VERSION: "3.11"
+  # SEC-14: gitleaks versiyasi QOTIRILGAN — "latest" bo'lsa yuqori oqimdagi
+  # qoida o'zgarishi CI'ni kutilmaganda qizartirardi (yoki jimgina
+  # bo'shashtirardi). Yangilash — ataylab qilinadigan commit.
+  GITLEAKS_VERSION: "8.21.2"
 
 jobs:
+  # ---------------------------------------------------------------
+  # SEC-14 — sir skaneri (BLOKLOVCHI)
+  # ---------------------------------------------------------------
+  secrets:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          curl -sSfL -o /tmp/gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      # `--redact`: topilgan sir CI LOGIGA CHIQMAYDI. Usiz skanerning o'zi
+      # sirni ommaviy build-logiga ko'chirib, sizishni KUCHAYTIRARDI.
+      # `--no-git`: ishchi daraxt skanlanadi — ya'ni shu commit/PR bilan
+      # kelgan har qanday sir ushlanadi. Tarix skani ALOHIDA (pastda).
+      - name: Scan working tree
+        run: |
+          gitleaks detect \
+            --source . \
+            --no-git \
+            --config .gitleaks.toml \
+            --redact \
+            --exit-code 1 \
+            --verbose
+
+  # ---------------------------------------------------------------
+  # SEC-14 — git TARIXI skani (qo'lda ishga tushiriladi)
+  #
+  # NEGA ALOHIDA VA BLOKLOVCHI EMAS: tarixdagi topilma kodni tuzatish bilan
+  # hal bo'lmaydi — u INSIDENT (kalitni bekor qilish + tarixni qayta yozish),
+  # ya'ni operator qarori. Uni har PR'ni bloklovchi qilish butun jamoani
+  # to'xtatib qo'yardi va shoshilinch "allowlist"ga bosim yaratardi —
+  # aynan shu bosim SEC-14 oldini olmoqchi bo'lgan narsa.
+  # Runbook: docs/runbooks/secret-rotation.md
+  # ---------------------------------------------------------------
+  secrets-history:
+    name: Secret scan — git history (manual)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          curl -sSfL -o /tmp/gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+
+      - name: Scan full history
+        run: gitleaks detect --source . --config .gitleaks.toml --redact --exit-code 1 --verbose
+
   # ---------------------------------------------------------------
   # apps/web — Next.js lint, typecheck, build
   # ---------------------------------------------------------------

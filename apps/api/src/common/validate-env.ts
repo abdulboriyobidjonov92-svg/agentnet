@@ -33,16 +33,38 @@ export function validateEnv(): void {
 
   const missing = hardRequired.filter((r) => !has(r.key));
 
+  /**
+   * SEC-14 — prod'da OCHIQ-OYDIN MA'LUM dev qiymatlari taqiqlanadi.
+   *
+   * `INTERNAL_API_TOKEN` uchun kodda ham, `.env.example` da ham bir xil dev
+   * fallback bor (`agentnet-internal-dev`). U ATAYLAB ommaviy — lokal
+   * ishlab chiqish uchun. Lekin prod'da o'sha qiymat qolib ketsa, "ichki
+   * server-to-server" darvozasi amalda OCHIQ bo'lardi: uni bilgan har kim
+   * BFF-only endpointlarni (refund, engine stream) chaqira olardi.
+   *
+   * `has()` tekshiruvi buni ushlamaydi — qiymat MAVJUD, lekin ma'lum.
+   */
+  const publiclyKnownDefaults: Array<{ key: string; value: string }> = [
+    { key: 'INTERNAL_API_TOKEN', value: 'agentnet-internal-dev' },
+  ];
+  const weakDefaults = publiclyKnownDefaults.filter(
+    (d) => process.env[d.key]?.trim() === d.value,
+  );
+
   // Kamida BITTA login-kanali bo'lishi shart (email YOKI telefon), aks holda
   // hech kim kira olmaydi. Email = Resend, Telefon = Eskiz.
   const emailChannel = has('RESEND_API_KEY');
   const phoneChannel = has('ESKIZ_EMAIL') && has('ESKIZ_PASSWORD');
   const noLoginChannel = !emailChannel && !phoneChannel;
 
-  if (isProd && (missing.length || noLoginChannel)) {
+  if (isProd && (missing.length || noLoginChannel || weakDefaults.length)) {
     logger.error('════════════════════════════════════════════════════════');
     logger.error('PROD BOOT TO\'XTATILDI — konfiguratsiya to\'liq emas:');
     for (const m of missing) logger.error(`  ✗ ${m.key} — ${m.why}`);
+    for (const d of weakDefaults) {
+      // Qiymatning O'ZI logga yozilmaydi (u ommaviy bo'lsa ham — intizom).
+      logger.error(`  ✗ ${d.key} — ommaviy MA'LUM dev qiymati ishlatilmoqda; yangi sir yarating.`);
+    }
     if (noLoginChannel) {
       logger.error('  ✗ Login kanali yo\'q — RESEND_API_KEY (email) YOKI');
       logger.error('     ESKIZ_EMAIL+ESKIZ_PASSWORD (telefon) dan kamida bittasi kerak.');
