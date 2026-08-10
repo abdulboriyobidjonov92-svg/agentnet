@@ -1,7 +1,12 @@
+import * as nodeCrypto from 'crypto';
 import { CryptoService } from './crypto.service';
 
 describe('CryptoService (AES-256-GCM at-rest shifrlash)', () => {
-  const KEY = '6fd9c43e918e28642191cd2ca359763b10c9a04b9e06e8d3a992389b3e01944f';
+  // SEC-14: kalit test ichida GENERATSIYA qilinadi (ilgari 64-hex satr
+  // kodda turardi). Sabab ikkita: (a) repoda "sirga o'xshash" satr
+  // qolmaydi — gitleaks uchun soxta topilma yo'q, (b) testlar tasodifiy
+  // kalitda ham o'tishi ISBOTLANADI (qattiq kodlangan qiymatga bog'liq emas).
+  const KEY = nodeCrypto.randomBytes(32).toString('hex');
   let crypto: CryptoService;
 
   beforeEach(() => {
