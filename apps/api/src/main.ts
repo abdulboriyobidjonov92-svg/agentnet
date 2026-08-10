@@ -8,6 +8,7 @@ import { AppModule } from './app.module';
 import { installEngineAuthInterceptor } from './common/engine-auth';
 import { validateEnv } from './common/validate-env';
 import { installBigIntJsonSerializer } from './common/bigint-serialize';
+import { apiSecurityHeaders } from './common/security-headers';
 
 async function bootstrap() {
   // A13: pul ustunlari BigInt — JSON.stringify(BigInt) sukut bo'yicha
@@ -68,20 +69,28 @@ async function bootstrap() {
     },
     credentials: true,
   });
-  // Xavfsizlik sarlavhalari (M7) — helmet paketisiz, minimal to'plam. API HTML
-  // bermaydi, shuning uchun eng muhimlari: MIME-sniffing va clickjacking'ni
-  // to'sish, referrer'ni yashirish, X-Powered-By'ni olib tashlash, prod'da HSTS.
+  // Xavfsizlik sarlavhalari (M7 + SEC-13) — helmet paketisiz. API HTML
+  // bermaydi, shuning uchun to'plam qisqa va QATTIQ: MIME-sniffing va
+  // clickjacking'ni to'sish, referrer'ni yashirish, X-Powered-By'ni olib
+  // tashlash, prod'da HSTS va SEC-13 dan beri `default-src 'none'` CSP.
+  // Helmet KIRITILMADI: mavjud to'plam yetarli va u yangi bog'liqlik
+  // hamda ikkinchi (ziddiyatli) siyosat manbaini keltirardi.
   app.getHttpAdapter().getInstance().disable('x-powered-by');
   app.use((req: any, res: any, next: () => void) => {
     // Request-id — xato-loglarni bitta so'rov bo'yicha kuzatish uchun (observability).
     const reqId = req.headers['x-request-id'] || randomUUID();
     req.headers['x-request-id'] = reqId;
     res.setHeader('X-Request-Id', reqId);
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('Referrer-Policy', 'no-referrer');
-    res.setHeader('X-DNS-Prefetch-Control', 'off');
-    if (isProd) res.setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
+    // SEC-13: sarlavhalar to'plami `common/security-headers.ts` da
+    // (testlanadigan, yagona manba). Swagger yo'lida CSP tushib qoladi —
+    // sabab o'sha faylda.
+    const headers = apiSecurityHeaders({
+      isProd,
+      path: req.originalUrl ?? req.url ?? '',
+    });
+    for (const [key, value] of Object.entries(headers)) {
+      res.setHeader(key, value);
+    }
     next();
   });
 
