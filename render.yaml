@@ -98,6 +98,14 @@ services:
         value: https://agentnet-api-zf1h.onrender.com
       - key: AGENT_MAX_TOOL_ITERATIONS
         value: "8"
+      # Phase 5 (P5.1): xato kuzatuvi. `sync: false` — DSN operator
+      # tomonidan Render UI'da kiritiladi va blueprint'da (ya'ni git'da)
+      # HECH QACHON turmaydi. Bo'sh qoldirilsa engine Sentry'siz,
+      # hech qanday xulq farqisiz ishlaydi.
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_ENVIRONMENT
+        value: production
       # Render hujjati: xususiy tarmoq aloqasi uchun 10000, 18012, 18013,
       # 19099 portlaridan FOYDALANIB BO'LMAYDI. Render esa servisga default
       # PORT=10000 beradi — agar engine o'sha portga bog'lansa, uni xususiy
@@ -115,7 +123,19 @@ services:
     dockerContext: .
     # Haqiqiy liveness endpoint (M7) — ilgari /api/docs (Swagger) edi, bu
     # Swagger'ni prod'da doim ochiq turishga majbur qilardi.
-    healthCheckPath: /api/health
+    #
+    # PHASE 5 (P5.5): `/api/health` -> `/api/health/ready`.
+    # NEGA: Render `healthCheckPath` ni DEPLOY DARVOZASI sifatida
+    # ishlatadi ("bu instansga trafik yuborsam bo'ladimi?") — bu aynan
+    # READINESS savoli. `/api/health/ready` Postgres va kritik
+    # konfiguratsiyani tekshiradi, ya'ni DB'siz yoki env'i chala instans
+    # jonli trafikni QABUL QILMAYDI (ilgari u 200 qaytarib, buzuq
+    # holatda ham live bo'lardi).
+    #
+    # ENGINE ATAYLAB TEKSHIRILMAYDI: engine uzilishida API'ning qolgan
+    # 90% i (auth, balans, to'lov, admin) ishlaydi — uni deploy darvozasi
+    # qilish kichik uzilishni to'liq uzilishga aylantirardi.
+    healthCheckPath: /api/health/ready
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -153,6 +173,18 @@ services:
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      # Phase 5 (P5.1/P5.4): kuzatuv. DSN va alert kanali `sync: false` —
+      # ular git'ga tushmaydi. Ikkalasi ham IXTIYORIY: bo'sh bo'lsa API
+      # Sentry'siz ishlaydi va alertlar faqat strukturaviy log sifatida
+      # qoladi (soxta "yuborildi" holati yaratilmaydi).
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_ENVIRONMENT
+        value: production
+      # P5.4 signal kanali — SEC-11 dan beri mavjud AYNI env (yangi
+      # integratsiya yaratilmaydi).
+      - key: OWNER_ALERT_TELEGRAM_CHAT_ID
         sync: false
       # CORS — bo'lmasa brauzerdan kelgan hamma so'rov bloklanadi (production bug).
       # Bu FRONTEND'ning ommaviy origin'i. ADR-021 bo'yicha frontend Vercel'ga
@@ -228,4 +260,16 @@ services:
       #    (env-guruh faqat Render ichida ishlaydi).
       - fromGroup: agentnet-shared
       - key: NODE_ENV
+        value: production
+      # Phase 5 (P5.1): web SERVER/EDGE tomoni uchun DSN.
+      - key: SENTRY_DSN
+        sync: false
+      # BRAUZER tomoni — ALOHIDA DSN. Bu qiymat klient bundle'iga
+      # tushadi (Sentry uchun normal), shuning uchun server DSN'i bilan
+      # ARALASHTIRILMAYDI. Sozlansa CSP `connect-src` avtomat kengayadi.
+      - key: NEXT_PUBLIC_SENTRY_DSN
+        sync: false
+      - key: SENTRY_ENVIRONMENT
+        value: production
+      - key: NEXT_PUBLIC_SENTRY_ENVIRONMENT
         value: production
