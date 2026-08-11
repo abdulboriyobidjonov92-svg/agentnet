@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cspDirectives, generateNonce, serializeCsp } from "@/lib/security-headers";
+import { REQUEST_ID_HEADER, resolveIncomingRequestId } from "@/lib/observability/request-id";
 
 // Lokal auth (tashqi provayder ishlatilmaydi). Dashboard yo'llari uchun sessiya cookie'sini tekshiradi.
 // /agentos-demo — ochiq ko'rgazma sahifasi (Living Interface demo, shaxsiy ma'lumot yo'q)
@@ -70,6 +71,16 @@ function cspHeaderName(): string {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  /**
+   * Phase 5 (P5.3) — zanjirning BIRINCHI halqasi.
+   *
+   * Har so'rov uchun kanonik ID shu yerda hal qilinadi va u BUTUN
+   * zanjir bo'ylab (BFF -> NestJS -> engine) o'zgarmasdan boradi.
+   * Brauzer bergan qiymat sukut bo'yicha QABUL QILINMAYDI
+   * (`resolveIncomingRequestId` izohiga qarang).
+   */
+  const requestId = resolveIncomingRequestId(request.headers.get(REQUEST_ID_HEADER));
+
   // Same-origin API proxy: brauzer JS tokenni KO'RMAYDI (httpOnly cookie) —
   // middleware uni shu yerda Authorization header sifatida qo'shib, so'rovni
   // NestJS API'ga rewrite qiladi. api-client barcha chaqiruvlarni
@@ -81,7 +92,12 @@ export function middleware(request: NextRequest) {
     const headers = new Headers(request.headers);
     const token = resolveApiToken(request);
     if (token) headers.set("authorization", `Bearer ${token}`);
-    return NextResponse.rewrite(target, { request: { headers } });
+    // KANONIK qiymat QAYTA YOZILADI (`set`, `append` emas) — brauzer
+    // yuborgan yaroqsiz/uzun qiymat API'ga hech qachon yetib bormaydi.
+    headers.set(REQUEST_ID_HEADER, requestId);
+    const proxied = NextResponse.rewrite(target, { request: { headers } });
+    proxied.headers.set("X-Request-Id", requestId);
+    return proxied;
   }
 
   // SEC-12 §18/§20 — impersonation paytida ADMIN paneli ochilmaydi.
@@ -108,9 +124,14 @@ export function middleware(request: NextRequest) {
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("Content-Security-Policy", csp);
+  // P5.3: sahifa so'rovlari ham zanjirga kiradi — server komponentlari
+  // va route handler'lari shu ID ni o'qiy oladi.
+  requestHeaders.set(REQUEST_ID_HEADER, requestId);
 
   const withCsp = <T extends NextResponse>(response: T): T => {
     response.headers.set(cspHeaderName(), csp);
+    // Foydalanuvchi qo'llab-quvvatlashga aynan shu ID ni aytadi.
+    response.headers.set("X-Request-Id", requestId);
     return response;
   };
 

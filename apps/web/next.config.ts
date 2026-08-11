@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 import { staticSecurityHeaders } from "./src/lib/security-headers";
 
 const isProd = process.env.NODE_ENV === "production";
@@ -30,4 +31,48 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+/**
+ * Phase 5 (P5.1) — SOURCE MAP SIYOSATI (prod uchun xavfsiz).
+ *
+ * MUAMMO: source map'lar Sentry'da stack-trace'ni o'qiladigan qiladi,
+ * LEKIN ular ommaviy serverda qolsa, butun server/klient manba kodi
+ * (biznes mantiq, halal filtr qoidalari, ichki yo'llar) yuklab olinadi.
+ *
+ * QAROR:
+ *   • `sourcemaps.deleteSourcemapsAfterUpload: true` — map fayllari
+ *     Sentry'ga yuklanadi va build chiqishidan O'CHIRILADI, ya'ni ular
+ *     hech qachon ommaviy URL'da turmaydi;
+ *   • yuklash FAQAT `SENTRY_AUTH_TOKEN` mavjud bo'lganda ishlaydi;
+ *     token yo'q bo'lsa plagin butunlay O'CHIRILADI (`sourcemaps.disable`),
+ *     aks holda `@sentry/cli` ni chaqirib build'ni yiqitardi.
+ *     DIQQAT: bu repoda `@sentry/cli` postinstall skripti `allowScripts`
+ *     ro'yxatiga ATAYLAB qo'shilmagan (ta'minot zanjiri qarori), shuning
+ *     uchun token'siz muhitda CLI ikkilik fayli umuman yo'q — plaginni
+ *     o'chirish shart, ixtiyoriy emas;
+ *   • `widenClientFileUpload: false` — kerak bo'lmagan fayllar yuklanmaydi;
+ *   • `disableLogger: true` — Sentry'ning debug loglari prod bundle'idan
+ *     olib tashlanadi (bundle hajmi va shovqin).
+ */
+const sourceMapUploadEnabled = Boolean(process.env.SENTRY_AUTH_TOKEN?.trim());
+
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  // CI/build loglarida ortiqcha shovqin bo'lmasin.
+  silent: !process.env.CI,
+  widenClientFileUpload: false,
+  disableLogger: true,
+  sourcemaps: {
+    disable: !sourceMapUploadEnabled,
+    deleteSourcemapsAfterUpload: true,
+  },
+  /**
+   * Tunnel ATAYLAB YOQILMAGAN (`tunnelRoute`). U brauzer hodisalarini
+   * o'z domenimiz orqali o'tkazadi (ad-blocker'ni chetlab o'tish uchun),
+   * lekin bu bizning serverimizda AUTENTIFIKATSIYASIZ, tashqi manzilga
+   * uzatuvchi ochiq proxy yaratadi — SSRF yuzasi. Ko'rinmagan bir necha
+   * foiz xato hisobotidan ko'ra bu xavf qimmatroq.
+   */
+  automaticVercelMonitors: false,
+});

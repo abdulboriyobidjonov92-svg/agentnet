@@ -26,18 +26,30 @@ export function generateNonce(): string {
 /**
  * Brauzer HAQIQATAN murojaat qiladigan tashqi origin bormi?
  *
- * Bugun — YO'Q: barcha API chaqiruvlari same-origin BFF orqali o'tadi
- * (`/api/backend/*` proxy va `/api/*` route handler'lari). Shu sabab
- * `connect-src 'self'` — Engineering Contract SEC-13 AC ayni shuni talab
- * qiladi ("connect-src faqat o'z origin") va bu A4/Konstitutsiya #2
- * ("brauzer NestJS'ga to'g'ridan-to'g'ri bormaydi") bilan bir xil gap.
+ * Bazaviy javob — YO'Q: barcha API chaqiruvlari same-origin BFF orqali
+ * o'tadi (`/api/backend/*` proxy va `/api/*` route handler'lari). Shu
+ * sabab `connect-src 'self'` — Engineering Contract SEC-13 AC ayni shuni
+ * talab qiladi va bu A4/Konstitutsiya #2 ("brauzer NestJS'ga
+ * to'g'ridan-to'g'ri bormaydi") bilan bir xil gap.
  *
- * Funksiya ATAYLAB qoldirildi: kelajakda brauzerdan chinakam kerak
- * bo'ladigan origin paydo bo'lsa, u SHU YERDA, aniq va tekshirilgan
- * holda qo'shiladi — direktivaga qo'lda satr yopishtirilmaydi.
+ * PHASE 5 (P5.1) — YAGONA istisno: brauzer Sentry'si YOQILGAN bo'lsa,
+ * u hodisani Sentry ingest origin'iga `fetch` bilan yuboradi va CSP
+ * usiz uni BLOKLARDI (xato hisoboti jimgina yo'qolardi).
+ *
+ * FAIL-CLOSED: origin FAQAT `NEXT_PUBLIC_SENTRY_DSN` sozlanganda va
+ * DSN yaroqli URL bo'lganda qo'shiladi. DSN yo'q — siyosat AVVALGIDEK
+ * qat'iy (`'self'` yolg'iz). Direktivaga qo'lda satr yopishtirilmaydi:
+ * origin DSN'ning O'ZIDAN olinadi, ya'ni noto'g'ri manzil kiritib
+ * bo'lmaydi.
  */
 export function browserApiOrigins(): string[] {
-  return [];
+  const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN?.trim();
+  if (!dsn) return [];
+  try {
+    return [new URL(dsn).origin];
+  } catch {
+    return [];
+  }
 }
 
 export interface CspOptions {
