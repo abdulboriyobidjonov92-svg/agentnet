@@ -35,12 +35,17 @@ import { ShareModule } from './share/share.module';
 import { ReferralModule } from './referral/referral.module';
 import { BriefingModule } from './briefing/briefing.module';
 import { DeviceControlModule } from './device-control/device-control.module';
-import { HealthController } from './health.controller';
+import { HealthModule } from './health/health.module';
+import { ObservabilityModule } from './observability/observability.module';
 
 @Module({
-  controllers: [HealthController],
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    // Phase 5: pino logger, sog'liq endpointlari va alert baholovchisi.
+    // BIRINCHI import — `LoggerModule` middleware'i boshqa modullardan
+    // oldin ro'yxatdan o'tsin (so'rov logi to'liq bo'lsin).
+    ObservabilityModule,
+    HealthModule,
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     ScheduleModule.forRoot(),
     PrismaModule,

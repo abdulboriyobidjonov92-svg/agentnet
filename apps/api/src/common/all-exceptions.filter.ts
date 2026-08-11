@@ -7,16 +7,27 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { captureException } from '../observability/sentry';
+import { recordHttpFailure } from '../observability/alerts/alert-counters';
 
 /**
  * Global xato-filtri (observability). Ilgari API'da markazlashgan xato-kuzatuv
  * yo'q edi — kutilmagan xatolar noizchil loglanardi va prod'da ko'rinmasdi.
  * Endi HAR bir ishlov berilmagan xato bu yerga tushadi:
  *   • 5xx (kutilmagan) — to'liq stack bilan `error` darajasida loglanadi
- *     (Render loglarida ko'rinadi; SENTRY_DSN bo'lsa shu yerdan yuborish mumkin);
- *   • 4xx (mijoz) — yengil `warn`.
+ *     (Render loglarida ko'rinadi) VA Sentry'ga BIR MARTA yuboriladi;
+ *   • 4xx (mijoz) — yengil `warn`, Sentry'ga YUBORILMAYDI.
  * Javob shakli o'zgarmaydi: HttpException payload'i (message/reason/...) o'zicha
  * qaytadi, 5xx esa umumiy xabar (ichki tafsilot foydalanuvchiga sizib chiqmaydi).
+ *
+ * PHASE 5 QO'SHIMCHASI (javob shartnomasiga TEGMAYDI):
+ *   • Sentry — faqat 5xx. 4xx mijoz xatosi bo'lib, uni yuborish signalni
+ *     shovqinga ko'mardi (validatsiya xatolari kuniga minglab bo'ladi);
+ *   • `recordHttpFailure` — 5xx va 401/403 hisoblagichlari (P5.4 alertlari
+ *     shu HAQIQIY javoblardan oziqlanadi, sun'iy metrika emas);
+ *   • `X-Request-Id` javob sarlavhasi — middleware'da qo'yiladi, shu yerda
+ *     TANAGA ham qo'shiladi (5xx da), foydalanuvchi qo'llab-quvvatlashga
+ *     aynan shu ID ni aytadi.
  */
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -46,9 +57,20 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const reqId = (req.headers['x-request-id'] as string) || '-';
     const where = `[${reqId}] ${req.method} ${req.url} -> ${status}`;
 
+    // Phase 5 (P5.4): alert hisoblagichlari — HAQIQIY javob kodlaridan.
+    recordHttpFailure(status);
+
     if (status >= 500) {
       // Kutilmagan xato — to'liq kontekst + stack (prod'da diagnostika uchun).
       this.logger.error(`${where}: ${err.message}`, err.stack);
+      // Sentry'ga BIR MARTA (bu yagona yuborish nuqtasi — dublikat yo'q).
+      captureException(err, {
+        requestId: reqId === '-' ? undefined : reqId,
+        route: req.route?.path ?? req.url,
+        method: req.method,
+        statusCode: status,
+        userId: (req as { dbUser?: { id?: string } }).dbUser?.id,
+      });
     } else {
       this.logger.warn(`${where}: ${err.message}`);
     }
@@ -64,7 +86,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.getResponse()
         : isRawClientError
           ? { statusCode: status, message: err.message, reason: 'request_error' }
-          : { statusCode: status, message: 'Ichki server xatosi', reason: 'internal_error' };
+          : {
+              statusCode: status,
+              message: 'Ichki server xatosi',
+              reason: 'internal_error',
+              // P5.3: FAQAT o'zimiz to'liq nazorat qiladigan 500 tanasiga
+              // qo'shiladi. `HttpException` payload'lariga TEGILMAYDI —
+              // ular mavjud API shartnomasi (mijoz kodi ularga tayanadi).
+              // Foydalanuvchi qo'llab-quvvatlashga shu ID ni aytadi va
+              // operator uni uch servis logidan topadi.
+              ...(reqId !== '-' ? { requestId: reqId } : {}),
+            };
 
     res.status(status).json(typeof body === 'string' ? { message: body } : body);
   }

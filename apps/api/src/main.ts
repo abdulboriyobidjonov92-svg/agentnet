@@ -1,20 +1,27 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { randomUUID } from 'crypto';
 import * as express from 'express';
+import { Logger as PinoLogger } from 'nestjs-pino';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { installEngineAuthInterceptor } from './common/engine-auth';
 import { validateEnv } from './common/validate-env';
 import { installBigIntJsonSerializer } from './common/bigint-serialize';
 import { apiSecurityHeaders } from './common/security-headers';
+import { initSentry } from './observability/sentry';
+import { requestIdMiddleware } from './observability/request-id.middleware';
 
 async function bootstrap() {
   // A13: pul ustunlari BigInt — JSON.stringify(BigInt) sukut bo'yicha
   // TypeError tashlaydi. Patch HAR NARSADAN OLDIN o'rnatiladi, aks holda
   // boot paytidagi birinchi xato-log ham yiqilishi mumkin.
   installBigIntJsonSerializer();
+
+  // Phase 5 (P5.1): Sentry HAMMASIDAN OLDIN — boot paytidagi xatolar
+  // (validateEnv'dan keyingi modul konstruktorlari) ham qamrab olinsin.
+  // `SENTRY_DSN` yo'q bo'lsa hech narsa qilmaydi (no-op SDK).
+  initSentry();
 
   // Konfiguratsiya tekshiruvi — prod'da majburiy env yetishmasa aniq ro'yxat
   // bilan fail-fast (sirli mid-construction crash o'rniga).
@@ -28,9 +35,18 @@ async function bootstrap() {
   // framework-standart) body-parser'ini o'chiramiz, pastda O'ZIMIZ aniq
   // 1MB limit bilan o'rnatamiz.
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    bufferLogs: false,
+    // Phase 5 (P5.2): boot paytidagi loglar pino tayyor bo'lguncha
+    // buferlanadi va keyin AYNI formatda chiqadi — aks holda boot
+    // xabarlari matn, qolgani JSON bo'lib, log agregatori boot'ni
+    // umuman ko'rmasdi.
+    bufferLogs: true,
     bodyParser: false,
   });
+
+  // Phase 5 (P5.2): Nest'ning standart matnli logger'i pino bilan
+  // ALMASHTIRILADI. Mavjud `new Logger(...)` chaqiruvlari (biznes va
+  // xavfsizlik loglari) O'ZGARMAYDI — faqat chiqish formati JSON bo'ladi.
+  app.useLogger(app.get(PinoLogger));
 
   // SEC-08 AC: global JSON limiti 1MB. `/device/recordings` (qo'ng'iroq
   // yozuvi — base64 audio) BUNDAN OLDIN, kengroq (10MB) limit bilan alohida
@@ -76,11 +92,15 @@ async function bootstrap() {
   // Helmet KIRITILMADI: mavjud to'plam yetarli va u yangi bog'liqlik
   // hamda ikkinchi (ziddiyatli) siyosat manbaini keltirardi.
   app.getHttpAdapter().getInstance().disable('x-powered-by');
+
+  // Phase 5 (P5.3): request-id — ilgari shu joyda 3 qatorlik, TEKSHIRUVSIZ
+  // blok bor edi (mijoz istalgan uzunlik/belgidagi qiymat yubora olardi).
+  // Endi u `observability/request-id.middleware.ts` ga ko'chdi: qat'iy
+  // format, ALS konteksti (engine propagatsiyasi uchun) va testlar bilan.
+  // MODULLARDAN OLDIN turadi — pino `genReqId` shu qiymatni ko'radi.
+  app.use(requestIdMiddleware());
+
   app.use((req: any, res: any, next: () => void) => {
-    // Request-id — xato-loglarni bitta so'rov bo'yicha kuzatish uchun (observability).
-    const reqId = req.headers['x-request-id'] || randomUUID();
-    req.headers['x-request-id'] = reqId;
-    res.setHeader('X-Request-Id', reqId);
     // SEC-13: sarlavhalar to'plami `common/security-headers.ts` da
     // (testlanadigan, yagona manba). Swagger yo'lida CSP tushib qoladi —
     // sabab o'sha faylda.
@@ -111,7 +131,9 @@ async function bootstrap() {
   }
 
   await app.listen(process.env.PORT ?? 3001);
-  console.log(`API running on http://localhost:${process.env.PORT ?? 3001}`);
+  // Phase 5 (P5.2): `console.log` o'rniga strukturaviy log — boot
+  // xabari ham agregatorda qidiriladigan JSON bo'lsin.
+  app.get(PinoLogger).log(`API tinglayapti: port ${process.env.PORT ?? 3001}`);
 }
 
 bootstrap();

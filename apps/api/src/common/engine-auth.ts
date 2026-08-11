@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { REQUEST_ID_HEADER, currentRequestId } from '../observability/request-id';
 
 /**
  * agent-engine endi ichki `x-internal-token` talab qiladi (main.py'dagi
@@ -24,17 +25,33 @@ export function installEngineAuthInterceptor(): void {
     // Engine chaqiruvlari to'liq URL bilan yuboriladi (`${engineUrl}/...`),
     // shuning uchun prefiks bo'yicha ishonchli ajratamiz.
     if (url.startsWith(engineUrl)) {
-      if (config.headers && typeof (config.headers as { set?: unknown }).set === 'function') {
-        (config.headers as unknown as { set: (k: string, v: string) => void }).set(
-          'x-internal-token',
-          token,
-        );
-      } else {
-        config.headers = {
-          ...(config.headers as Record<string, string>),
-          'x-internal-token': token,
-        } as never;
-      }
+      const setHeader = (key: string, value: string) => {
+        if (config.headers && typeof (config.headers as { set?: unknown }).set === 'function') {
+          (config.headers as unknown as { set: (k: string, v: string) => void }).set(key, value);
+        } else {
+          config.headers = {
+            ...(config.headers as Record<string, string>),
+            [key]: value,
+          } as never;
+        }
+      };
+
+      setHeader('x-internal-token', token);
+
+      /**
+       * Phase 5 (P5.3) — API → engine request-id propagatsiyasi.
+       *
+       * Qiymat AsyncLocalStorage'dan olinadi (`request-id.middleware.ts`
+       * har so'rovni shu kontekst ichida bajaradi), shuning uchun 13+
+       * engine chaqiruv-nuqtasining BIRORTASI ham o'zgartirilmadi —
+       * biznes kodiga observability uchun tegilmaydi.
+       *
+       * Kontekst bo'lmasa (cron/queue — HTTP so'rovi yo'q) sarlavha
+       * QO'YILMAYDI: engine o'zi yaratadi. Soxta ID to'qib chiqarish
+       * zanjirni yolg'on qilardi.
+       */
+      const requestId = currentRequestId();
+      if (requestId) setHeader(REQUEST_ID_HEADER, requestId);
     }
     return config;
   });
