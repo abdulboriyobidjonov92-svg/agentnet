@@ -31,6 +31,7 @@ import supermode as supermode_engine
 import trade as trade_engine
 from agent_engine import AgentDefinition, AgentEngine, registry
 from halal_filter import Action, HalalFilter
+from observability import init_sentry, install_observability
 from role_detection import detect_role, domain_profile, domains_summary
 from streaming import stream_agent_response
 from tools.automation_tools import connector_invoke, web_automate
@@ -86,12 +87,22 @@ async def lifespan(app: FastAPI):
     print("Agent Engine to'xtatildi")
 
 
+# Phase 5 (P5.1): Sentry HAR NARSADAN OLDIN — ilova qurilishidagi xato ham
+# qamrab olinsin. `SENTRY_DSN` yo'q bo'lsa `False` qaytaradi va hech narsa
+# o'zgarmaydi (engine Sentry'siz to'liq ishlaydi).
+init_sentry()
+
 app = FastAPI(
     title="AgentNet Agent Engine",
     description="LangGraph + Claude asosida no-code agent orchestration",
     version="0.1.0",
     lifespan=lifespan,
 )
+
+# Phase 5 (P5.3): request-id + strukturaviy so'rov logi + 5xx ushlash.
+# ICHKI AUTH'GA TEGMAYDI — pastdagi `internal_token_guard` o'zgarishsiz
+# qoladi va u BIRINCHI bo'lib qaror qabul qilaveradi.
+install_observability(app)
 
 app.add_middleware(
     CORSMiddleware,
