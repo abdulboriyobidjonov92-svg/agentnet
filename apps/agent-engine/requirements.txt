@@ -20,6 +20,13 @@ google-genai==2.11.0
 # google-auth kelajakda yangiroq versiyani talab qilsa to'sib qo'ymaydi,
 # lekin zaif versiyaga TUSHIB QOLISHNI imkonsiz qiladi.
 cryptography>=50.0.0
+# Phase 5 (P5.1) — xato kuzatuvi. VERSIYA QOTIRILGAN (repo konvensiyasi):
+# yuqori oqimdagi jimgina o'zgarish prod xulqini o'zgartirmasin.
+# `[fastapi]` ekstrasi ATAYLAB YOZILMAGAN: u faqat `fastapi`+`starlette`
+# ni tortadi, ular esa allaqachon yuqorida PIN QILINGAN — ekstra ularning
+# pinini yumshatib, mos kelmagan versiyani o'rnatishi mumkin edi.
+# Integratsiya klasslari bazaviy paketda mavjud (`sentry_sdk.integrations.fastapi`).
+sentry-sdk==2.67.1
 numpy==2.2.1
 httpx==0.28.1
 sse-starlette==2.1.3
