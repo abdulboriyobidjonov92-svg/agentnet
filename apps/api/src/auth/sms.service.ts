@@ -53,7 +53,18 @@ export class SmsService {
     }
 
     if (!res.ok) {
-      const body = await res.text().catch(() => '');
+      /**
+       * Phase 5 (P5.8): uchinchi tomon javob TANASI to'liq loglanardi.
+       * Eskiz javobi ichida telefon raqami (PII) va ba'zan auth
+       * tafsiloti bo'lishi mumkin — ya'ni bu boshqarilmaydigan payload.
+       *
+       * Endi: 300 belgiga qisqartiriladi (log portlashi oldi olinadi).
+       * Sir shakllari (Bearer/JWT/kalit) esa pino qatlamida
+       * `scrubText` bilan kesiladi — ya'ni bu yerda ularni qo'lda
+       * qidirish SHART EMAS va ikkinchi (ayrilib ketadigan) ro'yxat
+       * paydo bo'lmaydi.
+       */
+      const body = (await res.text().catch(() => '')).slice(0, 300);
       this.logger.error(`Eskiz SMS yuborilmadi (${res.status}): ${body}`);
       throw new Error("SMS yuborib bo'lmadi, birozdan so'ng qayta urinib ko'ring");
     }

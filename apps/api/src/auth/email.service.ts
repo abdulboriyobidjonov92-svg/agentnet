@@ -37,13 +37,43 @@ export class EmailService {
     }
   }
 
+  /**
+   * Phase 5 (P5.8) — email manzilini logga xavfsiz ko'rinishda yozadi.
+   *
+   * ADR-014: "PII hech qachon logga tushmaydi (telefon/email/token/sir
+   * maskalanadi)". Bu yerda to'liq manzil YO'Q, lekin qo'llab-quvvatlash
+   * uchun yetarli ko'rsatkich bor: domen + birinchi harf. Ikkita turli
+   * foydalanuvchini ajratish uchun bu yetarli, kimligini aniqlash
+   * uchun — yo'q.
+   */
+  private maskEmail(email: string): string {
+    const [local, domain] = email.split('@');
+    if (!domain) return '***';
+    return `${local.slice(0, 1)}***@${domain}`;
+  }
+
   async sendOtpCode(email: string, code: string): Promise<void> {
     if (!this.resend) {
-      if (process.env.NODE_ENV === 'production') {
-        this.logger.error(`Email-OTP so'raldi, lekin RESEND_API_KEY yo'q (${email}).`);
+      /**
+       * FAIL-CLOSED (P5.8 tuzatmasi): ilgari shart `NODE_ENV ===
+       * 'production'` edi, ya'ni `NODE_ENV` UMUMAN QO'YILMAGAN muhitda
+       * (noto'g'ri sozlangan prod, konteyner default'i) kod pastdagi
+       * "DEV" tarmog'iga tushib, OTP **ochiq matnda logga** yozilardi.
+       * Endi teskarisi: kod FAQAT aniq dev/test da loglanadi; qolgan
+       * har qanday holatda — xato. Noaniqlik endi xavfsiz tomonga
+       * og'adi.
+       */
+      const env = process.env.NODE_ENV;
+      const isExplicitDev = env === 'development' || env === 'test';
+      if (!isExplicitDev) {
+        this.logger.error(
+          `Email-OTP so'raldi, lekin RESEND_API_KEY yo'q (${this.maskEmail(email)}).`,
+        );
         throw new Error('Email orqali kirish hozircha mavjud emas — iltimos telefon bilan kiring.');
       }
-      this.logger.warn(`[DEV OTP] ${email} -> ${code} (Resend sozlanmagani uchun yuborilmadi)`);
+      this.logger.warn(
+        `[DEV OTP] ${this.maskEmail(email)} -> ${code} (Resend sozlanmagani uchun yuborilmadi)`,
+      );
       return;
     }
 
