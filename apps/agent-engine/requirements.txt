@@ -11,6 +11,15 @@ anthropic==0.113.0
 # LLM ikkinchi provayderi (llm_utils): ANTHROPIC_API_KEY bo'lmasa GEMINI_API_KEY
 # ishlatiladi. Anthropic keyin qo'shilsa avtomat ustuvor bo'ladi.
 google-genai==2.11.0
+
+# SEC-15 — XAVFSIZLIK POLI (tranzitiv bog'liqlik).
+# `cryptography` to'g'ridan-to'g'ri ishlatilmaydi: u google-genai -> google-auth
+# zanjiri orqali keladi va requirements'da PIN QILINMAGAN edi, ya'ni qaysi
+# versiya o'rnatilishi resolver kayfiyatiga bog'liq edi. 49.0.0 da
+# PYSEC-2026-3552 bor (tuzatilgan: 50.0.0). Bu — POL (`>=`), qat'iy pin emas:
+# google-auth kelajakda yangiroq versiyani talab qilsa to'sib qo'ymaydi,
+# lekin zaif versiyaga TUSHIB QOLISHNI imkonsiz qiladi.
+cryptography>=50.0.0
 numpy==2.2.1
 httpx==0.28.1
 sse-starlette==2.1.3
