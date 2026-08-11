@@ -15,8 +15,77 @@ env:
   # qoida o'zgarishi CI'ni kutilmaganda qizartirardi (yoki jimgina
   # bo'shashtirardi). Yangilash — ataylab qilinadigan commit.
   GITLEAKS_VERSION: "8.21.2"
+  # SEC-15: pip-audit ham QOTIRILGAN — yuqori oqimdagi xulq o'zgarishi
+  # CI'ni kutilmaganda qizartirmasligi (yoki jimgina bo'shashtirmasligi) uchun.
+  PIP_AUDIT_VERSION: "2.10.1"
 
 jobs:
+  # ---------------------------------------------------------------
+  # SEC-15 — npm bog'liqlik zaifliklari (BLOKLOVCHI)
+  #
+  # `--omit=dev`: FAQAT prod bog'liqliklari. Dev-only zaiflik (jest,
+  # eslint, turbo...) jonli xizmatga chiqmaydi — uni bloklovchi qilish
+  # signalni shovqinga ko'mib, oxir-oqibat "e'tiborsiz qoldirish
+  # madaniyati"ni yaratardi.
+  # `--audit-level=high`: high va critical CI'ni qizartiradi. moderate/low
+  # hisobotda ko'rinadi, lekin bloklamaydi (Contract §7 SEC-15 AC).
+  # ---------------------------------------------------------------
+  npm-audit:
+    name: Dependency audit (npm, prod)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      # `npm ci` ATAYLAB ishlatilmaydi: audit uchun daraxtni O'RNATISH
+      # shart emas — `npm audit` lockfile'ni o'qib, advisory bazasi bilan
+      # solishtiradi. Bu ishni tez va o'rnatish nosozliklaridan mustaqil
+      # qiladi (audit natijasi `node_modules` holatiga bog'liq bo'lmaydi).
+      - name: npm audit (production dependencies)
+        run: npm audit --omit=dev --audit-level=high
+
+      # Hisobot: moderate/low ham KO'RINADI (bloklamaydi). Shu bilan
+      # "faqat high" gate'i past darajali zaifliklarni YASHIRMAYDI.
+      - name: Full audit report (non-blocking)
+        if: always()
+        run: npm audit --omit=dev || true
+
+  # ---------------------------------------------------------------
+  # SEC-15 — Python engine bog'liqlik zaifliklari (BLOKLOVCHI)
+  #
+  # `pip-audit` da npm'dagi `--audit-level` EKVIVALENTI YO'Q — u
+  # zaiflikni jiddiylik bo'yicha filtrlay olmaydi. Shuning uchun bu ish
+  # HAR QANDAY topilmada qizaradi (talab qilingandan QAT'IYROQ).
+  # Ataylab qabul qilingan istisno uchun yagona yo'l — `--ignore-vuln`
+  # (aniq ID + sabab + muddat, `docs/status/sec15-audit.md`).
+  # ---------------------------------------------------------------
+  pip-audit:
+    name: Dependency audit (Python engine)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/agent-engine
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install pip-audit
+        run: pip install pip-audit==${{ env.PIP_AUDIT_VERSION }}
+
+      # Bazaviy `requirements.txt` — engine prod'da AYNAN shuni o'rnatadi
+      # (`requirements-camera.txt` og'ir CV paketlari ataylab tashqarida,
+      # main.py ularni himoyalangan import qiladi — H4/M5).
+      - name: pip-audit (requirements.txt)
+        run: pip-audit -r requirements.txt --progress-spinner off
+
   # ---------------------------------------------------------------
   # SEC-14 — sir skaneri (BLOKLOVCHI)
   # ---------------------------------------------------------------

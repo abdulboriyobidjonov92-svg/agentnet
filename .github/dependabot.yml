@@ -1,0 +1,95 @@
+# SEC-15 — bog'liqliklarni HAFTALIK avtomatik kuzatish.
+#
+# NEGA DEPENDABOT (Snyk emas): repo GitHub'da, Dependabot native va
+# bepul; Snyk repo'da UMUMAN ishlatilmagan (`.snyk` fayli yo'q, CI'da
+# hech qanday Snyk qadami yo'q) — ya'ni ikkinchi vositani kiritish yangi
+# hisob, token va ikkinchi hisobot yuzasini keltirardi. Contract §7
+# SEC-15 "Dependabot/Snyk" deydi — bittasi yetarli.
+#
+# HAR PR MAVJUD CI'DAN O'TADI: `ci.yml` `pull_request` triggeriga ega,
+# ya'ni Dependabot PR'lari ham `npm-audit`, `pip-audit`, `secrets`, test,
+# typecheck, lint va build ishlarini bajaradi. Alohida pipeline yo'q.
+
+version: 2
+updates:
+  # ---------------------------------------------------------------
+  # npm — monorepo ILDIZI (workspaces bilan bitta lockfile)
+  #
+  # `apps/*` uchun alohida yozuv KERAK EMAS va ZARARLI bo'lardi: bu
+  # repo'da yagona `package-lock.json` ildizda va u barcha workspace'larni
+  # qamraydi. Har workspace uchun alohida yozuv bir xil lockfile'ga
+  # tegadigan bir nechta ziddiyatli PR yaratardi.
+  # ---------------------------------------------------------------
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Tashkent
+    open-pull-requests-limit: 5
+    labels: [dependencies, security]
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+    groups:
+      # Xavfsizlik yangilanishlari ALOHIDA va BIRINCHI — ular orasida
+      # oddiy versiya-ko'tarishlar aralashsa, ko'rib chiqish sekinlashadi.
+      security-updates:
+        applies-to: security-updates
+        patterns: ["*"]
+      # Qolganlari bitta PR'da (patch/minor) — har hafta 20 ta PR emas.
+      routine-minor-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
+        patterns: ["*"]
+    ignore:
+      # MAJOR ko'tarishlar avtomatik PR OCHMAYDI. Sabab: Nest 11 / Next 16
+      # kabi major sakrashlar arxitektura qaroridir (Contract §5 ADR
+      # talab qiladi), Dependabot esa ularni migratsiya rejasisiz taklif
+      # qilardi. Xavfsizlik yangilanishlari bu qoidadan MUSTASNO —
+      # yuqoridagi `security-updates` guruhi ularni baribir ochadi.
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
+
+  # ---------------------------------------------------------------
+  # Python engine
+  # ---------------------------------------------------------------
+  - package-ecosystem: pip
+    directory: "/apps/agent-engine"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Tashkent
+    open-pull-requests-limit: 5
+    labels: [dependencies, security, engine]
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      security-updates:
+        applies-to: security-updates
+        patterns: ["*"]
+      routine-minor-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
+
+  # ---------------------------------------------------------------
+  # GitHub Actions — CI'ning O'ZI ham bog'liqlik yuzasi
+  # (`actions/checkout`, `setup-node`, `setup-python` ...).
+  # ---------------------------------------------------------------
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Tashkent
+    open-pull-requests-limit: 3
+    labels: [dependencies, ci]
+    commit-message:
+      prefix: "chore(ci)"
