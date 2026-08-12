@@ -42,12 +42,18 @@ sse-starlette==2.1.3
 # ikkalasi ham qanoatlanadi). ADR-022 dagi major'lardan FARQLI o'laroq
 # buni kechiktirish uchun sabab YO'Q.
 python-dotenv==1.2.2
-# DIQQAT — pillow 11.1.0 da 24 ta advisory bor va uni HECH BIR cheklov
-# ushlab turmaydi (`google-genai` uni versiyasiz talab qiladi), ya'ni
-# 12.3.0 ga ko'tarish TEXNIK jihatdan mumkin. U ATAYLAB ko'tarilmadi:
-# 11 -> 12 MAJOR va ADR-022 major'larni Phase 6 ga qoldirgan.
-# Batafsil: ADR-022 "Long-term impact" + ci-red-2026-08-12.md §3.
-pillow==11.1.0
+# 11.1.0 edi -> 24 ta advisory (butun pip-audit topilmalarining YARMIDAN
+# KO'PI). 12.3.0 — ularning HAMMASINI yopadigan eng kichik versiya
+# (advisory'lar 12.1.1 / 12.2.0 / 12.3.0 ni talab qiladi).
+#
+# NEGA bu ADR-022 dagi "major'lar Phase 6 ga" qoidasidan ISTISNO:
+# `pillow` langgraph/langchain zanjiridan MUSTAQIL va uni HECH BIR
+# cheklov ushlab turmaydi — `google-genai` uni faqat IXTIYORIY ekstra
+# orqali so'raydi (`pillow; extra == "local-tokenizer"`), biz esa u
+# ekstrani o'rnatmaymiz. Engine kodi PIL'ni HECH QAYERDA import
+# qilmaydi (tekshirildi), ya'ni 11 -> 12 major'ining bizga ta'sir
+# yuzasi NOL. ADR-022 §"Accepted Risk" da rasmiylashtirilgan.
+pillow==12.3.0
 
 # H4/M5: kamera (RTSP -> YOLO -> Claude Vision) og'ir CV-kutubxonalari
 # (opencv/onvif/ultralytics/torch, ~1-2GB) BAZAVIY o'rnatishdan CHIQARILDI ->
