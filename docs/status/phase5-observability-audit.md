@@ -456,6 +456,10 @@ is added unless genuinely required"* — bajarildi.
 
 ### 13.1 `npm audit` gate'i QIZIL (SEC-15 dan meros, Phase 5 sababi emas)
 
+> **HAL QILINDI 2026-08-12** — SEC-15 retsepti qo'llandi, 9 high -> **0 high**,
+> gate YASHIL. Batafsil: [`sec15-audit.md`](sec15-audit.md) §14.
+> Quyidagi matn hal qilinishidan OLDINGI holatni tasvirlaydi.
+
 9 ta high zaiflik **SEC-15 dan beri ochiq** (`next`, `sharp`, `postcss`,
 `picomatch`, `nanoid`, `multer`, `lodash`, `js-yaml`). Phase 5 **birorta
 high qo'shmadi** (9 → 9).
@@ -473,6 +477,13 @@ ReDoS) — ish-vaqtida bajarilmaydi. Bloklovchi gate (`--audit-level=high`)
 > Phase 5 ishi emas — alohida vazifa (§14).
 
 ### 13.2 `npm ci` lockfile bilan sinxron emas (PRE-EXISTING, CI'ni buzadi)
+
+> **HAL QILINDI 2026-08-12** — `npm ci` endi exit 0.
+> **TUZATISH:** quyidagi tashxis TO'LIQ EMAS edi — sabab BITTA emas,
+> IKKITA paket: `@nut-tree/nut-js` (404) VA `screenshot-desktop`
+> (`^2.2.3` so'ralgan, lekin paketning eng yangisi 1.15.4 — diapazonni
+> qanoatlantiruvchi versiya yo'q). Faqat birinchisini olib tashlash
+> yetmasdi. Batafsil: [`sec15-audit.md`](sec15-audit.md) §14.4.
 
 `npm ci` `Missing: @nut-tree/nut-js@ from lock file` bilan yiqiladi.
 **Bazaviy commitda ham AYNAN shunday** — izolyatsiyalangan nusxada HEAD
@@ -550,6 +561,11 @@ darajada tekshirilgan.
 ---
 
 ## 15. Keyingi aniq vazifa
+
+> **IKKALA VAZIFA HAM BAJARILDI — 2026-08-12.** `npm audit` gate'i 0 high,
+> `npm ci` exit 0, apps/api 939/939, ikkala build ham yashil. Natija:
+> [`sec15-audit.md`](sec15-audit.md) §14. **Endi to'g'ridan-to'g'ri
+> Phase 6 ga o'tiladi.** Quyidagi ro'yxat tarixiy yozuv sifatida qoladi.
 
 **Phase 5 tugadi. Phase 6 (Runtime Decoupling) boshlanishidan OLDIN
 ikkita mustaqil, kichik vazifa bor** — ikkalasi ham CI'ni yashil holatga

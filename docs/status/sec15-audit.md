@@ -3,8 +3,15 @@
 **Sana:** 2026-08-11 · **Contract:** §7 SEC-15
 **Oldingi bosqich:** [`sec14-audit.md`](sec14-audit.md) (sir rotatsiyasi + gitleaks)
 
-**HOLAT: QISMAN — vosita qatlami TAYYOR, npm remediatsiyasi BLOKLANGAN.**
-Batafsil: §7 va §11.
+**HOLAT: TO'LIQ — vosita qatlami TAYYOR, npm remediatsiyasi QO'LLANDI (2026-08-12).**
+Batafsil: §7, §8 va §14.
+
+> **2026-08-12 yangilanishi.** Hujjat 2026-08-11 da "npm remediatsiyasi
+> BLOKLANGAN" holatida yozilgan edi. §8 dagi retsept O'SHA KUNI QO'LLAB
+> BO'LMAGAN, bugun esa **qo'llandi va tasdiqlandi** — `npm audit --omit=dev
+> --audit-level=high` endi **0 high** (ilgari 9). Quyidagi 1-13 bo'limlar
+> **2026-08-11 holatini** tarixiy yozuv sifatida saqlaydi (ular O'ZGARTIRILMAGAN,
+> faqat holat belgilari yangilandi); yakuniy natija — **§14**.
 
 ---
 
@@ -20,6 +27,9 @@ Batafsil: §7 va §11.
 
 **O'ZGARMAGAN (ataylab):** `package.json`, `package-lock.json`,
 `apps/*/package.json`. Sabab §7 da.
+
+> **2026-08-12:** shu uchta fayl endi **O'ZGARDI** — §14 ga qarang
+> (`overrides` bloki, `next` ko'tarilishi, qayta hal qilingan lockfile).
 
 ---
 
@@ -185,9 +195,14 @@ ruff check .   ->  All checks passed!
 pytest -q      ->  14 passed
 ```
 
-### ⛔ npm — BLOKLANGAN (muhit cheklovi)
+### ✅ npm — TUZATILDI (2026-08-12; 2026-08-11 da BLOKLANGAN edi)
 
-Tuzatish **aniqlangan va tayyor**, lekin bu muhitda **qo'llab bo'lmadi**.
+> **Bu kichik bo'lim 2026-08-11 holatini tasvirlaydi va TARIXIY yozuv
+> sifatida saqlanadi.** Quyidagi "TAYYOR RETSEPT" 2026-08-12 da
+> **qo'llandi** — natija va aniq bajarilish tartibi **§14** da.
+
+Tuzatish **aniqlangan va tayyor**, lekin ~~bu muhitda **qo'llab bo'lmadi**~~
+(2026-08-12 da qo'llandi).
 
 **Sabab:** bu sandbox'da `npm install` **amalda ishlamaydi** — u har doim
 "up to date" deb qaytadi, lockfile yozmaydi va daraxtni qayta hal
@@ -278,14 +293,16 @@ polining mavjudligi va `>=` ekanligi.
 
 ## 11. Qolgan risklar
 
-1. **9 ta high npm zaifligi OCHIQ** — tuzatish tayyor, qo'llash bu
-   muhitda imkonsiz (§8). Eng jiddiylari: `next` (SSRF, cache confusion,
-   DoS — 8 ta advisory), `sharp`/libvips (CVE-2026-33327 va boshqalar),
-   `postcss` (path traversal, arbitrary file read).
-2. **10 ta moderate gate'dan past** (`qs`, `uuid`, `body-parser`,
-   `express`, `file-type`, `@nestjs/*`) — ular `--audit-level=high`
+1. ~~**9 ta high npm zaifligi OCHIQ**~~ — **YOPILDI 2026-08-12** (§14).
+   Ilgari: tuzatish tayyor, qo'llash bu muhitda imkonsiz (§8). Eng
+   jiddiylari edi: `next` (SSRF, cache confusion, DoS — 8 ta advisory),
+   `sharp`/libvips (CVE-2026-33327 va boshqalar), `postcss` (path
+   traversal, arbitrary file read).
+2. **Moderate/low gate'dan past — HALI OCHIQ** (`qs`, `uuid`,
+   `body-parser`, `express`, `webpack`, `ajv`) — ular `--audit-level=high`
    bo'yicha bloklamaydi, lekin hisobot qadamida ko'rinadi. Ularning
    ko'pi Nest 10 ekotizimiga bog'langan; Nest 11 ga o'tish alohida ADR.
+   2026-08-12 dan keyingi aniq son: **11 moderate + 1 low** (§14).
 3. **`pip-audit` jiddiylik bo'yicha filtrlay olmaydi** — har qanday
    topilma bloklaydi (§4). Kelajakda shovqin bo'lsa, `--ignore-vuln`
    (aniq ID + muddat) yagona ruxsat etilgan yo'l.
@@ -304,8 +321,10 @@ polining mavjudligi va `>=` ekanligi.
 o'chirilmagan, hech qanday paket allowlist qilinmagan, hech bir skaner
 yumshatilmagan.
 
-§8 dagi npm holati — istisno EMAS, **bajarilmagan ish** (CI uni qizil
-holda ko'rsatib turadi).
+~~§8 dagi npm holati — istisno EMAS, **bajarilmagan ish** (CI uni qizil
+holda ko'rsatib turadi).~~ → **2026-08-12 da bajarildi** (§14). CI'ning
+`npm-audit` gate'i endi YASHIL. Gate yumshatilmadi: `--audit-level=high`
+o'zgarmadi, `|| true` / `continue-on-error` QO'SHILMADI.
 
 ## 13. Keyingi vazifa
 
@@ -315,5 +334,151 @@ Sentry ×3 servis, `pino` JSON loglar, request-id propagatsiyasi, 4 biznes
 alert, `/api/health` chuqurlashtirish (DB+engine+redis), backup/restore
 mashqi, incident runbook.
 
-**Undan OLDIN tavsiya etiladi:** §8 dagi npm retseptini qo'llash — u bitta
-buyruq va CI'ni yashil holatga qaytaradi.
+~~**Undan OLDIN tavsiya etiladi:** §8 dagi npm retseptini qo'llash — u bitta
+buyruq va CI'ni yashil holatga qaytaradi.~~
+
+**Bajarildi 2026-08-12** — lekin "bitta buyruq" degani NOTO'G'RI chiqdi;
+sabab §14.2 da.
+
+---
+
+## 14. npm remediatsiyasi — QO'LLANDI (2026-08-12)
+
+**Sana:** 2026-08-12 · **Holat:** BAJARILDI va lokal tasdiqlandi
+**Sabab u endi mumkin:** Phase 5 (c1a6f0d) `npm install` ning bu muhitda
+ISHLASHINI tasdiqladi — Sentry/pino bog'liqliklari aynan shu bilan
+qo'shilgan. §8 dagi "npm install ishlamaydi" sababi endi HAQIQAT EMAS.
+Manba: [`phase5-observability-audit.md`](phase5-observability-audit.md) §13.1.
+
+### 14.1 O'zgargan fayllar
+
+| Fayl | O'zgarish |
+|---|---|
+| `package.json` (ildiz) | `overrides` bloki (6 paket) + `allowScripts` dan `sharp@0.34.5` olib tashlandi |
+| `apps/web/package.json` | `next`: `^15.1.6` -> `^15.5.23` |
+| `package-lock.json` | daraxt qayta hal qilindi (183 versiya o'zgardi) |
+| `apps/companion-desktop/package.json` | `optionalDependencies` butunlay olib tashlandi (§14.4) |
+
+`overrides` — §8 dagi retsept AYNAN, o'zgarishsiz:
+
+```jsonc
+"overrides": {
+  "js-yaml": "^4.3.1",  "lodash":  "^4.18.1",  "multer": "^2.2.0",
+  "picomatch": "^4.0.5", "postcss": "^8.5.26",  "sharp":  "^0.35.3"
+}
+```
+
+### 14.2 ⚠️ Retsept "bitta buyruq" EMAS edi — npm 11.16.0 xususiyati
+
+`npm install` MAVJUD lockfile ustiga yangi `overrides` ni **qayta hal
+QILMAYDI**. U "up to date" deb o'tkazib yuboradi, garchi `npm ls` o'sha
+paytda o'zi `invalid: "^4.3.1" from ...` deb yozsa ham. Sinab ko'rilgan
+va ISHLAMAGAN yo'llar:
+
+| Urinish | Natija |
+|---|---|
+| `npm install` | "up to date" — `js-yaml`/`lodash`/`multer`/`picomatch` o'zgarmadi |
+| `node_modules/.package-lock.json` ni o'chirib `npm install` | o'sha natija |
+| `npm install --package-lock-only` | "up to date" |
+| `npm update <6 paket>` | faqat UYALANGAN nusxalar tuzatildi (9 -> 5 high) |
+| lockfile'dan yozuvlarni qo'lda o'chirib `npm install` | paketlarni O'CHIRDI, qaytadan o'rnatMADI (daraxt buzildi) |
+
+**Ishlagan yagona yo'l** — `node_modules` VA `package-lock.json` ni
+o'chirib, noldan:
+
+```bash
+rm -rf node_modules apps/*/node_modules packages/*/node_modules package-lock.json
+npm install
+```
+
+Buning oqibati: lockfile diff'i KATTA (183 versiya o'zgardi, 42 qo'shildi,
+99 olib tashlandi). Lekin bu asosan **hoisting** o'zgarishi — e'lon
+qilingan diapazonlarning HECH BIRI (`^...`) `next` dan boshqa
+o'zgarmadi, ya'ni bu "hamma narsani yangilash" EMAS.
+
+**MAJOR KO'TARILMADI** (SEC-15 shartining o'zi): `@nestjs/*` 10.4.22,
+`next` 15.5.23, `react` 19, `prisma` 6.19.3 — barchasi o'z majorida.
+
+### 14.3 Natija
+
+```
+npm audit --omit=dev
+  oldin: 21 zaiflik  (9 high, 11 moderate, 1 low)
+  keyin: 12 zaiflik  (0 high, 11 moderate, 1 low)
+
+npm audit --omit=dev --audit-level=high   ->  exit 0   (CI gate YASHIL)
+```
+
+Yopilgan 9 ta high: `next` · `sharp` · `postcss` · `picomatch` ·
+`nanoid` · `multer` · `lodash` · `js-yaml` · `@nestjs/platform-express`
+(oxirgisi §7 da bashorat qilinganidek `multer` orqali TRANZITIV yopildi —
+Nest major'i ko'tarilmasdan).
+
+Qo'shimcha: `allowScripts` dan `sharp@0.34.5` OLIB TASHLANDI — `sharp`
+0.35.3 da install skripti YO'Q (prebuilt `@img/*` paketlari), ya'ni
+yozuv o'lik konfiguratsiyaga aylandi (Qoida #38).
+
+### 14.4 `npm ci` sinxronligi ham tiklandi (bog'liq, lekin alohida)
+
+`npm ci` HEAD'da yiqilardi (**PRE-EXISTING**, `efc4e7a` da tasdiqlangan;
+Phase 5 regressiyasi EMAS) va CI'ning uchala `npm ci` qadamini bloklardi
+(`ci.yml` 169, 201, 278).
+
+Phase 5 auditi (§13.2) sababni BITTA paketda deb yozgan edi. Aslida
+`apps/companion-desktop` ning **IKKALA** `optionalDependencies` yozuvi
+ham hal qilib bo'lmaydigan holatda edi:
+
+| Paket | Diapazon | Muammo |
+|---|---|---|
+| `@nut-tree/nut-js` | `^3.1.2` | ommaviy registrda **404** (yopiq registrga ko'chgan) |
+| `screenshot-desktop` | `^2.2.3` | paket MAVJUD, lekin eng yangisi **1.15.4** — `^2.2.3` ni qanoatlantiruvchi versiya YO'Q |
+
+Faqat `nut-js` ni olib tashlash YETMASDI. Ikkalasi ham olib tashlandi.
+
+**Xulq o'zgarmadi:** `companion.mjs` ikkalasini ham `try { await
+import(...) } catch` ichida KECHIKKAN yuklaydi va stub ogohlantirishiga
+tushadi (121-148-qatorlar). Paketlar allaqachon o'rnatilmagan edi, ya'ni
+ish-vaqti xulqi AYNAN o'sha.
+
+**Tasdiq** (izolyatsiyalangan nusxa: ildiz `package.json` + barcha
+workspace `package.json` lari + `package-lock.json`, `node_modules` siz):
+
+```
+oldin: NPM_CI_EXIT=1  — EUSAGE, "Missing: @nut-tree/nut-js@ from lock file"
+                                 "Missing: screenshot-desktop@ from lock file"
+keyin: NPM_CI_EXIT=0  — "added 1256 packages"
+```
+
+### 14.5 Regressiya — hammasi YASHIL
+
+| Tekshiruv | Natija |
+|---|---|
+| `apps/api` — `tsc --noEmit` | 0 xato |
+| `apps/api` — `eslint src` | 0 error (8 pre-existing warning) |
+| `apps/api` — `jest` | **68 suite / 939 test PASSED** |
+| `apps/api` — `nest build` | exit 0 |
+| `apps/web` — `tsc --noEmit` | 0 xato |
+| `apps/web` — `eslint src` | 0 error (170 pre-existing warning) |
+| `apps/web` — `next build` | exit 0, barcha route'lar qurildi |
+| `npm audit --omit=dev --audit-level=high` | exit 0 |
+| `npm ci` (izolyatsiyada) | exit 0 |
+
+Jest to'liq suite ikki marta (retsept qo'llangandan keyin va `npm ci`
+tuzatmasidan keyin) ishga tushirildi — ikkalasida ham 939/939.
+
+### 14.6 Gate'lar yumshatilmadi
+
+`ci.yml` ga **TEGILMADI**. `--audit-level=high` o'zgarmadi, hech qayerga
+`|| true` yoki `continue-on-error` qo'shilmadi, hech qanday advisory
+`--ignore-vuln` qilinmadi, hech qanday paket allowlist qilinmadi.
+§12 dagi "Ochiq istisno YO'Q" bugun ham kuchda.
+
+### 14.7 Qolgan ish
+
+- **11 moderate + 1 low** hali ochiq (`qs`, `uuid`, `body-parser`,
+  `express`, `webpack`, `ajv`). Gate'dan past. Ularning aksariyati Nest
+  10 va `@sentry/nextjs` webpack-plagini bilan bog'langan; yopish uchun
+  **Nest 11 / Next 16 major** kerak — bu SEC-15 da ATAYLAB rad etilgan
+  va alohida ADR talab qiladi.
+- CI'da (GitHub Actions) hali ishga tushirilmagan — §11.4 dagi risk
+  kuchda qoladi, birinchi push'da tasdiqlanadi.
