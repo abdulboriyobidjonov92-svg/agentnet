@@ -482,3 +482,98 @@ tuzatmasidan keyin) ishga tushirildi — ikkalasida ham 939/939.
   va alohida ADR talab qiladi.
 - CI'da (GitHub Actions) hali ishga tushirilmagan — §11.4 dagi risk
   kuchda qoladi, birinchi push'da tasdiqlanadi.
+
+---
+
+## 15. Vercel operatori uchun — QO'LDA BAJARILADIGAN QADAMLAR
+
+**Kimga:** repo egasi (Vercel dashboard'iga kirish huquqi bor kishi).
+**Nega qo'lda:** Vercel'ning **Project Settings** qiymatlari (Root
+Directory / Build Command / Install Command / Output Directory) repo
+ichida SAQLANMAYDI va `vercel.json` ni BEKOR QILA OLADI. Ularni bu
+yerdan na o'qib, na o'zgartirib bo'ladi — shuning uchun quyidagi uch
+qadam OPERATOR zimmasida.
+
+> **Avval muhim gap:** Vercel'ni yiqitgan ASOSIY sabab REPO tomonida
+> allaqachon TUZATILDI (`be847b0` — `e2e` Next production build
+> tip-doirasidan chiqarildi). Ya'ni `Cannot find module '@prisma/client'`
+> xatosi endi HAR IKKALA sozlamada ham qaytmaydi. Quyidagi qadamlar —
+> build'ni TO'G'RI va TEZ qilish uchun (gigiena), yiqilishni tuzatish
+> uchun emas.
+
+### Qadam 1 — joriy qiymatlarni ko'ring
+
+Vercel Dashboard → loyiha → **Settings** → **General** → **Build &
+Development Settings** va **Root Directory**. Quyidagi to'rttasini yozib
+oling: `Root Directory`, `Build Command`, `Install Command`,
+`Output Directory`.
+
+### Qadam 2 — variantni tanlang
+
+**A-VARIANT — TAVSIYA ETILADI**
+
+```
+Root Directory   : apps/web
+Build Command    : turbo run build --filter=@agentnet/web...
+Install Command   : npm install          (ildizda ishlaydi — monorepo)
+Output Directory : .next                 (odatda avtomatik)
+```
+
+**B-VARIANT — ishlaydi, lekin ISROFGARCHILIK**
+
+```
+Root Directory   : /            (ya'ni repo ildizi)
+Build Command    : turbo run build
+Output Directory : apps/web/.next        ← BUNI QO'LDA KIRITISH SHART
+```
+
+**Nega A tavsiya etiladi — bu O'LCHANGAN, taxmin emas**
+(`turbo ... --dry=json`):
+
+| Variant | Turbo nechta paketni quradi | Qaysilar |
+|---|---|---|
+| **A** (`--filter=@agentnet/web...`) | **1** | `@agentnet/web` |
+| **B** (`turbo run build`) | **4** | `@agentnet/web`, `@agentnet/api`, `@agentnet/shared-types`, `@agentnet/companion-desktop` |
+
+`apps/web` ning workspace-bog'liqligi YO'Q, shuning uchun `...` suffiksi
+qo'shimcha paket tortmaydi. B-variantda Vercel har deploy'da NestJS
+API'ni ham quradi — bu build vaqtini uzaytiradi va Vercel'ga umuman
+aloqasi yo'q sabablardan (Prisma, Nest) yiqilish ehtimolini KIRITADI.
+
+### Qadam 3 — tekshiring
+
+Deploy'dan keyin build logida quyidagilar bo'lishi kerak:
+
+- A-variantda: `@agentnet/web:build` bor, `@agentnet/api:build` **YO'Q**;
+- `Cannot find module '@prisma/client'` **YO'Q**;
+- Next.js route jadvali chiqadi va deploy `Ready` bo'ladi.
+
+### Lokal qorovul — `npm run check:vercel-config`
+
+Repo tomonidagi invariantlar endi avtomat tekshiriladi:
+
+```bash
+npm run check:vercel-config
+```
+
+Uchta narsani tasdiqlaydi (hech biri tarmoqqa chiqmaydi):
+
+1. `apps/web` build tip-doirasi `e2e` ni O'Z ICHIGA OLMAYDI;
+2. `turbo run build --filter=@agentnet/web...` grafi FAQAT
+   `@agentnet/web` ni quradi (`@agentnet/api` tortilmaydi);
+3. `apps/web` build doirasidagi HAR BIR tashqi import `apps/web` ning
+   O'Z `package.json` ida e'lon qilingan — ya'ni monorepo **hoisting'ga
+   tayanish** yo'q.
+
+**3-tekshiruv aynan bizni yiqitgan XATO SINFINI ushlaydi:** `dotenv` va
+`@prisma/client` `apps/web` da e'lon qilinmagan, lekin ildiz
+`node_modules` dan hal bo'lgani uchun lokalda "ishlab ketardi" va faqat
+Vercel'ning yakka o'rnatishida yiqilardi.
+
+Skript NO-OP emasligi TEKSHIRILDI: `exclude: ["e2e"]` vaqtincha olib
+tashlanganda u exit 1 qaytardi va aybdorlarni nomma-nom ko'rsatdi
+(`@prisma/client`, `dotenv` — `apps/web/e2e/helpers/db.ts`).
+
+> Bu skript CI'ga **hali ulanmagan** (ataylab): u `tsc --listFiles` ni
+> ishlatadi va `web` ishida allaqachon `typecheck` bor. Uni bloklovchi
+> qadam sifatida qo'shish — alohida qaror.
