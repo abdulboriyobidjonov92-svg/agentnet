@@ -1,6 +1,9 @@
 # ADR-022 — Python engine major ko'tarishlari (langgraph/langchain/pillow/fastapi)
 
-**Sana:** 2026-08-12 · **Holat:** PROPOSED (bajarilmagan — Phase 6 bilan birga)
+**Sana:** 2026-08-12 · **Holat:** **ACCEPTED** (qisman bajarildi — `starlette`
+va `pillow` YOPILDI; faqat langgraph/langchain zanjiri deferred qoldi.
+Yakuniy holat uchun "Accepted Risk / Deferred Upgrade" bo'limiga qarang —
+u yuqoridagi 1-5 bo'limlardagi dastlabki ro'yxatni TUZATADI.)
 **Bog'liq:** SEC-15 (`docs/status/sec15-audit.md`), `docs/status/ci-red-2026-08-12.md` §3
 **Ta'sir qiladi:** `apps/agent-engine` (yadro ijro oqimi)
 
@@ -96,14 +99,111 @@ ikkitasini talab qiladi va oraliqda ikki marta buzilish xavfi bor.
 - **`pip-audit` Phase 6 gacha QIZIL turadi.** Bu — ma'lum va qabul
   qilingan holat, sir emas. Har kim CI'ga qarasa sababni
   `ci-red-2026-08-12.md` §3 va shu ADR'dan topadi.
-- **Xavf bahosi:** topilmalarning aksariyati `pillow` (rasm parsing) va
-  `starlette`/`langchain` zanjirida. Engine rasm yuklashni faqat
-  camera oqimida ishlatadi (`requirements-camera.txt`, prod'da
-  o'rnatilmaydi — SEC-15 §4). Bu xavfni KAMAYTIRADI, lekin YO'Q
-  QILMAYDI — shuning uchun ish kechiktirildi, bekor qilinmadi.
+- ~~**Xavf bahosi:** topilmalarning aksariyati `pillow` (rasm parsing) va
+  `starlette`/`langchain` zanjirida.~~ **ESKIRGAN** — `pillow` (24 ta) va
+  `starlette` (9 ta) o'sha kuni YOPILDI, ya'ni endi topilmalarning
+  HAMMASI faqat `langchain`/`langgraph` zanjirida. Yangilangan xavf
+  bahosi: "Accepted Risk / Deferred Upgrade" §B.
 - **Phase 6 boshlanganda MAJBURIY:** LangGraph 1.0 migratsiyasi engine
   test to'plami (hozir 50 test) bilan BIRGA keladi — avval migratsiya,
   keyin testlar EMAS. `agent_engine.py` dagi `_content_to_text()` va
   `AgentState` shakli migratsiyaning birinchi tekshiruv nuqtasi.
 - Migratsiya bajarilgach, bu ADR `ACCEPTED` ga o'tadi va
   `pip-audit` yashil bo'ladi.
+
+---
+
+## Accepted Risk / Deferred Upgrade (2026-08-12, YANGILANDI)
+
+Bu bo'lim ADR yozilgandan keyingi ikkita o'zgarishni rasmiylashtiradi:
+`starlette` va `pillow` endi **deferred EMAS** (ikkalasi ham yopildi), va
+qolgan `langgraph`/`langchain` zanjiri uchun **rasmiy qabul qilingan xavf**
+e'lon qilinadi.
+
+### A. ADR'ning dastlabki ro'yxatiga TUZATISH
+
+ADR dastlab beshta paketni bitta ro'yxatga qo'ygan edi
+(`langgraph`, `langchain-anthropic`, `pillow`, `fastapi`, `starlette`) va
+shu bilan **hammasi bir xil sababdan bloklangan** degan taassurot
+qoldirgan edi. Bu NOTO'G'RI edi:
+
+| Paket | Haqiqiy holat | Natija |
+|---|---|---|
+| `starlette` | `fastapi <0.42.0` bilan bloklangan edi | ✅ **YOPILDI** — `fastapi` 0.141.1 (`3dfcdf3`), starlette 1.6.0, 9 ta advisory ketdi |
+| `pillow` | **HECH BIR cheklov bilan bloklanmagan** | ✅ **YOPILDI** — 12.3.0 (`08ed00e`), 24 ta advisory ketdi |
+| `langgraph`, `langchain-anthropic`, `langchain-core`, `langgraph-checkpoint`, `langgraph-sdk` | haqiqatan bloklangan (o'zaro cheklovlar) | ⚠️ **DEFERRED** — quyida |
+
+`pillow` uchun asos: uni faqat `google-genai` va faqat **ixtiyoriy
+ekstra** orqali so'raydi (`pillow; extra == "local-tokenizer"`) — biz u
+ekstrani o'rnatmaymiz. Engine kodi PIL'ni hech qayerda import qilmaydi.
+Ya'ni 11 -> 12 major'ining ta'sir yuzasi NOL edi va uni kechiktirish
+uchun texnik sabab yo'q edi.
+
+### B. Qabul qilingan xavf — `langgraph` / `langchain` zanjiri
+
+**Qamrov: 10 ta alohida advisory, 5 ta paketda** (`pip-audit`, 2026-08-12):
+
+| Paket | Versiya | Advisory | CVE | Tuzatish |
+|---|---|---|---|---|
+| `langgraph` | 0.2.62 | PYSEC-2026-83 | CVE-2026-28277 | 1.0.10 |
+| `langgraph` | 0.2.62 | PYSEC-2026-2194 | CVE-2026-48776 | 0.3.15 |
+| `langchain-anthropic` | 0.3.3 | PYSEC-2026-2556 | CVE-2026-55443 | 1.4.6 |
+| `langchain-core` | 0.3.86 | PYSEC-2026-2193 | CVE-2026-34070 | 1.2.22 |
+| `langchain-core` | 0.3.86 | PYSEC-2026-2562 | CVE-2026-26013 | 1.2.11 |
+| `langgraph-checkpoint` | 2.1.2 | PYSEC-2026-1527 | CVE-2025-64439 | 3.0.0 |
+| `langgraph-checkpoint` | 2.1.2 | PYSEC-2026-2573 | CVE-2026-48775 | 4.1.1 |
+| `langgraph-checkpoint` | 2.1.2 | PYSEC-2026-2574 | CVE-2026-27794 | 4.0.0 |
+| `langgraph-sdk` | 0.1.74 | PYSEC-2026-2194 | CVE-2026-48776 | 0.3.15 |
+| `langgraph-sdk` | 0.1.74 | PYSEC-2026-2575 | CVE-2026-48776 | 0.3.15 |
+
+**QAROR:**
+
+> Bu paketlarni ko'tarish **major versiya sakrashini** talab qiladi va u
+> **AI engine'ning yadro ish-vaqti xulqini o'zgartiradi** (`StateGraph`
+> tugun/qirra API'lari, `ChatAnthropic` konstruktori, `AgentState`
+> shakli, checkpoint serializatsiyasi). Shu sababli u alohida
+> **"AI Engine Dependency Upgrade"** vazifasiga — to'liq baholash
+> (evaluation harness) sinovlari bilan — kechiktiriladi. Shu vaqtgacha
+> yuqoridagi aniq CVE'lar bizning **izolyatsiyalangan, ommaviy
+> internetga chiqarilmagan** AI-ijro muhitimizda **past xavf** sifatida
+> QABUL QILINADI.
+
+**Izolyatsiya da'vosi — TEKSHIRILGAN, taxmin emas:** engine
+`render.yaml` da `type: pserv` (Render **Private Service**) —
+SEC-10 / ADR-004 / Konstitutsiya qoidasi #5 ("Engine hech qachon ommaviy
+internetga chiqarilmaydi"). Ya'ni bu paketlarga internetdan
+TO'G'RIDAN-TO'G'RI so'rov yuborib bo'lmaydi; yagona yo'l — autentifikatsiya
+qilingan API orqali.
+
+**HALOL CHEKLOV (xavf NOLGA teng emas):** izolyatsiya hujum yuzasini
+kamaytiradi, lekin YO'Q QILMAYDI — engine baribir foydalanuvchi
+matnini (prompt) qayta ishlaydi, ya'ni ishonchsiz KIRISH ma'lumoti unga
+API orqali yetib boradi. Shuning uchun bu **kechiktirish**, bekor qilish
+EMAS, va muddati bor (quyida).
+
+### C. Bu istisnoning CHEGARALARI (majburiy)
+
+1. **`--ignore-vuln` ISHLATILMAYDI.** `pip-audit` bu CVE'larni CI'da
+   ko'rsatishda DAVOM etadi va ish QIZIL turadi. Bu — "e'tiborsiz
+   qoldirilgan xato" emas, **hujjatlashtirilgan siyosat istisnosi**:
+   farqi shundaki, u KO'RINIB turadi va har CI ishida qayta eslatiladi.
+2. `ci.yml` ga `|| true` yoki `continue-on-error` QO'SHILMAYDI.
+3. Bu istisno FAQAT yuqoridagi 10 ta ID'ga tegishli. Zanjirda YANGI
+   advisory chiqsa — u avtomat ravishda bu istisnoga KIRMAYDI va qayta
+   baholanadi.
+4. **Muddat:** Phase 6 (Runtime Decoupling) boshlanishida qayta ko'riladi.
+   Agar zanjirda `CRITICAL` darajali yoki masofadan kod ijro etish (RCE)
+   advisory'si paydo bo'lsa — istisno DARHOL bekor bo'ladi va migratsiya
+   navbatdan tashqari boshlanadi.
+
+### D. Holat
+
+`pip-audit` natijasi: **45 -> 11** (2026-08-12 kuni ichida).
+
+```
+45  (boshlang'ich, resolver tuzatilgandan keyin ko'ringan)
+-9  starlette      (fastapi 0.141.1)
+-1  python-dotenv  (1.2.2)
+-24 pillow         (12.3.0)
+= 11  langgraph/langchain zanjiri  <- SHU ISTISNO
+```
