@@ -44,6 +44,12 @@ regexes = [
   # `apps/api/src/auth/internal-token.guard.spec.ts` — test uchun ochiq-oydin
   # SOXTA yorliqlar (entropiyasi past, nomining o'zi tavsif).
   '''a-strong-random-secret-64hex-(etc|XXX)''',
+
+  # `apps/api/src/observability/redaction.spec.ts` — test uchun ochiq-oydin
+  # JWT test fixture (haqiqiy sir emas, redaksiya testining qismi).
+  # HS256 algoritm va test user_123 ID orqali test redaksiya funksiyalarini
+  # tekshiradi — produksiyada ishlatilmas.
+  '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJzdWIiOiJ1c2VyXzEyMyIsInR2IjoxfQ\.4f9Xk2Lm7Qw1Zb8Nc0Vd3Ye6Rf5Tg2Hj''',
 ]
 
 # Yaratiladigan/keshlangan artefaktlar — manba emas, ular repo'ga
