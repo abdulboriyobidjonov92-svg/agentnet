@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cspDirectives, generateNonce, serializeCsp } from "@/lib/security-headers";
 import { REQUEST_ID_HEADER, resolveIncomingRequestId } from "@/lib/observability/request-id";
+import { resolveApiUrl } from "@/lib/api-url";
 
 // Lokal auth (tashqi provayder ishlatilmaydi). Dashboard yo'llari uchun sessiya cookie'sini tekshiradi.
 // /agentos-demo — ochiq ko'rgazma sahifasi (Living Interface demo, shaxsiy ma'lumot yo'q)
 const PUBLIC_PATHS = ["/", "/sign-in", "/sign-up", "/agentos-demo"];
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+// Bir marta hal qilinadi (middleware har so'rovda ishlaydi).
+const API_URL_RESOLUTION = resolveApiUrl();
+const API_URL = API_URL_RESOLUTION.url;
 const TOKEN_COOKIE = "agentnet_token";
 // SEC-12: impersonation tokeni (httpOnly). Mavjud bo'lsa API chaqiruvlariga
 // AYNAN SHU qo'yiladi — operatorning o'z tokeni cookie'da qoladi, lekin
@@ -86,6 +89,24 @@ export function middleware(request: NextRequest) {
   // NestJS API'ga rewrite qiladi. api-client barcha chaqiruvlarni
   // /api/backend/* orqali yuboradi.
   if (pathname.startsWith(PROXY_PREFIX)) {
+    // Konfiguratsiya xatosini JIMGINA "Application Error" ga aylantirmaymiz.
+    // Ilgari `NEXT_PUBLIC_API_URL` qo'yilmagan bo'lsa bu yo'l so'rovni
+    // `localhost:3001` ga rewrite qilardi va Vercel'da 500 qaytarardi —
+    // butun login oqimi shundan sinardi, sababi esa hech qayerda
+    // ko'rinmasdi. Endi ANIQ 503 + sabab qaytadi.
+    //
+    // FAQAT proxy yo'li to'xtatiladi: ochiq sahifalar (`/`, `/sign-in`)
+    // ishlayveradi, ya'ni operator sahifani ochib xabarni ko'ra oladi.
+    if (API_URL_RESOLUTION.misconfigured) {
+      return NextResponse.json(
+        {
+          error: 'api_url_misconfigured',
+          reason: API_URL_RESOLUTION.reason,
+          hint: 'Vercel > Settings > Environment Variables: NEXT_PUBLIC_API_URL. NEXT_PUBLIC_* build vaqtida inline qilinadi — qo`shgandan keyin QAYTA DEPLOY shart.',
+        },
+        { status: 503 },
+      );
+    }
     const target = new URL(
       `${API_URL}/api/${pathname.slice(PROXY_PREFIX.length)}${request.nextUrl.search}`,
     );
