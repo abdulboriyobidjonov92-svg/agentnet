@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RedisService } from '../redis/redis.service';
 
 /**
  * Phase 5 (P5.5) — OPERATSION SOG'LIQ TEKSHIRUVI.
@@ -93,7 +94,13 @@ export class HealthService {
   private readonly startedAt = Date.now();
   private cache: { at: number; report: HealthReport } | null = null;
 
-  constructor(private readonly prisma: PrismaService) {}
+  // `redis` IXTIYORIY (`@Optional()`): mavjud testlar `HealthService` ni
+  // faqat Prisma bilan quradi va ular O'ZGARMASLIGI kerak. Redis
+  // berilmasa `checkRedis()` `skipped` qaytaradi.
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly redis?: RedisService,
+  ) {}
 
   /** Jarayon tirik — I/O YO'Q, doim arzon. */
   live(): { status: 'ok'; service: string; uptimeSec: number; ts: string } {
@@ -183,6 +190,23 @@ export class HealthService {
     }
   }
 
+  /**
+   * Redis — IXTIYORIY bog'liqlik (Phase 6), `engine` bilan bir xil sabab.
+   *
+   * NEGA IXTIYORIY: Redis yo'q bo'lsa throttler jarayon-ichi saqlagichga,
+   * cron esa qulfsiz rejimga qaytadi — ya'ni platforma ISHLAYVERADI,
+   * faqat ko'p-instansli kafolatlarni yo'qotadi. Uni `ready` ga majburiy
+   * qilish Redis uzilganda BUTUN API'ni trafikdan chiqarardi.
+   */
+  async checkRedis(): Promise<DependencyResult> {
+    if (!this.redis || !this.redis.isConfigured()) {
+      return { status: 'skipped', code: 'redis_url_unset' };
+    }
+    const res = await this.redis.ping();
+    if (res.ok) return { status: 'ok', latencyMs: res.latencyMs };
+    return { status: 'error', latencyMs: res.latencyMs, code: res.code ?? 'redis_unreachable' };
+  }
+
   /** `/api/health/ready` — faqat MAJBURIY bog'liqliklar. */
   async readiness(env: NodeJS.ProcessEnv = process.env): Promise<ReadinessReport> {
     const [database, config] = [await this.checkDatabase(env), this.checkConfig(env)];
@@ -202,13 +226,19 @@ export class HealthService {
     const now = Date.now();
     if (this.cache && now - this.cache.at < cacheMs) return this.cache.report;
 
-    const [database, engine] = await Promise.all([this.checkDatabase(env), this.checkEngine(env)]);
+    const [database, engine, redis] = await Promise.all([
+      this.checkDatabase(env),
+      this.checkEngine(env),
+      this.checkRedis(),
+    ]);
     const config = this.checkConfig(env);
 
     const required = [database, config];
+    // Redis ham `engine` kabi IXTIYORIY: u yiqilsa `degraded`, `error` EMAS.
+    const optional = [engine, redis];
     const status: HealthReport['status'] = required.some((c) => c.status !== 'ok')
       ? 'error'
-      : engine.status === 'ok' || engine.status === 'skipped'
+      : optional.every((c) => c.status === 'ok' || c.status === 'skipped')
         ? 'ok'
         : 'degraded';
 
@@ -221,7 +251,7 @@ export class HealthService {
       version: (env.SENTRY_RELEASE || env.RENDER_GIT_COMMIT || 'unknown').slice(0, 40),
       uptimeSec: Math.round((now - this.startedAt) / 1000),
       ts: new Date(now).toISOString(),
-      checks: { database, config, engine },
+      checks: { database, config, engine, redis },
     };
 
     this.cache = { at: now, report };

@@ -4,6 +4,9 @@ import { AllExceptionsFilter } from './common/all-exceptions.filter';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
+import { RedisModule } from './redis/redis.module';
+import { RedisService } from './redis/redis.service';
 import { AuthModule } from './auth/auth.module';
 import { AuthGuard } from './auth/auth.guard';
 import { RolesGuard } from './auth/roles.guard';
@@ -45,8 +48,26 @@ import { ObservabilityModule } from './observability/observability.module';
     // BIRINCHI import — `LoggerModule` middleware'i boshqa modullardan
     // oldin ro'yxatdan o'tsin (so'rov logi to'liq bo'lsin).
     ObservabilityModule,
+    RedisModule,
     HealthModule,
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+    // Phase 6 — rate-limiting endi TAQSIMLANGAN saqlagichda (Redis).
+    //
+    // NEGA `useFactory` va SHARTLI: `REDIS_URL` bo'lmasa `storage`
+    // BERILMAYDI va throttler o'zining jarayon-ichi saqlagichiga
+    // qaytadi. Bu ataylab — Redis'ni MAJBURIY qilish uni o'chirilgan
+    // muhitda (lokal dev, hozirgi prod) butun API'ni yiqitardi.
+    // Ko'p instansda esa jarayon-ichi hisob limitni instans soniga
+    // BO'LIB yuborardi (A24) — aynan shuni Redis tuzatadi.
+    ThrottlerModule.forRootAsync({
+      inject: [RedisService],
+      useFactory: (redis: RedisService) => {
+        const client = redis.getClient();
+        return {
+          throttlers: [{ ttl: 60_000, limit: 100 }],
+          ...(client ? { storage: new ThrottlerStorageRedisService(client) } : {}),
+        };
+      },
+    }),
     ScheduleModule.forRoot(),
     PrismaModule,
     CryptoModule,

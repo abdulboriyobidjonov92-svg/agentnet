@@ -51,6 +51,25 @@ export class HealthController {
   }
 
   /**
+   * Phase 6 — Redis uchun ALOHIDA endpoint (`/api/health/redis`).
+   *
+   * NEGA ALOHIDA: `/health` keshlangan (`HEALTH_CACHE_MS`) va u
+   * operator uchun umumiy xulosa. Redis migratsiyasi/uzilishini
+   * tekshirayotgan kishi esa KESHSIZ, aniq javob xohlaydi.
+   *
+   * `skipped` (REDIS_URL yo'q) — bu XATO EMAS, shuning uchun 200.
+   * Faqat sozlangan-u ishlamayotgan Redis 503 beradi.
+   */
+  @Get('redis')
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  @Public()
+  async redis(@Res({ passthrough: true }) res: Response) {
+    const check = await this.health.checkRedis();
+    res.status(check.status === 'error' ? 503 : 200);
+    return { ...check, ts: new Date().toISOString() };
+  }
+
+  /**
    * Diagnostik xulosa. `error` bo'lsa 503, `degraded` bo'lsa 200
    * (sabab — `health.service.ts` izohida).
    */
