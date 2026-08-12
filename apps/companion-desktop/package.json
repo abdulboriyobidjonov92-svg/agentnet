@@ -6,9 +6,5 @@
   "type": "module",
   "scripts": {
     "start": "node companion.mjs"
-  },
-  "optionalDependencies": {
-    "screenshot-desktop": "^2.2.3",
-    "@nut-tree/nut-js": "^3.1.2"
   }
 }
