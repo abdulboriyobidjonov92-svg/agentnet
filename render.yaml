@@ -137,10 +137,26 @@ services:
     # qilish kichik uzilishni to'liq uzilishga aylantirardi.
     healthCheckPath: /api/health/ready
     envVars:
+      # DATABASE_URL — QO'LDA kiritiladi (`sync: false`), blueprint bog'lash EMAS.
+      #
+      # NEGA O'ZGARDI (2026-08-12 insidenti): ilgari bu `fromDatabase:
+      # agentnet-db` edi. O'sha Render Postgres 2026-08-03 da MUDDATI TUGAB
+      # suspend bo'ldi, lekin blueprint bog'lanishi har deploy'da O'LIK
+      # connection string'ni QAYTA IN'YEKSIYA qilib, panelda qo'lda
+      # qo'yilgan qiymatni BEKOR QILARDI. Natijada API boot'da
+      # `P1001 Can't reach database server at dpg-...` bilan qulardi va
+      # BUTUN login oqimi ishlamasdi.
+      #
+      # Baza endi Supabase'da (tashqi provayder) — uni blueprint
+      # boshqarmaydi, shuning uchun qiymat qo'lda kiritiladi.
+      # DIQQAT — Supabase POOLER va PORT MUHIM:
+      #   5432 (session mode)     -> `prisma migrate deploy` ISHLAYDI
+      #   6543 (transaction mode) -> migrate advisory-lock'da MUZLAB QOLADI
+      # Dockerfile CMD boot'da migrate'ni ishga tushiradi (`migrate deploy
+      # && node dist/main.js`), shuning uchun 5432 SHART — aks holda
+      # konteyner port ochmaydi va Render 'no open ports' bilan yiqiladi.
       - key: DATABASE_URL
-        fromDatabase:
-          name: agentnet-db
-          property: connectionString
+        sync: false
       # SEC-10: engine endi private service — bu qiymat ommaviy URL EMAS,
       # xususiy tarmoq manzili.
       #
