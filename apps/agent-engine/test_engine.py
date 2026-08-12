@@ -209,3 +209,97 @@ def test_llm_utils_gemini_types_yoq_bolsa_ham_none(monkeypatch):
     monkeypatch.setattr(llm_utils, "_gemini_types", None)
     out = asyncio.run(llm_utils._gemini_json("s", "u", 100))
     assert out is None
+
+
+# ----------------------------------------------------------------
+# Phase 6 / ADR-022 — "AI Engine Dependency Upgrade" regressiya to'plami.
+#
+# langgraph 0.2.62 -> 1.2.11 MAJOR sakrash edi. Mavjud 50 ta test
+# `StateGraph`ga UMUMAN tegmasdi (ular tool-registry, halal lug'ati va
+# `_content_to_text` ni qoplaydi), ya'ni ular yashil bo'lishi major
+# moslikni ISBOTLAMASDI. Quyidagilar aynan shu bo'shliqni yopadi.
+# ----------------------------------------------------------------
+
+def test_langgraph_mavjud_va_graf_compile_boladi():
+    """LangGraph 1.x da `StateGraph` qurilishi va `compile()` ishlashi."""
+    assert agent_engine._LANGGRAPH_AVAILABLE is True
+    d = agent_engine.AgentDefinition(agent_id="a1", name="t", system_prompt="sp")
+    eng = agent_engine.AgentEngine(d, agent_engine.registry)
+    assert type(eng.graph).__name__ == "CompiledStateGraph"
+
+
+class _FakeResp:
+    """Anthropic kontent-BLOKLARI shakli (LangGraph 1.x da ham o'zgarmagan)."""
+
+    content = [{"type": "text", "text": "javob "}, {"type": "text", "text": "matni"}]
+
+
+class _FakeLLM:
+    async def ainvoke(self, _messages):
+        return _FakeResp()
+
+
+def _engine_with_fake_llm():
+    d = agent_engine.AgentDefinition(agent_id="a1", name="t", system_prompt="sp")
+    eng = agent_engine.AgentEngine(d, agent_engine.registry)
+    eng.llm = _FakeLLM()
+    return eng
+
+
+def _state(text: str):
+    return {
+        "messages": [{"role": "user", "content": text}],
+        "user_id": "u1",
+        "agent_id": "a1",
+        "pending_tool_calls": [],
+        "halal_flag": None,
+        "iterations": 0,
+    }
+
+
+def test_graf_uchdan_uchga_ijro_etiladi_allow_yoli():
+    """halal_check_input -> reason -> halal_check_output -> END."""
+    eng = _engine_with_fake_llm()
+    out = asyncio.run(eng.graph.ainvoke(_state("salom")))
+    assert out["halal_flag"] == "ALLOW"
+    assert out["iterations"] == 1
+    # `_content_to_text` graf ICHIDA ham ishlaydi: bloklar matnga aylandi.
+    assert out["messages"][-1] == {"role": "assistant", "content": "javob matni"}
+
+
+def test_graf_halal_block_yolida_toxtaydi():
+    """BLOCK bo'lsa `reason` tuguni UMUMAN ishlamaydi (shartli qirra)."""
+    eng = _engine_with_fake_llm()
+    out = asyncio.run(eng.graph.ainvoke(_state("qimor haqida")))
+    assert out["halal_flag"] == "BLOCK"
+    assert out["iterations"] == 0  # reason tuguniga yetib bormadi
+
+
+def test_checkpoint_serializatsiyasi_round_trip():
+    """`langgraph-checkpoint` 2.1.2 -> 4.2.0 MAJOR sakradi. `AgentState`
+    shakli serde'dan o'zgarmasdan o'tishi kerak."""
+    from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+
+    ser = JsonPlusSerializer()
+    state = _state("salom")
+    state["halal_flag"] = "ALLOW"
+    type_, blob = ser.dumps_typed(state)
+    assert ser.loads_typed((type_, blob)) == state
+
+
+def test_xavfsizlik_versiya_pollari():
+    """SEC-15 / ADR-022: bu paketlar CVE tuzatilgan versiyadan PASTGA
+    tushib qolmasin. Tushsa — shu test CI'ni qizartiradi (pip-audit'dan
+    oldin va aniqroq xabar bilan)."""
+    from importlib.metadata import version
+
+    floors = {
+        "langgraph": (1, 0, 10),
+        "langchain-anthropic": (1, 4, 6),
+        "langchain-core": (1, 2, 22),
+        "langgraph-checkpoint": (4, 1, 1),
+        "langgraph-sdk": (0, 3, 15),
+    }
+    for pkg, floor in floors.items():
+        got = tuple(int(p) for p in version(pkg).split(".")[:3])
+        assert got >= floor, f"{pkg} {got} < {floor} — CVE qayta ochiladi"

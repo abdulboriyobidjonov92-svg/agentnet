@@ -1,7 +1,16 @@
 fastapi==0.141.1
 uvicorn[standard]==0.34.0
-langgraph==0.2.62
-langchain-anthropic==0.3.3
+# Phase 6 / ADR-022 — "AI Engine Dependency Upgrade" BAJARILDI (2026-08-12).
+# 0.2.62 / 0.3.3 edi. Bu MAJOR sakrash va u ADR-022 da aynan shu fazaga
+# rejalashtirilgan edi. 10 ta advisory shu ikki pin orqali yopiladi
+# (tranzitivlari bilan birga):
+#   langgraph            0.2.62 -> 1.2.11   (PYSEC-2026-83, -2194)
+#   langchain-anthropic  0.3.3  -> 1.5.5    (PYSEC-2026-2556)
+#   langchain-core       0.3.86 -> 1.5.4    (PYSEC-2026-2193, -2562)   [tranzitiv]
+#   langgraph-checkpoint 2.1.2  -> 4.2.0    (PYSEC-2026-1527, -2573, -2574) [tranzitiv]
+#   langgraph-sdk        0.1.74 -> 0.4.2    (PYSEC-2026-2194, -2575)   [tranzitiv]
+langgraph==1.2.11
+langchain-anthropic==1.5.5
 # 2.10.4 edi -> HAL QILIB BO'LMAYDIGAN konflikt: `google-genai` 2.11.0
 # `pydantic>=2.12.5` talab qiladi, ya'ni `pip install -r requirements.txt`
 # `ResolutionImpossible` bilan yiqilardi va `agent-engine` + `pip-audit`
@@ -10,10 +19,11 @@ langchain-anthropic==0.3.3
 # anthropic >=1.9, pydantic-settings >=2.7.0), major KO'TARILMAYDI (2.x).
 pydantic==2.13.4
 pydantic-settings==2.7.1
-# Lokal .venv bilan BIR XIL versiya — ilgari 0.43.0 pin qilingan edi, ya'ni
-# lokalda test qilingan SDK-xulqi prod Docker'dagidan farq qilardi.
-# langchain-anthropic 0.3.3 talabi (anthropic>=0.41,<1) bilan mos.
-anthropic==0.113.0
+# 0.113.0 edi. MAJBURIY kaskad: `langchain-anthropic` 1.5.5
+# `anthropic>=0.120.0,<1.0.0` talab qiladi, ya'ni eski pin bilan
+# `ResolutionImpossible` bo'lardi. Bu xavfsizlik ko'tarishining bir qismi,
+# alohida qaror emas.
+anthropic==0.121.0
 # LLM ikkinchi provayderi (llm_utils): ANTHROPIC_API_KEY bo'lmasa GEMINI_API_KEY
 # ishlatiladi. Anthropic keyin qo'shilsa avtomat ustuvor bo'ladi.
 google-genai==2.11.0
