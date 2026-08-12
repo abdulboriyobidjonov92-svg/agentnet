@@ -200,7 +200,8 @@ describe('pino — haqiqiy chiqish (uchdan-uchgacha redaksiya)', () => {
 
   beforeEach(() => {
     process.env.INTERNAL_API_TOKEN = 'runtime-internal-token-secret';
-    process.env.ENCRYPTION_KEY = 'aabbccddeeff00112233445566778899';
+    // Past-entropiyali — sabab `redaction.spec.ts` dagi bilan bir xil.
+    process.env.ENCRYPTION_KEY = 'aaaaaaaabbbbbbbbaaaaaaaabbbbbbbb';
     resetSecretValueCache();
   });
 

@@ -126,11 +126,14 @@ describe('SEC-14 — kalit konfiguratsiyasi', () => {
   it('PROD: juda qisqa (zaif) kalit rad etiladi — xato matnida kalit YO\'Q', () => {
     process.env.NODE_ENV = 'production';
     try {
-      makeService({ ENCRYPTION_KEY: 'short-key-123' });
+      // Past-entropiyali ATAYLAB (gitleaks `generic-api-key` entropiya
+      // bo'yicha ushlaydi). Test uchun muhimi — kalitning QISQA (zaif)
+      // bo'lishi, tasodifiyligi emas.
+      makeService({ ENCRYPTION_KEY: 'shortshortshort' });
       throw new Error('kutilgan xato yuz bermadi');
     } catch (e) {
       expect((e as Error).message).toMatch(/qisqa/);
-      expect((e as Error).message).not.toContain('short-key-123');
+      expect((e as Error).message).not.toContain('shortshortshort');
     }
     process.env.NODE_ENV = 'test';
   });

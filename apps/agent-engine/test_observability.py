@@ -41,8 +41,14 @@ def test_anthropic_kaliti_olib_tashlanadi(monkeypatch):
 
 
 def test_gemini_kaliti_shakl_boyicha_olinadi():
-    out = scrub_text("key=AIzaSyD-ABCDEFGHIJKLMNOPQRSTUVWXYZ123")
-    assert "AIzaSyD-ABCDEFGHIJKLMNOPQRSTUVWXYZ123" not in out
+    # Qiymat ATAYLAB past-entropiyali (takrorlanuvchi "FAKE"): gitleaks'ning
+    # `generic-api-key` qoidasi entropiya bo'yicha ishlaydi va tasodifiy
+    # ko'rinishli fixture butun CI'ni qizartirardi. Test SHAKL bo'yicha
+    # ishlaydi (`observability.py`: `\bAIza[A-Za-z0-9_-]{20,}`), shuning
+    # uchun entropiya emas, UZUNLIK va prefiks muhim — ikkalasi ham saqlandi.
+    fake_key = "AIza" + "FAKE" * 6  # 28 belgi, {20,} shartini qanoatlantiradi
+    out = scrub_text(f"key={fake_key}")
+    assert fake_key not in out
 
 
 def test_jwt_olib_tashlanadi():

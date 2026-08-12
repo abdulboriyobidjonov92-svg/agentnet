@@ -17,7 +17,12 @@ import {
  */
 describe('redaction — qiymat bo\'yicha (env sirlari)', () => {
   const env: NodeJS.ProcessEnv = {
-    ENCRYPTION_KEY: 'a1b2c3d4e5f60718293a4b5c6d7e8f90',
+    // ATAYLAB past-entropiyali (32 belgili hex, faqat 2 xil belgi):
+    // gitleaks `generic-api-key` qoidasi `KEY` kalit so'zi + YUQORI
+    // entropiyali qiymatni ushlaydi va bu fixture CI'ni qizartirardi.
+    // Redaksiya testi uchun qiymatning TASODIFIYLIGI ahamiyatsiz —
+    // muhimi u chiqishda UCHRAMASLIGI.
+    ENCRYPTION_KEY: 'aaaaaaaabbbbbbbbaaaaaaaabbbbbbbb',
     INTERNAL_API_TOKEN: 'super-secret-internal-token-value',
     AUTH_JWT_SECRET: 'jwt-signing-secret-not-for-logs',
     ANTHROPIC_API_KEY: 'sk-ant-api03-REALKEYVALUE1234567890',
