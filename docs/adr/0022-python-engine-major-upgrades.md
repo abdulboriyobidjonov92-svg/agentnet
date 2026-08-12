@@ -1,9 +1,8 @@
 # ADR-022 — Python engine major ko'tarishlari (langgraph/langchain/pillow/fastapi)
 
-**Sana:** 2026-08-12 · **Holat:** **ACCEPTED** (qisman bajarildi — `starlette`
-va `pillow` YOPILDI; faqat langgraph/langchain zanjiri deferred qoldi.
-Yakuniy holat uchun "Accepted Risk / Deferred Upgrade" bo'limiga qarang —
-u yuqoridagi 1-5 bo'limlardagi dastlabki ro'yxatni TUZATADI.)
+**Sana:** 2026-08-12 · **Holat:** **BAJARILDI (SUPERSEDED BY EXECUTION)**
+— barcha kechiktirilgan ko'tarishlar amalga oshirildi, `pip-audit` **exit 0**.
+Qabul qilingan xavf (§B) endi KUCHDA EMAS. Yakuniy yozuv: §E.
 **Bog'liq:** SEC-15 (`docs/status/sec15-audit.md`), `docs/status/ci-red-2026-08-12.md` §3
 **Ta'sir qiladi:** `apps/agent-engine` (yadro ijro oqimi)
 
@@ -207,3 +206,44 @@ EMAS, va muddati bor (quyida).
 -24 pillow         (12.3.0)
 = 11  langgraph/langchain zanjiri  <- SHU ISTISNO
 ```
+
+### E. YAKUN — istisno YOPILDI (Phase 6, 2026-08-12)
+
+§B dagi "qabul qilingan xavf" **BEKOR QILINDI**, chunki ish bajarildi.
+Istisno kuchda bo'lgan vaqt: bir necha soat (o'sha kuni ochilib, o'sha
+kuni yopildi).
+
+**Bajarilgan ko'tarish** (`9ec6d68`):
+
+| Paket | Edi | Bo'ldi | Turi |
+|---|---|---|---|
+| `langgraph` | 0.2.62 | **1.2.11** | MAJOR (to'g'ridan-to'g'ri) |
+| `langchain-anthropic` | 0.3.3 | **1.5.5** | MAJOR (to'g'ridan-to'g'ri) |
+| `anthropic` | 0.113.0 | **0.121.0** | majburiy kaskad |
+| `langchain-core` | 0.3.86 | **1.5.4** | MAJOR (tranzitiv) |
+| `langgraph-checkpoint` | 2.1.2 | **4.2.0** | MAJOR (tranzitiv) |
+| `langgraph-sdk` | 0.1.74 | **0.4.2** | tranzitiv |
+
+`anthropic` kaskadi TANLOV emas edi: `langchain-anthropic` 1.5.5
+`anthropic>=0.120.0,<1.0.0` talab qiladi.
+
+**Natija:** `pip-audit` → **No known vulnerabilities found, exit 0**.
+§B jadvalidagi 10 ta advisory'ning HAMMASI yopildi.
+
+**Kod o'zgarishi TALAB QILINMADI.** Bu kutilmagan natija edi — ADR
+"engine yadrosini qayta yozishni talab qiladi" deb bashorat qilgandi.
+Amalda `StateGraph`, `END`, `add_node`, `add_conditional_edges`,
+`compile()` API'lari 1.x da mos keldi va `ChatAnthropic` alias-yo'li ham
+saqlanib qoldi. Ya'ni ADR ning xavf bahosi **haddan tashqari ehtiyotkor**
+bo'lib chiqdi — lekin bu faqat KEYIN ma'lum bo'ldi, ya'ni kechiktirish
+qarori o'sha paytdagi ma'lumot asosida noto'g'ri EMAS edi.
+
+**Test bo'shlig'i topildi va yopildi (muhim):** mavjud 50 ta test
+`StateGraph`ga UMUMAN tegmasdi, ya'ni ular yashil bo'lgani bilan major
+moslik haqida hech narsa aytmasdi. Qo'shildi (+5, jami **55**):
+graf compile, uchdan-uchga ijro (ALLOW), BLOCK yo'lining shartli qirrasi,
+checkpoint serde round-trip va **xavfsizlik versiya pollari** (paket
+CVE-tuzatilgan versiyadan pastga tushsa test qizaradi).
+
+**§C dagi chegaralar** (`--ignore-vuln` yo'q, `|| true` yo'q, yangi
+advisory avtomat kirmaydi) — hech qachon ishlatilishga to'g'ri kelmadi.
