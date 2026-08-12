@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, CheckCircle2, Fingerprint, Play, ShieldCheck, Square, Zap } from "lucide-react";
+import { ArrowLeft, CheckCircle2, FingerprintPattern, Play, ShieldCheck, Square, Zap } from "lucide-react";
 import { NeuralBackground } from "@/components/features/AgentOS/NeuralBackground";
 import { HologramActor } from "@/components/features/AgentOS/HologramActor";
 import { AdaptiveShell } from "@/components/features/AgentOS/AdaptiveShell";
@@ -66,7 +66,7 @@ function DemoOverlay() {
         >
           <div className="aos-glass aos-neon flex flex-col items-center gap-4 rounded-3xl p-10">
             <div className="relative">
-              <Fingerprint className="h-16 w-16 text-[hsl(var(--aos-accent))]" />
+              <FingerprintPattern className="h-16 w-16 text-[hsl(var(--aos-accent))]" />
               <motion.div
                 className="absolute inset-x-0 h-0.5 bg-[hsl(var(--aos-accent))]"
                 animate={{ top: ["10%", "90%", "10%"] }}

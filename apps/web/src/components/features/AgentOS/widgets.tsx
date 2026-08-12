@@ -1,7 +1,7 @@
 "use client";
 import { motion } from "framer-motion";
 import {
-  Activity, AlertTriangle, Car, CheckCircle2, Fingerprint, Globe2,
+  Activity, AlertTriangle, Car, CheckCircle2, FingerprintPattern, Globe2,
   HeartPulse, Lock, Radio, Stethoscope, TrendingUp, Users, Wrench, Zap,
 } from "lucide-react";
 import { useAgentStore } from "./store/agentStore";
@@ -39,7 +39,7 @@ function WidgetFrame({ title, icon: Icon, children }: { title: string; icon: Rea
 
 export function WelcomeWidget() {
   return (
-    <WidgetFrame title="AgentOS" icon={Fingerprint}>
+    <WidgetFrame title="AgentOS" icon={FingerprintPattern}>
       <p className="text-sm leading-relaxed text-white/70">
         Adaptiv interfeys — rolingizni tanlang yoki <span className="text-[hsl(var(--aos-accent))]">demo rejimni</span> ishga
         tushiring: tizim rolga qarab o'zini qayta quradi.
