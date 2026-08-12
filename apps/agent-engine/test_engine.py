@@ -13,8 +13,10 @@ import asyncio
 
 from fastapi.testclient import TestClient
 
+import agent_engine
 import agent_tools
 import computer_use_planner
+import llm_utils
 import main
 import retail_forecast
 from halal_filter import Action, keyword_layer
@@ -149,3 +151,61 @@ def test_computer_use_max_steps_10ga_tushirilgan():
 def test_computer_use_describe_capabilities_max_steps_mos():
     caps = computer_use_planner.describe_capabilities()
     assert caps["max_steps"] == 10
+
+
+# ----------------------------------------------------------------
+# CI-FIX (2026-08-12): mypy bloklovchi ishida topilgan IKKI HAQIQIY xato.
+# Ikkalasi ham "shunchaki tip-shikoyati" emas edi — pastdagi testlar
+# aynan ish-vaqti xulqini qulflaydi.
+# ----------------------------------------------------------------
+
+def test_content_to_text_oddiy_matnni_ozgartirmaydi():
+    assert agent_engine._content_to_text("salom") == "salom"
+
+
+def test_content_to_text_anthropic_bloklarini_birlashtiradi():
+    """Anthropic kontent-BLOKLARI `list` qaytaradi — ilgari u to'g'ridan-to'g'ri
+    `messages`ga yozilardi va `_halal_check_input` dagi `.lower()` ni
+    `AttributeError` bilan yiqitardi."""
+    blocks = [{"type": "text", "text": "Salom "}, {"type": "text", "text": "dunyo"}]
+    assert agent_engine._content_to_text(blocks) == "Salom dunyo"
+
+
+def test_content_to_text_matnsiz_bloklarni_otkazib_yuboradi():
+    """`tool_use` blokida "text" kaliti YO'Q — u bo'sh satrga aylanadi,
+    KeyError bermaydi."""
+    blocks = [{"type": "text", "text": "javob"}, {"type": "tool_use", "id": "t1"}]
+    assert agent_engine._content_to_text(blocks) == "javob"
+
+
+def test_content_to_text_natijasi_har_doim_lower_ni_qollaydi():
+    """Asosiy invariant: natija HAR DOIM `str` — ya'ni `_halal_check_input`
+    dagi `.lower()` hech qachon yiqilmaydi."""
+    for raw in ["A", [{"type": "text", "text": "B"}], ["C"], 42, None]:
+        assert agent_engine._content_to_text(raw).lower() is not None
+
+
+# --- llm_utils: provayder o'rnatilmaganda None qaytishi (mypy union-attr) ---
+
+def test_llm_utils_anthropic_client_yoq_bolsa_none(monkeypatch):
+    """`_anthropic is None` bo'lsa atributga tegilmaydi — modulning e'lon
+    qilingan shartnomasi ("kalit yo'q -> None") aynan shu."""
+    monkeypatch.setattr(llm_utils, "_anthropic", None)
+    out = asyncio.run(llm_utils._anthropic_json("s", "u", 100, "claude-sonnet-5"))
+    assert out is None
+
+
+def test_llm_utils_gemini_client_yoq_bolsa_none(monkeypatch):
+    monkeypatch.setattr(llm_utils, "_gemini", None)
+    monkeypatch.setattr(llm_utils, "_gemini_types", None)
+    out = asyncio.run(llm_utils._gemini_json("s", "u", 100))
+    assert out is None
+
+
+def test_llm_utils_gemini_types_yoq_bolsa_ham_none(monkeypatch):
+    """`_gemini` bor, lekin `_gemini_types` yo'q — ikkalasi bitta `try` da
+    o'rnatilgani uchun bu holat ham qorovuldan o'tishi kerak."""
+    monkeypatch.setattr(llm_utils, "_gemini", object())
+    monkeypatch.setattr(llm_utils, "_gemini_types", None)
+    out = asyncio.run(llm_utils._gemini_json("s", "u", 100))
+    assert out is None

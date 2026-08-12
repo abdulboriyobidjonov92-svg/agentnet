@@ -2,7 +2,13 @@ fastapi==0.115.6
 uvicorn[standard]==0.34.0
 langgraph==0.2.62
 langchain-anthropic==0.3.3
-pydantic==2.10.4
+# 2.10.4 edi -> HAL QILIB BO'LMAYDIGAN konflikt: `google-genai` 2.11.0
+# `pydantic>=2.12.5` talab qiladi, ya'ni `pip install -r requirements.txt`
+# `ResolutionImpossible` bilan yiqilardi va `agent-engine` + `pip-audit`
+# ishlarini BUTUNLAY bloklardi. 2.13.4 — hamma cheklovni qanoatlantiradigan
+# eng kichik amaliy yechim (fastapi <3, langchain-anthropic >=2.7.4,
+# anthropic >=1.9, pydantic-settings >=2.7.0), major KO'TARILMAYDI (2.x).
+pydantic==2.13.4
 pydantic-settings==2.7.1
 # Lokal .venv bilan BIR XIL versiya — ilgari 0.43.0 pin qilingan edi, ya'ni
 # lokalda test qilingan SDK-xulqi prod Docker'dagidan farq qilardi.

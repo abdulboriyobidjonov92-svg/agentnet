@@ -82,6 +82,12 @@ async def llm_json(
 
 
 async def _anthropic_json(system: str, user_content: str, max_tokens: int, model: str) -> dict[str, Any] | None:
+    # `_PROVIDER == "anthropic"` bo'lsa `_anthropic` albatta o'rnatilgan, lekin bu
+    # invariant FUNKSIYALAR ORASIDA — mypy uni ko'ra olmaydi (`Any | None`).
+    # `type: ignore` o'rniga HAQIQIY qorovul: modulning e'lon qilingan shartnomasi
+    # ("kalit yo'q -> None") shundoq ham aynan shuni talab qiladi.
+    if _anthropic is None:
+        return None
     try:
         response = await _anthropic.messages.create(
             model=model,
@@ -101,6 +107,11 @@ async def _anthropic_json(system: str, user_content: str, max_tokens: int, model
 
 
 async def _gemini_json(system: str, user_content: str, max_tokens: int) -> dict[str, Any] | None:
+    # `_anthropic_json` dagi bilan bir xil sabab. Bu yerda IKKALA global ham
+    # kerak: `_gemini` (client) va `_gemini_types` (config klassi) — ikkalasi
+    # ham AYNAN bitta `try` blokida birga o'rnatiladi.
+    if _gemini is None or _gemini_types is None:
+        return None
     try:
         # response_mime_type=application/json → model TOZA JSON qaytaradi (regex
         # zaxira sifatida qoladi). system_instruction Anthropic'dagi `system` roli.

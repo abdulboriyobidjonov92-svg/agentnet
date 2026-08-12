@@ -75,6 +75,30 @@ class AgentState(TypedDict):
     iterations: int  # reason node necha marta ishga tushdi (loop chegarasi uchun)
 
 
+def _content_to_text(content: Any) -> str:
+    """LangChain javob `content`ini HAR DOIM matnga keltiradi.
+
+    `AgentState["messages"]` — `list[dict[str, str]]`, ya'ni `content` matn
+    bo'lishi SHART: `_halal_check_input` unga `.lower()` chaqiradi. Lekin
+    Anthropic kontent-BLOKLARI qaytarganda `response.content` `list` bo'ladi
+    (`[{"type": "text", "text": ...}, ...]`) — u holda `.lower()` ish vaqtida
+    `AttributeError` bilan yiqilardi. Bu — mypy topgan haqiqiy xato, faqat
+    tip-shikoyati emas.
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict):
+                # Faqat matn bloklari; `tool_use` kabi bloklarda "text" yo'q.
+                parts.append(str(block.get("text", "")))
+        return "".join(parts)
+    return str(content)
+
+
 # ------------------------------------------------------------------
 # 3. Tool Registry -- faqat ro'yxatdagi vositalar ishlatilishi mumkin
 # ------------------------------------------------------------------
@@ -132,7 +156,15 @@ class AgentEngine:
         # `thinking`ni universal extra_body orqali o'chiramiz (adaptiv fikrlash
         # sukut bo'yicha yoqilishi eski SDK javob-parseriga muammo bo'lmasligi va
         # xulq Sonnet 4.6 bilan bir xil qolishi uchun); max_tokens'ga zaxira.
-        self.llm = ChatAnthropic(
+        # `type: ignore[call-arg]` — ATAYLAB va TOR. `ChatAnthropic` da `model` va
+        # `max_tokens` HAQIQIY maydonlar, lekin ular `model_name` /
+        # `max_tokens_to_sample` ALIASlariga ega. `populate_by_name=True`
+        # bo'lgani uchun ish vaqtida `model=`/`max_tokens=` TO'G'RI ishlaydi
+        # (tekshirildi: `ChatAnthropic.model_fields`), ammo mypy'ning pydantic
+        # plagini sintez qilgan `__init__` faqat alias nomlarini ko'radi.
+        # Aliaslarga o'tish mypy'ni tinchitardi, lekin langchain'ning hujjatli
+        # ommaviy API'sidan (`model=`) chekinish bo'lardi.
+        self.llm = ChatAnthropic(  # type: ignore[call-arg]
             model=definition.model,
             max_tokens=4096,
             model_kwargs={"extra_body": {"thinking": {"type": "disabled"}}},
@@ -186,7 +218,7 @@ class AgentEngine:
             ),
         }
         response = await self.llm.ainvoke([system, *state["messages"]])
-        new_messages = [{"role": "assistant", "content": response.content}]
+        new_messages = [{"role": "assistant", "content": _content_to_text(response.content)}]
         iterations = state.get("iterations", 0) + 1
         return {**state, "messages": new_messages, "pending_tool_calls": [], "iterations": iterations}
 
