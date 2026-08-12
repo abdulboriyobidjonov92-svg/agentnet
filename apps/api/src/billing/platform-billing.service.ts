@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { CronLeaderService } from '../redis/cron-leader.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../auth/auth.service';
 import { ConnectorsService } from '../connectors/connectors.service';
@@ -62,6 +63,7 @@ export class PlatformBillingService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditLogService,
     private readonly connectors: ConnectorsService,
+    private readonly cronLeader: CronLeaderService,
   ) {}
 
   /** 30 kunlik obuna narxi (UZS tiyin). */
@@ -152,8 +154,15 @@ export class PlatformBillingService {
    * Wallet-auto-charge YO'Q (qo'lda to'lov) — shuning uchun bu yerda faqat
    * bildirishnoma+holat, hech qanday balans amaliga tegilmaydi.
    */
+  // Phase 6 (A24): ko'p instansda bu cron har birida ishlab, bitta
+  // obunachiga bir necha marta bildirishnoma yuborardi va muzlatishni
+  // takrorlardi. Endi klaster bo'yicha bitta ijro (Redis qulfi).
   @Cron(CronExpression.EVERY_DAY_AT_10AM)
   async checkSubscriptions() {
+    return this.cronLeader.runExclusive('platform-billing.checkSubscriptions', () => this.checkSubscriptionsInner(), 600_000);
+  }
+
+  private async checkSubscriptionsInner() {
     const now = new Date();
 
     // @system-scope: kunlik cron — BARCHA muddati yaqinlashgan obunachilarni

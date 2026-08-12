@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { CronLeaderService } from '../redis/cron-leader.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { tiyinToSom } from '../common/money';
 import { AuditLogService } from '../auth/auth.service';
@@ -36,10 +37,23 @@ export class AgentBillingService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditLogService,
     private readonly connectors: ConnectorsService,
+    private readonly cronLeader: CronLeaderService,
   ) {}
 
+  /**
+   * Phase 6 (A24): PUL yo'li — ko'p instansda bu cron HAR BIR instansda
+   * ishga tushardi, ya'ni bir agentdan IKKI MARTA yechilishi mumkin edi.
+   * Endi klaster bo'yicha bitta ijro kafolatlanadi (Redis qulfi).
+   * Redis yo'q bo'lsa — bugungi bitta-instansli xulq saqlanadi.
+   *
+   * TTL 10 daqiqa: ijro undan uzun cho'zilsa qulf AVTOMAT uzaytiriladi.
+   */
   @Cron(CronExpression.EVERY_DAY_AT_9AM)
   async chargeDueAgents() {
+    return this.cronLeader.runExclusive('agent-billing.chargeDueAgents', () => this.chargeDueAgentsInner(), 600_000);
+  }
+
+  private async chargeDueAgentsInner() {
     // @system-scope: kunlik cron — bitta HTTP so'rovga yoki foydalanuvchiga
     // bog'liq emas, tizimning o'zi BARCHA foydalanuvchilarning to'lov
     // muddati kelgan agentlarini tekshiradi (bu — uning butun vazifasi).

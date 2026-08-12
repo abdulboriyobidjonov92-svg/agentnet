@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { RedisService } from './redis.service';
 import { RedisLockService } from './lock.service';
+import { CronLeaderService } from './cron-leader.service';
 
 /**
  * Phase 6 — Redis qatlami.
@@ -16,7 +17,8 @@ import { RedisLockService } from './lock.service';
   providers: [
     { provide: RedisService, useFactory: () => new RedisService(process.env) },
     RedisLockService,
+    CronLeaderService,
   ],
-  exports: [RedisService, RedisLockService],
+  exports: [RedisService, RedisLockService, CronLeaderService],
 })
 export class RedisModule {}

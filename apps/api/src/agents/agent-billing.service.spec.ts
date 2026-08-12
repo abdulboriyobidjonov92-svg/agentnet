@@ -37,7 +37,7 @@ describe('AgentBillingService.chargeOne', () => {
     const { prisma, audit, connectors } = makeMock();
     prisma.user.updateMany.mockResolvedValue({ count: 1 });
     prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 700_000n });
-    const svc = new AgentBillingService(prisma, audit, connectors);
+    const svc = new AgentBillingService(prisma, audit, connectors, { runExclusive: (_n: string, fn: () => Promise<unknown>) => fn() } as any);
 
     await svc.chargeOne(makeAgent() as any);
 
@@ -59,7 +59,7 @@ describe('AgentBillingService.chargeOne', () => {
   it('shu oy uchun ALLAQACHON yechilgan (idempotencyKey mavjud) -> IKKINCHI marta yechilmaydi', async () => {
     const { prisma, audit, connectors } = makeMock();
     prisma.creditLedger.findUnique.mockResolvedValue({ id: 'ledger-existing' }); // shu oy uchun sikl allaqachon yozilgan
-    const svc = new AgentBillingService(prisma, audit, connectors);
+    const svc = new AgentBillingService(prisma, audit, connectors, { runExclusive: (_n: string, fn: () => Promise<unknown>) => fn() } as any);
 
     await svc.chargeOne(makeAgent() as any);
 
@@ -70,7 +70,7 @@ describe('AgentBillingService.chargeOne', () => {
   it('balans yetarli emas, chargeRetries < MAX -> ertaga qayta urinish, ogohlantirish yuboriladi, MUZLATILMAYDI', async () => {
     const { prisma, audit, connectors } = makeMock();
     prisma.user.updateMany.mockResolvedValue({ count: 0 });
-    const svc = new AgentBillingService(prisma, audit, connectors);
+    const svc = new AgentBillingService(prisma, audit, connectors, { runExclusive: (_n: string, fn: () => Promise<unknown>) => fn() } as any);
 
     await svc.chargeOne(makeAgent({ chargeRetries: 1 }) as any);
 
@@ -88,7 +88,7 @@ describe('AgentBillingService.chargeOne', () => {
   it('balans yetarli emas, MAX_RETRIES ga yetdi -> MUZLATILADI (o\'chirilmaydi), ogohlantirish yuboriladi', async () => {
     const { prisma, audit, connectors } = makeMock();
     prisma.user.updateMany.mockResolvedValue({ count: 0 });
-    const svc = new AgentBillingService(prisma, audit, connectors);
+    const svc = new AgentBillingService(prisma, audit, connectors, { runExclusive: (_n: string, fn: () => Promise<unknown>) => fn() } as any);
 
     await svc.chargeOne(makeAgent({ chargeRetries: 2 }) as any); // 3-chi urinish = MAX_RETRIES
 
@@ -129,7 +129,7 @@ describe('AgentBillingService.resolveTrialEnd', () => {
     prisma.user.updateMany.mockResolvedValue({ count: 1 });
     prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 700_000n });
     prisma.agent.update.mockResolvedValue({ ...makeTrialAgent(), isTrialAgent: false, frozen: false, frozenReason: null });
-    const svc = new AgentBillingService(prisma, audit, connectors);
+    const svc = new AgentBillingService(prisma, audit, connectors, { runExclusive: (_n: string, fn: () => Promise<unknown>) => fn() } as any);
 
     const result = await svc.resolveTrialEnd(makeTrialAgent() as any, user);
 
@@ -154,7 +154,7 @@ describe('AgentBillingService.resolveTrialEnd', () => {
     prisma.agent.findUniqueOrThrow.mockResolvedValue(makeTrialAgent());
     prisma.user.updateMany.mockResolvedValue({ count: 0 });
     prisma.agent.update.mockResolvedValue({ ...makeTrialAgent(), frozen: true, frozenReason: 'trial_expired', isTrialAgent: false });
-    const svc = new AgentBillingService(prisma, audit, connectors);
+    const svc = new AgentBillingService(prisma, audit, connectors, { runExclusive: (_n: string, fn: () => Promise<unknown>) => fn() } as any);
 
     const result = await svc.resolveTrialEnd(makeTrialAgent() as any, user);
 
@@ -173,7 +173,7 @@ describe('AgentBillingService.resolveTrialEnd', () => {
     const { prisma, audit, connectors } = makeMock();
     // fresh fetch ichida allaqachon isTrialAgent:false (boshqa parallel chaqiruv hal qilgan)
     prisma.agent.findUniqueOrThrow.mockResolvedValue({ ...makeTrialAgent(), isTrialAgent: false, frozen: false });
-    const svc = new AgentBillingService(prisma, audit, connectors);
+    const svc = new AgentBillingService(prisma, audit, connectors, { runExclusive: (_n: string, fn: () => Promise<unknown>) => fn() } as any);
 
     await svc.resolveTrialEnd(makeTrialAgent() as any, user);
 
@@ -197,7 +197,7 @@ describe('AgentBillingService.chargeDueAgents — sinov vs oddiy yo\'naltirish',
     prisma.user.updateMany.mockResolvedValue({ count: 1 });
     prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 500_000n });
     prisma.agent.update.mockResolvedValue({ ...trialDue, isTrialAgent: false });
-    const svc = new AgentBillingService(prisma, audit, connectors);
+    const svc = new AgentBillingService(prisma, audit, connectors, { runExclusive: (_n: string, fn: () => Promise<unknown>) => fn() } as any);
     const resolveSpy = jest.spyOn(svc, 'resolveTrialEnd');
     const chargeSpy = jest.spyOn(svc, 'chargeOne');
 
@@ -213,7 +213,7 @@ describe('AgentBillingService.chargeDueAgents — sinov vs oddiy yo\'naltirish',
     prisma.agent.findMany.mockResolvedValue([normalDue]);
     prisma.user.updateMany.mockResolvedValue({ count: 1 });
     prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 500_000n });
-    const svc = new AgentBillingService(prisma, audit, connectors);
+    const svc = new AgentBillingService(prisma, audit, connectors, { runExclusive: (_n: string, fn: () => Promise<unknown>) => fn() } as any);
     const resolveSpy = jest.spyOn(svc, 'resolveTrialEnd');
     const chargeSpy = jest.spyOn(svc, 'chargeOne');
 

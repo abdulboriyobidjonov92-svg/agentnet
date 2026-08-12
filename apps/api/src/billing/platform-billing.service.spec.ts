@@ -41,7 +41,7 @@ describe('PlatformBillingService.activateFromPayment', () => {
   it('yangi obuna -> platformPlan/Until o\'rnatiladi, frozen tozalanadi, audit yoziladi', async () => {
     const { prisma, audit, connectors } = makeMock();
     prisma.user.findUniqueOrThrow.mockResolvedValue({ id: 'u1', platformPlan: 'none', platformPlanUntil: null, platformPlanFrozen: false });
-    const svc = new PlatformBillingService(prisma, audit, connectors);
+    const svc = new PlatformBillingService(prisma, audit, connectors, { runExclusive: (_n: string, fn: () => Promise<unknown>) => fn() } as any);
 
     await svc.activateFromPayment('u1', 'pro');
 
@@ -58,7 +58,7 @@ describe('PlatformBillingService.activateFromPayment', () => {
     const { prisma, audit, connectors } = makeMock();
     const stillActiveUntil = new Date(Date.now() + 10 * 86_400_000); // 10 kun qoldi
     prisma.user.findUniqueOrThrow.mockResolvedValue({ id: 'u1', platformPlan: 'pro', platformPlanUntil: stillActiveUntil, platformPlanFrozen: false });
-    const svc = new PlatformBillingService(prisma, audit, connectors);
+    const svc = new PlatformBillingService(prisma, audit, connectors, { runExclusive: (_n: string, fn: () => Promise<unknown>) => fn() } as any);
 
     await svc.activateFromPayment('u1', 'pro');
 
@@ -74,7 +74,7 @@ describe('PlatformBillingService.activateFromPayment', () => {
     prisma.user.findUniqueOrThrow.mockResolvedValue({
       id: 'u1', platformPlan: 'pro', platformPlanUntil: new Date(Date.now() - 999_999), platformPlanFrozen: true,
     });
-    const svc = new PlatformBillingService(prisma, audit, connectors);
+    const svc = new PlatformBillingService(prisma, audit, connectors, { runExclusive: (_n: string, fn: () => Promise<unknown>) => fn() } as any);
 
     await svc.activateFromPayment('u1', 'pro');
 
@@ -91,7 +91,7 @@ describe('PlatformBillingService.checkSubscriptions (kunlik cron)', () => {
     const { prisma, audit, connectors } = makeMock();
     const soonUser = { id: 'u1', telegramChatId: 'chat1', platformPlan: 'pro', platformPlanUntil: new Date(Date.now() + 2 * 86_400_000) };
     prisma.user.findMany.mockResolvedValueOnce([soonUser]).mockResolvedValueOnce([]);
-    const svc = new PlatformBillingService(prisma, audit, connectors);
+    const svc = new PlatformBillingService(prisma, audit, connectors, { runExclusive: (_n: string, fn: () => Promise<unknown>) => fn() } as any);
 
     await svc.checkSubscriptions();
 
@@ -105,7 +105,7 @@ describe('PlatformBillingService.checkSubscriptions (kunlik cron)', () => {
     const { prisma, audit, connectors } = makeMock();
     const overdueUser = { id: 'u2', telegramChatId: 'chat2', platformPlan: 'max', platformPlanUntil: new Date(Date.now() - 1000) };
     prisma.user.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([overdueUser]);
-    const svc = new PlatformBillingService(prisma, audit, connectors);
+    const svc = new PlatformBillingService(prisma, audit, connectors, { runExclusive: (_n: string, fn: () => Promise<unknown>) => fn() } as any);
 
     await svc.checkSubscriptions();
 

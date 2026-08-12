@@ -163,7 +163,7 @@ describe('MarketplaceService + AgentBillingService — 2-oy/3-oy to\'lovda bonus
     // Payout'ni umuman bilmaydi), shuning uchun strukturaviy ravishda bonus
     // qayta berilmaydi. Buni aniq tasdiqlaymiz:
     const connectors = { sendViaChannel: jest.fn(async () => ({ ok: true })) } as any;
-    const billing = new AgentBillingService(prisma, audit, connectors);
+    const billing = new AgentBillingService(prisma, audit, connectors, { runExclusive: (_n: string, fn: () => Promise<unknown>) => fn() } as any);
     const installedAgent = {
       id: 'installed3', userId: 'buyer1', name: 'Buxgalter agenti (o\'rnatildi)',
       monthlyPriceTiyin: 300_000n, chargeRetries: 0n,
