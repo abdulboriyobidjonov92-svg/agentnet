@@ -19,5 +19,13 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  // `e2e` ATAYLAB chiqarilgan: Playwright testlari Next.js PRODUCTION
+  // build'ining bir qismi EMAS. `include` dagi `**/*.ts` ularni ham
+  // tortib olardi, `e2e/helpers/db.ts` esa `@prisma/client` va `dotenv`
+  // ni import qiladi — ikkalasi ham `@agentnet/web` da E'LON QILINMAGAN
+  // (ular `apps/api` niki). Monorepo ildizida hoisting tufayli lokalda
+  // "ishlab ketardi", lekin Vercel `apps/web` ni ALOHIDA o'rnatganda
+  // build yiqilardi: "Cannot find module '@prisma/client'".
+  // Tip qamrovi YO'QOLMAYDI — `e2e/tsconfig.json` + `npm run typecheck:e2e`.
+  "exclude": ["node_modules", "e2e"]
 }

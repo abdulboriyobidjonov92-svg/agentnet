@@ -1,0 +1,25 @@
+{
+  // Playwright e2e testlari uchun ALOHIDA tip-doirasi.
+  //
+  // NEGA ALOHIDA: bu fayllar Next.js production build'iga KIRMAYDI
+  // (`../tsconfig.json` da `exclude: ["e2e"]`), lekin tipsiz ham
+  // qolmasligi kerak — aks holda ularni build'dan chiqarish tip
+  // qamrovini JIMGINA yo'qotardi. `npm run typecheck:e2e` shu faylni
+  // ishlatadi.
+  //
+  // DIQQAT: `@prisma/client` va `dotenv` `@agentnet/web` ning
+  // bog'liqliklari EMAS — ular monorepo ildizidan (`apps/api` orqali)
+  // keladi. Shuning uchun bu tekshiruv faqat TO'LIQ workspace
+  // o'rnatilganda ishlaydi (ildizda `npm ci`), Vercel'ning yakka
+  // `apps/web` o'rnatishida emas — aynan shu sababli u build'dan
+  // ajratilgan.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    // Playwright Node muhitida ishlaydi (`__dirname`, `path`), brauzerda emas.
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "types": ["node"]
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules"]
+}
