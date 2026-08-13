@@ -37,6 +37,15 @@ describe('web: NEXT_PUBLIC_API_URL noto`g`ri sozlansa JIMGINA sinmaydi', () => {
     expect(src).toContain('NEXT_PUBLIC_API_URL_points_to_localhost');
   });
 
+  it('`resolveApiUrl` protokolsiz/buzuq URL ni ham xato deb belgilaydi', () => {
+    // 2026-08-13: operator `https://` siz kiritdi -> `new URL()` throw ->
+    // middleware 500 -> yana 'Application Error'. Endi aniq sabab qaytadi.
+    const src = read('src/lib/api-url.ts');
+    expect(src).toContain('NEXT_PUBLIC_API_URL_invalid_url_missing_protocol');
+    expect(src).toContain('NEXT_PUBLIC_API_URL_bad_protocol');
+    expect(src).toContain('new URL(raw)');
+  });
+
   it('`.env.example` prod uchun ogohlantirish beradi (build-time inline)', () => {
     const env = readFileSync(join(webRoot, '..', '..', '.env.example'), 'utf8');
     expect(env).toContain('NEXT_PUBLIC_API_URL');

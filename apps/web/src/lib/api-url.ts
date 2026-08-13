@@ -45,7 +45,25 @@ export function resolveApiUrl(env: NodeJS.ProcessEnv = process.env): ApiUrlResol
     return { url: raw, misconfigured: true, reason: 'NEXT_PUBLIC_API_URL_points_to_localhost' };
   }
 
-  return { url: raw, misconfigured: false };
+  // SHAKL tekshiruvi (2026-08-13 insidenti): operator qiymatni `https://`
+  // SIZ kiritgan edi (`agentnet-api-xxxx.onrender.com`). U yuqoridagi
+  // tekshiruvlardan O'TIB KETARDI, keyin esa middleware'dagi
+  // `new URL(...)` `ERR_INVALID_URL` tashlab, butun so'rovni **500** ga
+  // aylantirardi — ya'ni yana "Application Error", yana sababsiz.
+  // Endi bu ham ANIQ, tushunarli konfiguratsiya xatosi.
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return { url: DEV_FALLBACK, misconfigured: true, reason: 'NEXT_PUBLIC_API_URL_invalid_url_missing_protocol' };
+  }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    return { url: DEV_FALLBACK, misconfigured: true, reason: 'NEXT_PUBLIC_API_URL_bad_protocol' };
+  }
+
+  // Oxiridagi `/` olib tashlanadi — aks holda yo'l `//api/...` bo'lib
+  // qo'shaloq slash bilan ketardi (ba'zi proxy'lar buni 404 qiladi).
+  return { url: raw.replace(/\/+$/, ''), misconfigured: false };
 }
 
 /**
