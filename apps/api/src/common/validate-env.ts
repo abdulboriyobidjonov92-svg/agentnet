@@ -53,7 +53,11 @@ export function validateEnv(): void {
 
   // Kamida BITTA login-kanali bo'lishi shart (email YOKI telefon), aks holda
   // hech kim kira olmaydi. Email = Resend, Telefon = Eskiz.
-  const emailChannel = has('RESEND_API_KEY');
+  // 2026-08-13: email kanali endi IKKI provayderdan biri bo'lishi mumkin.
+  // Ilgari bu yerda faqat `RESEND_API_KEY` tekshirilardi — ya'ni FAQAT
+  // Gmail sozlangan muhitda prod boot "login kanali yo'q" deb QULARDI,
+  // holbuki email aslida ishlayotgan bo'lardi.
+  const emailChannel = has('RESEND_API_KEY') || (has('GMAIL_USER') && has('GMAIL_APP_PASSWORD'));
   const phoneChannel = has('ESKIZ_EMAIL') && has('ESKIZ_PASSWORD');
   const noLoginChannel = !emailChannel && !phoneChannel;
 
@@ -66,8 +70,10 @@ export function validateEnv(): void {
       logger.error(`  ✗ ${d.key} — ommaviy MA'LUM dev qiymati ishlatilmoqda; yangi sir yarating.`);
     }
     if (noLoginChannel) {
-      logger.error('  ✗ Login kanali yo\'q — RESEND_API_KEY (email) YOKI');
-      logger.error('     ESKIZ_EMAIL+ESKIZ_PASSWORD (telefon) dan kamida bittasi kerak.');
+      logger.error('  ✗ Login kanali yo\'q — quyidagilardan KAMIDA BITTASI kerak:');
+      logger.error('     • RESEND_API_KEY                     (email, Resend)');
+      logger.error('     • GMAIL_USER + GMAIL_APP_PASSWORD    (email, Gmail SMTP)');
+      logger.error('     • ESKIZ_EMAIL + ESKIZ_PASSWORD       (telefon, SMS)');
     }
     logger.error('Render → servis → Environment\'da to\'ldiring va qayta deploy qiling.');
     logger.error('════════════════════════════════════════════════════════');
