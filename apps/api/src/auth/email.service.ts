@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { Resend } from 'resend';
 
 /**
@@ -85,8 +85,23 @@ export class EmailService {
     });
 
     if (error) {
+      // 2026-08-13 insidenti: bu yerda oddiy `Error` tashlanardi va u
+      // NestJS'da **500 "Ichki server xatosi"** ga aylanardi. Natijada
+      // TASHQI xizmat nosozligi (Resend domeni tasdiqlanmagan) bizning
+      // kod xatomizdan ajratib bo'lmasdi — na foydalanuvchi, na operator
+      // sababni ko'ra olardi, faqat "Ichki server xatosi".
+      //
+      // Endi: 503 (vaqtinchalik, tashqi bog'liqlik) + MASHINA O'QIY
+      // OLADIGAN sabab kodi. Resend'ning xom javobi FAQAT logga tushadi —
+      // u foydalanuvchi manzili kabi ma'lumot saqlashi mumkin.
+      const detail = typeof error === 'object' && error !== null ? (error as { name?: string }).name : undefined;
       this.logger.error(`Resend email yuborib bo'lmadi: ${JSON.stringify(error)}`);
-      throw new Error("Email yuborib bo'lmadi, birozdan so'ng qayta urinib ko'ring");
+      throw new ServiceUnavailableException({
+        statusCode: 503,
+        reason: 'email_provider_rejected',
+        providerError: detail ?? 'unknown',
+        message: "Email yuborib bo'lmadi, birozdan so'ng qayta urinib ko'ring",
+      });
     }
   }
 }
