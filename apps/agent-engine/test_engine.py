@@ -211,6 +211,44 @@ def test_llm_utils_gemini_types_yoq_bolsa_ham_none(monkeypatch):
     assert out is None
 
 
+def test_llm_utils_openrouter_kalit_yoq_bolsa_none(monkeypatch):
+    """`OPENROUTER_API_KEY` bo'sh bo'lsa tarmoqqa umuman chiqmaydi."""
+    monkeypatch.setattr(llm_utils, "OPENROUTER_API_KEY", None)
+    out = asyncio.run(llm_utils._openrouter_json("s", "u", 100))
+    assert out is None
+
+
+def test_llm_utils_llm_json_openrouter_anthropic_dan_ustuvor(monkeypatch):
+    """OpenRouter kaliti bor ekan, `_PROVIDER == "anthropic"` bo'lsa ham
+    `llm_json` OpenRouter yo'liga boradi — ustuvorlik shartnomasi shu."""
+    calls: list[str] = []
+
+    async def fake_openrouter(*_a, **_kw):
+        calls.append("openrouter")
+        return {"ok": True}
+
+    async def fake_anthropic(*_a, **_kw):
+        calls.append("anthropic")
+        return {"ok": True}
+
+    monkeypatch.setattr(llm_utils, "_PROVIDER", "openrouter")
+    monkeypatch.setattr(llm_utils, "_openrouter_json", fake_openrouter)
+    monkeypatch.setattr(llm_utils, "_anthropic_json", fake_anthropic)
+    out = asyncio.run(llm_utils.llm_json("s", "u"))
+    assert out == {"ok": True}
+    assert calls == ["openrouter"]
+
+
+def test_llm_utils_gemini_endi_provider_zanjirida_yoq(monkeypatch):
+    """Gemini SDK sozlangan bo'lsa ham, `_PROVIDER` unga hech qachon
+    o'rnatilmaydi — u faqat `gemini_client()` orqali vision uchun ochiq."""
+    monkeypatch.setattr(llm_utils, "_PROVIDER", None)
+    monkeypatch.setattr(llm_utils, "_gemini", object())
+    monkeypatch.setattr(llm_utils, "_gemini_types", object())
+    out = asyncio.run(llm_utils.llm_json("s", "u"))
+    assert out is None
+
+
 # ----------------------------------------------------------------
 # Phase 6 / ADR-022 — "AI Engine Dependency Upgrade" regressiya to'plami.
 #

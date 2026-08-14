@@ -31,7 +31,6 @@ from typing import Any
 
 from llm_utils import (
     GEMINI_MODEL,
-    active_provider,
     extract_json,
     gemini_client,
     gemini_types,
@@ -82,10 +81,14 @@ async def plan_computer_step(
     if len(history) >= MAX_STEPS:
         return {"action": "fail", "reason": f"Step budget ({MAX_STEPS}) exhausted.", "method": "guard"}
 
-    # Bu miya VISION talab qiladi — hozircha Gemini multimodal orqali. (Anthropic
-    # kalit qo'shilsa, u ham vision qo'llaydi; keyin shu yerda qo'shiladi.)
+    # Bu miya VISION talab qiladi — hozircha Gemini multimodal orqali. Gemini
+    # `llm_json` ustuvorlik zanjiridan MUSTAQIL: OpenRouter/Anthropic matn-JSON
+    # uchun ustuvor bo'lsa ham, vision hamon GEMINI_API_KEY borligiga qarab
+    # ishlaydi (shuning uchun bu yerda `active_provider()` EMAS, `gemini_client()`
+    # natijasining o'zi tekshiriladi). (Boshqa provayder vision qo'llasa,
+    # keyin shu yerga qo'shiladi.)
     gemini = gemini_client()
-    if active_provider() != "gemini" or gemini is None or not screenshot_b64:
+    if gemini is None or not screenshot_b64:
         return {
             "action": "fail",
             "reason": "Computer-use vision requires GEMINI_API_KEY and a screenshot.",
@@ -146,6 +149,6 @@ def describe_capabilities() -> dict[str, Any]:
         "tier": 2,
         "scope": "desktop computer-use (screenshot -> vision LLM -> click/type/key) via companion",
         "max_steps": MAX_STEPS,
-        "vision": active_provider() == "gemini",
+        "vision": gemini_client() is not None,
         "note": "Companion app on the user's machine executes actions; server only plans. Beta.",
     }

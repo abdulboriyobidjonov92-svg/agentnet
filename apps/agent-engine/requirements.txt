@@ -24,8 +24,10 @@ pydantic-settings==2.7.1
 # `ResolutionImpossible` bo'lardi. Bu xavfsizlik ko'tarishining bir qismi,
 # alohida qaror emas.
 anthropic==0.121.0
-# LLM ikkinchi provayderi (llm_utils): ANTHROPIC_API_KEY bo'lmasa GEMINI_API_KEY
-# ishlatiladi. Anthropic keyin qo'shilsa avtomat ustuvor bo'ladi.
+# Gemini (llm_utils): endi FAQAT computer_use_planner'dagi skrinshot-vision
+# uchun ishlatiladi — matn-JSON chokepoint'da (llm_json) ishtirok etmaydi
+# (u OpenRouter -> Anthropic ustuvorligini ishlatadi, ikkalasi ham qo'shimcha
+# paket talab qilmaydi: OpenRouter mavjud `httpx` orqali REST chaqiriladi).
 google-genai==2.11.0
 
 # SEC-15 — XAVFSIZLIK POLI (tranzitiv bog'liqlik).

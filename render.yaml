@@ -92,6 +92,11 @@ services:
       - fromGroup: agentnet-shared
       - key: ANTHROPIC_API_KEY
         sync: false        # ixtiyoriy — bo'lmasa demo/heuristik rejim
+      # llm_json chokepoint'da ANTHROPIC_API_KEY'dan USTUVOR (llm_utils.py).
+      - key: OPENROUTER_API_KEY
+        sync: false        # ixtiyoriy — bo'lmasa Anthropic'ga (yoki demo rejimga) tushadi
+      - key: OPENROUTER_MODEL
+        value: "openai/gpt-4o-mini"
       # web.automate/connector.invoke uchun API'ga ichki chaqiruv.
       # (API — ommaviy web servis, shuning uchun bu URL o'zgarishsiz qoladi.)
       - key: API_URL
