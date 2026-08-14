@@ -64,17 +64,12 @@ export function DashboardShell({
 
       <div className="relative z-10 flex min-w-0 flex-1 flex-col">
         {/* Yuqori chiziq — minimal, shaffof shisha */}
-        <header className="glass-dark flex h-14 shrink-0 items-center justify-between border-b border-white/[0.06] px-4 sm:px-6">
-          <div className="label-mono flex items-center gap-3 lg:hidden">
-            <span
-              className="heartbeat inline-block h-1.5 w-1.5 rounded-full"
-              style={{ background: "hsl(var(--vein-cyan))", boxShadow: "0 0 10px hsl(var(--vein-cyan) / 0.6)" }}
-            />
-            AgentNet
-          </div>
-          <div className="hidden lg:block" />
-          <div className="flex items-center gap-2">
-            <BalanceWidget />
+        {/* Menyu tugmasi CHAPDA — drawer ham chapdan ochiladi, ya'ni tugma
+            va u ochadigan panel bir tomonda (mobil navigatsiyaning standart
+            naqshi). Ilgari tugma o'ngda edi: bosilganda panel qarama-qarshi
+            tomondan chiqib, yo'nalish sezgisini buzardi. */}
+        <header className="glass-dark flex h-14 shrink-0 items-center justify-between gap-2 border-b border-white/[0.06] px-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2.5">
             <Button
               variant="outline"
               size="icon-sm"
@@ -84,6 +79,16 @@ export function DashboardShell({
             >
               <Menu className="!h-5 !w-5" />
             </Button>
+            <div className="label-mono flex min-w-0 items-center gap-2 lg:hidden">
+              <span
+                className="heartbeat inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{ background: "hsl(var(--vein-cyan))", boxShadow: "0 0 10px hsl(var(--vein-cyan) / 0.6)" }}
+              />
+              <span className="truncate">AgentNet</span>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <BalanceWidget />
           </div>
         </header>
 

@@ -67,7 +67,12 @@ export function AgentForm({ defaultValues, onSubmit, isLoading, error, submitLab
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl border bg-card p-6 shadow-soft">
+    // `min-w-0` — bu forma sahifada grid ELEMENTI: grid elementining
+    // standart `min-width:auto` qiymati uni min-content'dan pastga
+    // siqilishiga YO'L QO'YMAYDI, ya'ni ichkaridagi eng keng element butun
+    // sahifani gorizontal siljitardi (telefonda o'ngdagi tugmalar chetdan
+    // chiqib ketardi). Bu — o'lchangan sabab, taxmin emas.
+    <form onSubmit={handleSubmit} className="min-w-0 space-y-6 rounded-2xl border bg-card p-4 shadow-soft sm:p-6">
       {error && (
         <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
@@ -109,11 +114,11 @@ export function AgentForm({ defaultValues, onSubmit, isLoading, error, submitLab
               onClick={() => setModel(m.value)}
               aria-pressed={model === m.value}
               className={cn(
-                "rounded-xl border p-3 text-left transition",
+                "min-w-0 rounded-xl border p-3 text-left transition",
                 model === m.value ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "hover:bg-muted",
               )}
             >
-              <p className="text-sm font-medium">{m.label}</p>
+              <p className="truncate text-sm font-medium">{m.label}</p>
               <p className="text-xs text-muted-foreground">{t(m.key)}</p>
             </button>
           ))}
@@ -136,7 +141,11 @@ export function AgentForm({ defaultValues, onSubmit, isLoading, error, submitLab
                 onClick={() => toggleTool(tool.id)}
                 aria-pressed={checked}
                 className={cn(
-                  "flex items-start gap-3 rounded-xl border p-3 text-left transition",
+                  // `min-w-0` — O'LCHANGAN sabab: usiz shu grid'ning
+                  // min-content kengligi 323px bo'lardi (`truncate` =
+                  // `white-space:nowrap` tavsif matni tufayli) va butun
+                  // sahifani 375px ekrandan chiqarib yuborardi. Bilan — 57px.
+                  "flex min-w-0 items-start gap-3 rounded-xl border p-3 text-left transition",
                   checked ? "border-primary bg-primary/5" : "hover:bg-muted",
                 )}
               >
@@ -144,7 +153,7 @@ export function AgentForm({ defaultValues, onSubmit, isLoading, error, submitLab
                   <Icon className="h-4.5 w-4.5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium">{t(tool.key)}</p>
+                  <p className="truncate text-sm font-medium">{t(tool.key)}</p>
                   <p className="truncate text-xs text-muted-foreground">{t(tool.dkey)}</p>
                 </div>
                 {checked && <Check className="h-4 w-4 shrink-0 text-primary" />}
@@ -154,8 +163,12 @@ export function AgentForm({ defaultValues, onSubmit, isLoading, error, submitLab
         </div>
       </div>
 
-      <div className="flex items-center justify-between rounded-xl border p-4">
-        <div>
+      {/* Kalit qatorlari — `min-w-0` (matn) + `shrink-0` (kalit) JUFTLIGI
+          SHART: usiz uzun tarjima (masalan o'zbekcha "Uzoq muddatli xotira")
+          kalitni qator chetidan itarib chiqarardi va u ekrandan tashqarida
+          qolardi. Telefonda aynan shu ko'rinardi. */}
+      <div className="flex items-center justify-between gap-3 rounded-xl border p-4">
+        <div className="min-w-0">
           <p className="text-sm font-medium">{t("form.memory")}</p>
           <p className="text-xs text-muted-foreground">{t("form.memoryHint")}</p>
         </div>
@@ -165,21 +178,21 @@ export function AgentForm({ defaultValues, onSubmit, isLoading, error, submitLab
           aria-checked={memoryEnabled}
           aria-label={t("form.memory")}
           onClick={() => setMemoryEnabled(!memoryEnabled)}
-          className={cn("relative h-6 w-11 rounded-full transition-colors", memoryEnabled ? "bg-primary" : "bg-input")}
+          className={cn("relative h-6 w-11 shrink-0 rounded-full transition-colors", memoryEnabled ? "bg-primary" : "bg-input")}
         >
           <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform", memoryEnabled ? "translate-x-5" : "translate-x-0.5")} />
         </button>
       </div>
 
-      <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 p-4">
-        <div className="flex items-center gap-3">
-          <ShieldCheck className="h-5 w-5 text-primary" />
-          <div>
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <ShieldCheck className="h-5 w-5 shrink-0 text-primary" />
+          <div className="min-w-0">
             <p className="text-sm font-medium text-primary">{t("form.halal")}</p>
             <p className="text-xs text-primary/70">{t("form.halalHint")}</p>
           </div>
         </div>
-        <div className="flex h-6 w-11 items-center justify-end rounded-full bg-primary pr-0.5">
+        <div className="flex h-6 w-11 shrink-0 items-center justify-end rounded-full bg-primary pr-0.5">
           <span className="h-5 w-5 rounded-full bg-white shadow" />
         </div>
       </div>

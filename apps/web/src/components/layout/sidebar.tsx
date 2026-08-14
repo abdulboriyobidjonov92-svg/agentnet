@@ -229,7 +229,9 @@ export function Sidebar({ email, name, onNavigate }: { email?: string; name?: st
       </nav>
 
       <div className="space-y-2 border-t border-white/[0.06] p-3">
-        <LanguageSwitcher />
+        {/* `up`: switcher sidebar'ning eng pastida — menyu pastga ochilsa
+            ekran tagiga tushib kesilardi (telefonda ko'rinmasdi). */}
+        <LanguageSwitcher placement="up" />
         <div className="flex items-center gap-3 rounded-xl px-2 py-1">
           <div className="liquid-glass flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-foreground/90">
             {initial}

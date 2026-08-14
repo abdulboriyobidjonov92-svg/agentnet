@@ -85,7 +85,11 @@ export function Toaster() {
           </ToastPrimitive.Close>
         </ToastPrimitive.Root>
       ))}
-      <ToastPrimitive.Viewport className="fixed bottom-4 right-4 z-[100] flex w-full max-w-sm flex-col gap-2 outline-none" />
+      {/* `w-full` + `right-4` telefonda toast'ni ekrandan CHIQARARDI
+          (375px ekranda chap chekka -16px bo'lardi). Endi ikki chekkaga
+          ham bog'lanadi, kattaroq ekranda esa avvalgidek o'ng burchakda
+          `max-w-sm` bo'lib qoladi. */}
+      <ToastPrimitive.Viewport className="fixed inset-x-4 bottom-4 z-[100] flex flex-col gap-2 outline-none sm:left-auto sm:right-4 sm:w-full sm:max-w-sm" />
     </ToastPrimitive.Provider>
   );
 }

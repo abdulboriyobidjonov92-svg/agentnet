@@ -40,12 +40,16 @@ export default function NewAgentPage() {
   return (
     <div className="space-y-6">
       <Fireworks trigger={burst} />
-      <div className="flex items-center gap-4">
-        <Link href="/agents" className="rounded-xl border p-2.5 transition hover:bg-muted">
+      <div className="flex items-center gap-3 sm:gap-4">
+        <Link
+          href="/agents"
+          aria-label={t("form.createTitle")}
+          className="shrink-0 rounded-xl border p-2.5 transition hover:bg-muted"
+        >
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("form.createTitle")}</h1>
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{t("form.createTitle")}</h1>
           <p className="text-sm text-muted-foreground">{t("form.createSub")}</p>
         </div>
       </div>
@@ -60,7 +64,10 @@ export default function NewAgentPage() {
         <div className="h-px flex-1 bg-border" />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_0.8fr]">
+      {/* `[min-width:0]` treklari — grid elementlari standart
+          `min-width:auto` bilan min-content'dan pastga siqilmaydi, ya'ni
+          bitta keng bola butun sahifani gorizontal siljitardi. */}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]">
         {/* Chap: no-code konfiguratsiya */}
         <AgentForm
           onSubmit={createMutation.mutateAsync}

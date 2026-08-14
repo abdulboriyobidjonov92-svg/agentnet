@@ -182,7 +182,7 @@ export default function PricingPage() {
 
       <div className="grid gap-6 md:grid-cols-3">
         {/* Free */}
-        <div className="flex flex-col rounded-2xl border bg-card p-6 shadow-soft">
+        <div className="flex min-w-0 flex-col rounded-2xl border bg-card p-4 shadow-soft sm:p-6">
           <h2 className="text-lg font-semibold">{t("pricing.freeName")}</h2>
           <p className="mt-1 min-h-10 text-sm text-muted-foreground">{t("pricing.freeDesc")}</p>
           <p className="mt-4 text-3xl font-bold">{t("pricing.free0")}</p>
@@ -208,7 +208,7 @@ export default function PricingPage() {
         </div>
 
         {/* Pro */}
-        <div className="relative flex flex-col rounded-2xl border border-primary/40 bg-card p-6 shadow-glow">
+        <div className="relative flex min-w-0 flex-col rounded-2xl border border-primary/40 bg-card p-4 shadow-glow sm:p-6">
           <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-[11px] font-bold uppercase text-primary-foreground">
             <Sparkles className="mr-1 inline h-3 w-3" />
             {t("pricing.proName")}
@@ -247,7 +247,7 @@ export default function PricingPage() {
               {t("pricing.upgraded")}
             </p>
           ) : (
-            <Button className="mt-5 w-full" onClick={upgrade} disabled={upgrading || !plans}>
+            <Button className="mt-5 w-full whitespace-normal" onClick={upgrade} disabled={upgrading || !plans}>
               {upgrading ? <Loader2 className="animate-spin" /> : <Sparkles />}
               {upgrading ? t("pricing.upgrading") : t("pricing.upgradeBtn")}
             </Button>
@@ -260,7 +260,7 @@ export default function PricingPage() {
         </div>
 
         {/* Enterprise */}
-        <div className="flex flex-col rounded-2xl border bg-card p-6 shadow-soft">
+        <div className="flex min-w-0 flex-col rounded-2xl border bg-card p-4 shadow-soft sm:p-6">
           <h2 className="text-lg font-semibold">{t("pricing.entName")}</h2>
           <p className="mt-1 min-h-10 text-sm text-muted-foreground">{t("pricing.entDesc")}</p>
           <p className="mt-4 text-3xl font-bold">
@@ -277,7 +277,7 @@ export default function PricingPage() {
               <Check className="h-4 w-4 shrink-0 text-primary" /> Compliance packs
             </li>
           </ul>
-          <Button asChild variant="outline" className="mt-5 w-full">
+          <Button asChild variant="outline" className="mt-5 w-full whitespace-normal">
             <Link href="/agentos">
               <Building2 /> {t("pricing.entCta")}
             </Link>
@@ -360,7 +360,7 @@ export default function PricingPage() {
                     </div>
                   ) : tier.self ? (
                     <Button
-                      className="mt-5 w-full"
+                      className="mt-5 w-full whitespace-normal"
                       onClick={() => subscribe.mutate(tier.id as SelfServePlan)}
                       disabled={subscribe.isPending || !platformPlans}
                     >
@@ -368,7 +368,7 @@ export default function PricingPage() {
                       {subscribe.isPending ? t("pricing.platform.subscribing") : t("pricing.platform.subscribe")}
                     </Button>
                   ) : (
-                    <Button asChild variant="outline" className="mt-5 w-full">
+                    <Button asChild variant="outline" className="mt-5 w-full whitespace-normal">
                       <Link href={tier.href!}>
                         <Icon /> {t(tier.cta!)}
                       </Link>

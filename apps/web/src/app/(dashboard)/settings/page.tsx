@@ -44,23 +44,28 @@ export default function SettingsPage() {
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">{t("settings.title")}</h1>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("settings.title")}</h1>
         <p className="mt-1 text-muted-foreground">{t("settings.subtitle")}</p>
       </div>
 
-      <div className="flex gap-1 border-b">
-        {TABS.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
-            className={cn(
-              "-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
-              tab === id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Icon className="h-4 w-4" /> {label}
-          </button>
-        ))}
+      {/* Tab-lenta telefonda GORIZONTAL SILJIYDI, sahifani emas: ilgari
+          to'rtta tab 375px ekranga sig'masdi va butun sahifani o'ngga
+          surib yuborardi (o'lchangan: main 526px / ekran 319px). */}
+      <div className="scroll-thin -mx-4 overflow-x-auto border-b px-4 sm:mx-0 sm:px-0">
+        <div className="flex w-max min-w-full gap-1">
+          {TABS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={cn(
+                "-mb-px flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
+                tab === id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Icon className="h-4 w-4 shrink-0" /> {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {tab === "profile" &&
