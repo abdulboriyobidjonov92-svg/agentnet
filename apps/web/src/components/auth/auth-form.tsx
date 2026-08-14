@@ -35,10 +35,16 @@ const formatUzPhone = (digits: string): string => {
 
 const RESEND_COOLDOWN_SEC = 60;
 
+// Build vaqtida INLINE qilinadi (NEXT_PUBLIC_*) — bo'sh bo'lsa Google tugmasi
+// "coming soon" holatida qolaveradi (GoogleOAuthService serverda ham xuddi
+// shunday: GOOGLE_CLIENT_ID/SECRET yo'q bo'lsa jim yutqazadi, soxta muvaffaqiyat
+// ko'rsatmaydi).
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
 // Google'ning rasmiy 4-rangli "G" belgisi (brend aktivi — monoxrom istisno)
-function GoogleGlyph() {
+function GoogleGlyph({ dim }: { dim?: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] opacity-50" aria-hidden>
+    <svg viewBox="0 0 24 24" className={`h-[18px] w-[18px] ${dim ? "opacity-50" : ""}`} aria-hidden>
       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.76h3.56c2.08-1.92 3.28-4.74 3.28-8.09Z" />
       <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.56-2.76c-.98.66-2.23 1.06-3.72 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z" />
       <path fill="#FBBC05" d="M5.84 14.11a6.6 6.6 0 0 1 0-4.22V7.05H2.18a11 11 0 0 0 0 9.9l3.66-2.84Z" />
@@ -67,6 +73,43 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     const ref = new URLSearchParams(window.location.search).get("ref");
     if (ref) setRefCode(ref);
   }, []);
+
+  // Google OAuth callback (`/api/auth/google/callback`) shu sahifaga QAYTIB
+  // keladi — muvaffaqiyatli holat to'g'ridan-to'g'ri cookie o'rnatib
+  // /dashboard'ga yo'naltiradi (bu yerga umuman kelmaydi), FAQAT ikki holat
+  // shu yerga tushadi: 2FA kerak yoki xato.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const needsTwoFactorParam = params.get("needsTwoFactor");
+    const userIdParam = params.get("userId");
+    const errorParam = params.get("error");
+    if (needsTwoFactorParam === "1" && userIdParam) {
+      setUserId(userIdParam);
+      setStep("twofa");
+    } else if (errorParam === "google_denied") {
+      setError(t("auth.googleDenied"));
+    } else if (errorParam === "google_failed") {
+      setError(t("auth.googleFailed"));
+    }
+    if (needsTwoFactorParam || errorParam) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const startGoogleLogin = () => {
+    if (!GOOGLE_CLIENT_ID || busy) return;
+    const redirectUri = `${window.location.origin}/api/auth/google/callback`;
+    const params = new URLSearchParams({
+      client_id: GOOGLE_CLIENT_ID,
+      redirect_uri: redirectUri,
+      response_type: "code",
+      scope: "openid email profile",
+      prompt: "select_account",
+      ...(refCode ? { state: refCode } : {}),
+    });
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+  };
 
   const isSignUp = mode === "sign-up";
   const phoneValid = phoneDigits.length === 9;
@@ -238,15 +281,22 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
 
       {step === "identify" && (
         <form onSubmit={submitIdentify}>
-          {/* Google — hozircha nofaol, chalg'ituvchi soxta OAuth o'rniga halol holat */}
+          {/* Google — GOOGLE_CLIENT_ID sozlanmagan bo'lsa nofaol, chalg'ituvchi
+              soxta OAuth o'rniga halol holat (server ham xuddi shunday
+              fail-closed: GoogleOAuthService.isConfigured()). */}
           <button
             type="button"
-            disabled
-            title={t("auth.googleSoonHint")}
-            className="flex w-full cursor-not-allowed items-center justify-center gap-2.5 rounded-lg border border-border bg-surface-1 px-4 py-3 text-sm font-medium text-muted-foreground opacity-60"
+            disabled={!GOOGLE_CLIENT_ID}
+            onClick={startGoogleLogin}
+            title={GOOGLE_CLIENT_ID ? undefined : t("auth.googleSoonHint")}
+            className={`flex w-full items-center justify-center gap-2.5 rounded-lg border border-border bg-surface-1 px-4 py-3 text-sm font-medium transition ${
+              GOOGLE_CLIENT_ID
+                ? "text-foreground hover:border-white/20"
+                : "cursor-not-allowed text-muted-foreground opacity-60"
+            }`}
           >
-            <GoogleGlyph />
-            {t("auth.googleSoon")}
+            <GoogleGlyph dim={!GOOGLE_CLIENT_ID} />
+            {GOOGLE_CLIENT_ID ? t("auth.google") : t("auth.googleSoon")}
           </button>
 
           <div className="my-5 flex items-center gap-3">

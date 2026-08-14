@@ -249,6 +249,14 @@ services:
         sync: false
       - key: ESKIZ_SMS_FROM
         value: "4546"
+      # "Continue with Google" — ixtiyoriy login kanali. Ikkalasi HAM
+      # kerak (GoogleOAuthService.isConfigured()); bittasi yetishmasa
+      # tugma frontend'da "coming soon" holatida qolaveradi (validate-env.ts
+      # ogohlantiradi, boot'ni to'xtatmaydi).
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
 
   # 3) Next.js web — deep-space UI + 3D + AgentOS command center
   #
@@ -294,3 +302,8 @@ services:
         value: production
       - key: NEXT_PUBLIC_SENTRY_ENVIRONMENT
         value: production
+      # GOOGLE_CLIENT_ID bilan AYNAN bir xil qiymat (agentnet-api) — Client ID
+      # maxfiy EMAS, brauzer bundle'iga tushishi xavfsiz. NEXT_PUBLIC_* build
+      # vaqtida inline qilinadi — qo'shgandan keyin QAYTA DEPLOY shart.
+      - key: NEXT_PUBLIC_GOOGLE_CLIENT_ID
+        sync: false

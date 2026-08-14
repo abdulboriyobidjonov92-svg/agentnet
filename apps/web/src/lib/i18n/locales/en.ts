@@ -222,6 +222,8 @@ const en: Dict = {
     "auth.google": "Continue with Google",
     "auth.googleSoon": "Google (coming soon)",
     "auth.googleSoonHint": "Google sign-in is still being built",
+    "auth.googleDenied": "Google sign-in was cancelled.",
+    "auth.googleFailed": "Couldn't sign in with Google — please try again.",
     "auth.or": "or",
     "auth.brandEyebrow": "Sovereign AI Operations",
     "auth.trust": "SOC 2 · 2FA enforced · Ethics-verified",

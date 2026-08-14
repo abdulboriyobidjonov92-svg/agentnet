@@ -218,6 +218,8 @@ const ru: Dict = {
     "auth.google": "Продолжить с Google",
     "auth.googleSoon": "Google (скоро)",
     "auth.googleSoonHint": "Вход через Google пока в разработке",
+    "auth.googleDenied": "Вход через Google отменён.",
+    "auth.googleFailed": "Не удалось войти через Google — попробуйте ещё раз.",
     "auth.or": "или",
     "auth.brandEyebrow": "Суверенные ИИ-операции",
     "auth.trust": "SOC 2 · Обязательный 2FA · Проверка этики",

@@ -40,6 +40,7 @@ export const SECRET_ENV_KEYS: readonly string[] = [
   'ANTHROPIC_API_KEY',
   'GEMINI_API_KEY',
   'GOOGLE_API_KEY',
+  'GOOGLE_CLIENT_SECRET',
   // To'lov
   'PAYME_SECRET_KEY',
   'CLICK_SECRET_KEY',

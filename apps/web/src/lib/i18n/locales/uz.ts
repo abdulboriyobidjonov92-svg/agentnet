@@ -218,6 +218,8 @@ const uz: Dict = {
     "auth.google": "Google bilan davom etish",
     "auth.googleSoon": "Google (tez orada)",
     "auth.googleSoonHint": "Google orqali kirish hozircha ishlab chiqilmoqda",
+    "auth.googleDenied": "Google orqali kirish bekor qilindi.",
+    "auth.googleFailed": "Google orqali kirib bo'lmadi — qayta urinib ko'ring.",
     "auth.or": "yoki",
     "auth.brandEyebrow": "Suveren AI operatsiyalari",
     "auth.trust": "SOC 2 · Majburiy 2FA · Etika tekshiruvi",

@@ -87,6 +87,15 @@ export function validateEnv(): void {
   if (!has('PAYME_MERCHANT_ID') && !has('CLICK_SERVICE_ID')) {
     logger.warn('To\'lov provayderi (Payme/Click) sozlanmagan — balans to\'ldirish ishlamaydi.');
   }
+  // Ikkalasi ham SHART — bittasi qolib ketsa (masalan operator faqat
+  // Client ID'ni kiritib, Secret'ni unutsa) `GoogleOAuthService.isConfigured()`
+  // false qaytaradi va tugma "coming soon" bo'lib qolaveradi, sabab esa
+  // ko'rinmasdi. Bu yerda ANIQ aytiladi.
+  if (has('GOOGLE_CLIENT_ID') !== has('GOOGLE_CLIENT_SECRET')) {
+    logger.warn(
+      'GOOGLE_CLIENT_ID va GOOGLE_CLIENT_SECRET faqat BITTASI berilgan — Google login sozlanmagan hisoblanadi.',
+    );
+  }
   if (!isProd && missing.length) {
     logger.warn(`Dev rejim: ba'zi env yo'q (${missing.map((m) => m.key).join(', ')}) — fallback ishlatiladi.`);
   }
