@@ -1,5 +1,5 @@
 fastapi==0.141.1
-uvicorn[standard]==0.34.0
+uvicorn[standard]==0.52.1
 # Phase 6 / ADR-022 — "AI Engine Dependency Upgrade" BAJARILDI (2026-08-12).
 # 0.2.62 / 0.3.3 edi. Bu MAJOR sakrash va u ADR-022 da aynan shu fazaga
 # rejalashtirilgan edi. 10 ta advisory shu ikki pin orqali yopiladi
@@ -18,7 +18,7 @@ langchain-anthropic==1.5.5
 # eng kichik amaliy yechim (fastapi <3, langchain-anthropic >=2.7.4,
 # anthropic >=1.9, pydantic-settings >=2.7.0), major KO'TARILMAYDI (2.x).
 pydantic==2.13.4
-pydantic-settings==2.7.1
+pydantic-settings==2.15.0
 # 0.113.0 edi. MAJBURIY kaskad: `langchain-anthropic` 1.5.5
 # `anthropic>=0.120.0,<1.0.0` talab qiladi, ya'ni eski pin bilan
 # `ResolutionImpossible` bo'lardi. Bu xavfsizlik ko'tarishining bir qismi,
@@ -28,7 +28,7 @@ anthropic==0.121.0
 # uchun ishlatiladi — matn-JSON chokepoint'da (llm_json) ishtirok etmaydi
 # (u OpenRouter -> Anthropic ustuvorligini ishlatadi, ikkalasi ham qo'shimcha
 # paket talab qilmaydi: OpenRouter mavjud `httpx` orqali REST chaqiriladi).
-google-genai==2.11.0
+google-genai==2.17.0
 
 # SEC-15 — XAVFSIZLIK POLI (tranzitiv bog'liqlik).
 # `cryptography` to'g'ridan-to'g'ri ishlatilmaydi: u google-genai -> google-auth
@@ -45,9 +45,9 @@ cryptography>=50.0.0
 # pinini yumshatib, mos kelmagan versiyani o'rnatishi mumkin edi.
 # Integratsiya klasslari bazaviy paketda mavjud (`sentry_sdk.integrations.fastapi`).
 sentry-sdk==2.67.1
-numpy==2.2.1
+numpy==2.4.6
 httpx==0.28.1
-sse-starlette==2.1.3
+sse-starlette==2.4.1
 # PYSEC-2026-2270 (CVE-2026-28684) — 1.0.1 zaif, tuzatilgan 1.2.2.
 # TO'G'RIDAN-TO'G'RI bog'liqlik va MINOR ko'tarish (1.x ichida), hech bir
 # cheklovga zid emas (`pydantic-settings` >=0.21.0, `uvicorn` >=0.13 —
