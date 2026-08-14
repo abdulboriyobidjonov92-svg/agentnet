@@ -5,8 +5,7 @@
 // (grid trek o'lchamlari o'zgaradi, framer-motion layout FLIP silliqlaydi).
 // Foydalanuvchi to'xtasa — interfeys "nafas oladi" (drift).
 
-import { useEffect, useState, type CSSProperties } from "react";
-import dynamic from "next/dynamic";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -21,14 +20,6 @@ import { Magnetic } from "@/components/neuro/magnetic";
 import { Awakening } from "@/components/neuro/awakening";
 import { GlowOrb, FlowRiver, PulseRings } from "@/components/neuro/living";
 import { useIdle } from "@/components/neuro/use-idle";
-
-// Yadro — faqat klientda; yuklanayotganda nafas oluvchi nur qoladi
-const NeuroCore = dynamic(() => import("@/components/neuro/neuro-core"), {
-  ssr: false,
-  loading: () => (
-    <div className="animate-breathe m-auto h-1/2 w-1/2 rounded-full bg-vein-cyan/5 blur-3xl" />
-  ),
-});
 
 type LocalizedText = Record<string, string>;
 
@@ -61,35 +52,6 @@ interface RecommendedAgent {
 
 type CellId = "agents" | "flow" | "signal" | "impulses";
 
-// Fokusga qarab to'r trek o'lchamlari — "hujayra o'sadi"
-const TEMPLATES: Record<CellId | "none", { cols: string; rows: string }> = {
-  none: { cols: "3fr 6fr 3fr", rows: "1.05fr 1fr" },
-  agents: { cols: "6.5fr 3.5fr 2fr", rows: "2.3fr 1fr" },
-  flow: { cols: "6.5fr 3.5fr 2fr", rows: "1fr 2.3fr" },
-  signal: { cols: "2fr 3.5fr 6.5fr", rows: "2.3fr 1fr" },
-  impulses: { cols: "2fr 3.5fr 6.5fr", rows: "1fr 2.3fr" },
-};
-
-const CELL_POS: Record<CellId | "core", CSSProperties> = {
-  agents: { gridColumn: "1", gridRow: "1" },
-  flow: { gridColumn: "1", gridRow: "2" },
-  core: { gridColumn: "2", gridRow: "1 / span 2" },
-  signal: { gridColumn: "3", gridRow: "1" },
-  impulses: { gridColumn: "3", gridRow: "2" },
-};
-
-function useIsLarge() {
-  const [large, setLarge] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1024px)");
-    const sync = () => setLarge(mq.matches);
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, []);
-  return large;
-}
-
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
 export default function DashboardPage() {
@@ -97,7 +59,6 @@ export default function DashboardPage() {
   const { t, locale } = useT();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const isLg = useIsLarge();
   const idle = useIdle(6000);
 
   const [focused, setFocused] = useState<CellId | null>(null);
@@ -131,9 +92,6 @@ export default function DashboardPage() {
   const agentsIntensity = clamp01(agentCount / 6);
   const signalIntensity = clamp01(convCount / 25);
   const flowIntensity = clamp01(agentCount / 8 + convCount / 40);
-
-  // Yadro "joni": fokusda kuchli, idle'da chuqur uyquda
-  const coreActivity = focused ? 0.6 : idle ? 0.08 : 0.26;
 
   const quickActions = me?.profileData?.quick_actions ?? [];
   const ghosts = (recs?.recommended_agents ?? []).filter((a) => !a.installed);
@@ -170,8 +128,6 @@ export default function DashboardPage() {
   };
 
   const toggle = (id: CellId) => setFocused((cur) => (cur === id ? null : id));
-
-  const template = TEMPLATES[focused ?? "none"];
 
   const CELL_LABELS: Record<CellId, string> = {
     agents: t("neuro.cellAgents"),
@@ -245,15 +201,7 @@ export default function DashboardPage() {
       </div>
 
       <LayoutGroup>
-        <motion.div
-          layout
-          className="grid grid-cols-2 gap-4 lg:h-[560px]"
-          style={
-            isLg
-              ? { gridTemplateColumns: template.cols, gridTemplateRows: template.rows }
-              : undefined
-          }
-        >
+        <motion.div layout className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {/* AGENTLAR — porlovchi shar: yorqinlik = kuch */}
           <LiquidCard
             layout
@@ -262,8 +210,7 @@ export default function DashboardPage() {
             tabIndex={0}
             onClick={() => toggle("agents")}
             onKeyDown={(e) => e.key === "Enter" && toggle("agents")}
-            style={isLg ? CELL_POS.agents : undefined}
-            className={cn(cellClass("agents"), "min-h-[176px]", focused === "agents" && "col-span-2 lg:col-auto")}
+            className={cn(cellClass("agents"), "min-h-[176px]", focused === "agents" && "col-span-2 lg:col-span-4")}
           >
             <div className="flex h-full flex-col">
               <CellHead id="agents" hint={t("neuro.cellAgentsHint")} />
@@ -360,8 +307,7 @@ export default function DashboardPage() {
             tabIndex={0}
             onClick={() => toggle("flow")}
             onKeyDown={(e) => e.key === "Enter" && toggle("flow")}
-            style={isLg ? CELL_POS.flow : undefined}
-            className={cn(cellClass("flow"), "min-h-[176px]", focused === "flow" && "col-span-2 lg:col-auto")}
+            className={cn(cellClass("flow"), "min-h-[176px]", focused === "flow" && "col-span-2 lg:col-span-4")}
           >
             <div className="flex h-full flex-col">
               <CellHead id="flow" hint={t("neuro.cellFlowHint")} />
@@ -383,33 +329,6 @@ export default function DashboardPage() {
             </div>
           </LiquidCard>
 
-          {/* YADRO — markazdagi jon */}
-          <motion.div
-            layout
-            style={isLg ? CELL_POS.core : undefined}
-            className={cn(
-              "relative col-span-2 min-h-[280px] lg:col-auto lg:min-h-0",
-              idle && !focused && "drift",
-            )}
-          >
-            <NeuroCore
-              activity={coreActivity}
-              onTap={() => setFocused(null)}
-              className="absolute inset-0"
-            />
-            <div className="pointer-events-none absolute inset-x-0 bottom-3 flex flex-col items-center gap-2">
-              <p className="label-mono">Neuro-Core</p>
-              {me && !me.onboardingCompleted && (
-                <Link
-                  href="/onboarding"
-                  className="vein-text pointer-events-auto text-xs font-medium underline-offset-4 hover:underline"
-                >
-                  {t("neuro.calibrate")} →
-                </Link>
-              )}
-            </div>
-          </motion.div>
-
           {/* SIGNAL — suhbatlar pulsi */}
           <LiquidCard
             layout
@@ -418,8 +337,7 @@ export default function DashboardPage() {
             tabIndex={0}
             onClick={() => toggle("signal")}
             onKeyDown={(e) => e.key === "Enter" && toggle("signal")}
-            style={isLg ? CELL_POS.signal : undefined}
-            className={cn(cellClass("signal"), "min-h-[176px]", focused === "signal" && "col-span-2 lg:col-auto")}
+            className={cn(cellClass("signal"), "min-h-[176px]", focused === "signal" && "col-span-2 lg:col-span-4")}
           >
             <div className="flex h-full flex-col">
               <CellHead id="signal" hint={t("neuro.cellSignalHint")} />
@@ -457,8 +375,7 @@ export default function DashboardPage() {
             tabIndex={0}
             onClick={() => toggle("impulses")}
             onKeyDown={(e) => e.key === "Enter" && toggle("impulses")}
-            style={isLg ? CELL_POS.impulses : undefined}
-            className={cn(cellClass("impulses"), "min-h-[176px]", focused === "impulses" && "col-span-2 lg:col-auto")}
+            className={cn(cellClass("impulses"), "min-h-[176px]", focused === "impulses" && "col-span-2 lg:col-span-4")}
           >
             <div className="flex h-full flex-col">
               <CellHead id="impulses" hint={t("neuro.cellImpulsesHint")} />
