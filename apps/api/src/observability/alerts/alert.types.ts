@@ -21,7 +21,8 @@ export type AlertKey =
   | 'payment_failure_anomaly'
   | 'agent_execution_failure'
   | 'infrastructure_degraded'
-  | 'auth_anomaly';
+  | 'auth_anomaly'
+  | 'free_tier_budget';
 
 export interface AlertDefinition {
   key: AlertKey;
@@ -77,6 +78,19 @@ export const ALERT_DEFINITIONS: Record<AlertKey, AlertDefinition> = {
     cooldownMinutes: 60,
     severity: 'high',
     runbook: 'docs/runbooks/incident-response.md#6-autentifikatsiya-xavfsizlik-hodisasi',
+  },
+  free_tier_budget: {
+    key: 'free_tier_budget',
+    signal:
+      "Bugungi OpenRouter bepul-model budjeti ogohlantirish chegarasidan (default 80%) o'tdi — free tarif to'xtashiga yaqin",
+    // Budjet KUNLIK, shuning uchun oyna ham kunlik: 5 daqiqalik oyna
+    // "bugun qancha ishlatildi" savoliga javob bermaydi.
+    windowMinutes: 1440,
+    // Kuniga ko'pi bilan bitta signal — 80% dan 100% gacha har 5 daqiqada
+    // qayta-qayta yozish shovqin bo'lardi.
+    cooldownMinutes: 720,
+    severity: 'warning',
+    runbook: 'docs/runbooks/incident-response.md#14-free-tarif-budjeti',
   },
 };
 

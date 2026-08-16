@@ -56,10 +56,18 @@ function makeMock() {
     },
     agent: { count: jest.fn(async () => 0) },
   };
-  const usage = new UsageService(usagePrisma);
+  // Free-budjet (OpenRouter) — bu testda cheklov emas, doim ruxsat beradi:
+  // tekshirilayotgan narsa platforma-obunasi izolyatsiyasi, budjet emas.
+  const freeBudget = {
+    reserve: jest.fn(async () => ({ ok: true, used: 1, cap: 45, alertAt: 36, source: 'redis' })),
+    release: jest.fn(async () => {}),
+    snapshot: jest.fn(async () => ({ used: 1, cap: 45, alertAt: 36, source: 'redis' })),
+  } as any;
+  const usage = new UsageService(usagePrisma, freeBudget);
   const agentBilling = { chargeOne: jest.fn(), resolveTrialEnd: jest.fn() } as any;
   const billing = { chargeForMessage: jest.fn(async () => ({})), refund: jest.fn(async () => ({})) } as any;
-  return { prisma, http, audit, usage, agentBilling, billing };
+  const connectors = { toolSpecsForAgent: jest.fn(async () => []) } as any;
+  return { prisma, http, audit, usage, agentBilling, billing, connectors };
 }
 
 // Block B'da HECH QANDAY platforma-obunasi yo'q (eng qattiq holat).
@@ -75,9 +83,9 @@ const noSubscriptionUser = {
 
 describe('BLOK A/B izolyatsiyasi — platforma obunasi vertikal agentlarga TA\'SIR QILMAYDI', () => {
   it("obunasiz foydalanuvchi do'kon-agentini (vertikal, retail) MUVAFFAQIYATLI yaratadi", async () => {
-    const { prisma, http, audit, usage, agentBilling, billing } = makeMock();
+    const { prisma, http, audit, usage, agentBilling, billing, connectors } = makeMock();
     prisma.agent.create.mockResolvedValue({ id: 'agent1', name: "Do'kon agenti", vertical: 'retail' });
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
 
     const agent = await svc.create(noSubscriptionUser, {
       name: "Do'kon agenti",
@@ -91,7 +99,7 @@ describe('BLOK A/B izolyatsiyasi — platforma obunasi vertikal agentlarga TA\'S
   });
 
   it('obunasiz foydalanuvchi shu agent bilan MUVAFFAQIYATLI suhbatlashadi — consumeChat ishlaydi, consumePlatformFeature UMUMAN CHAQIRILMAYDI', async () => {
-    const { prisma, http, audit, usage, agentBilling, billing } = makeMock();
+    const { prisma, http, audit, usage, agentBilling, billing, connectors } = makeMock();
     const platformFeatureSpy = jest.spyOn(usage, 'consumePlatformFeature');
     prisma.agent.findUnique.mockResolvedValue({
       id: 'agent1',
@@ -106,7 +114,7 @@ describe('BLOK A/B izolyatsiyasi — platforma obunasi vertikal agentlarga TA\'S
       memoryEnabled: true,
     });
     http.post.mockReturnValue(of({ data: { messages: [{ content: 'Salom! Qanday yordam bera olaman?' }] } }));
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
 
     const res = await svc.run('agent1', noSubscriptionUser, "Tovar qoldig'i qancha?");
 
@@ -129,14 +137,14 @@ describe('BLOK A/B izolyatsiyasi — platforma obunasi vertikal agentlarga TA\'S
   });
 
   it("agent yaratish/ishlatish User.platformPlan maydonini UMUMAN o'qimaydi (real UsageService bilan — 'none' bo'lsa ham hech narsa yiqilmaydi)", async () => {
-    const { prisma, http, audit, usage, agentBilling, billing } = makeMock();
+    const { prisma, http, audit, usage, agentBilling, billing, connectors } = makeMock();
     prisma.agent.findUnique.mockResolvedValue({
       id: 'agent1', userId: 'u1', frozen: false, isTrialAgent: false,
       name: 'X', systemPrompt: 'p', model: 'claude-sonnet-5',
       toolsConfig: [], halalFilterEnabled: true, memoryEnabled: true,
     });
     http.post.mockReturnValue(of({ data: { messages: [{ content: 'ok' }] } }));
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
 
     // platformPlanFrozen: true HAM bo'lsa (eng yomon holat) — vertikal agent baribir ishlashi kerak
     const frozenPlatformUser = { ...noSubscriptionUser, platformPlan: 'pro', platformPlanFrozen: true } as unknown as User;

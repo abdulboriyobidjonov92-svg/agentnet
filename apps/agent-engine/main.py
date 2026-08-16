@@ -185,6 +185,10 @@ class RunAgentRequest(BaseModel):
     conversation_id: str | None = None
     conversation_history: list[dict] | None = None
     profession: str = ""  # halal filter chegara-holatlari uchun kontekst
+    # "free" | "paid" — qaysi model zanjiri ishlatiladi. Qaror NestJS
+    # tomonida (foydalanuvchi tarifi bo'yicha) qabul qilinadi; mijoz buni
+    # o'zgartira olmaydi, chunki BFF `tier`ni uzatmaydi.
+    tier: str = "paid"
 
 
 class HalalCheckRequest(BaseModel):
@@ -408,6 +412,7 @@ async def stream_agent(req: RunAgentRequest):
                 message=req.message,
                 conversation_history=req.conversation_history,
                 profession=req.profession,
+                tier=req.tier,
             ):
                 yield event
         except Exception as e:

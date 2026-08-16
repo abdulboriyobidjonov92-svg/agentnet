@@ -97,6 +97,9 @@ services:
         sync: false        # ixtiyoriy — bo'lmasa Anthropic'ga (yoki demo rejimga) tushadi
       - key: OPENROUTER_MODEL
         value: "openai/gpt-4o-mini"
+      # Free tarif model zanjiri (bo'sh -> kod ichidagi 5 modellik default).
+      - key: OPENROUTER_FREE_MODELS
+        sync: false
       # web.automate/connector.invoke uchun API'ga ichki chaqiruv.
       # (API — ommaviy web servis, shuning uchun bu URL o'zgarishsiz qoladi.)
       - key: API_URL
@@ -219,7 +222,10 @@ services:
       - fromGroup: agentnet-shared
       # Rate limiting / xarajat himoyasi (env bo'lmasa kod ichidagi defaultlar ishlaydi)
       - key: USAGE_FREE_CHAT_PER_DAY
-        value: "20"
+        value: "10"
+      # Free tarif OpenRouter budjeti (buferli). $10 kredit sotib olingach 900.
+      - key: OPENROUTER_FREE_DAILY_CAP
+        value: "45"
       - key: USAGE_FREE_AGENTS_MAX
         value: "5"
       - key: USAGE_GLOBAL_LLM_PER_DAY

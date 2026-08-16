@@ -25,6 +25,8 @@ from typing import Any
 
 import httpx
 
+import openrouter_client
+
 # --- Provayderni import vaqtida bir marta tanlaymiz ---
 _PROVIDER: str | None = None
 _anthropic = None
@@ -101,29 +103,44 @@ async def _openrouter_json(system: str, user_content: str, max_tokens: int) -> d
     # OpenRouter — OpenAI-mos REST API (`response_format: json_object`
     # so'ralgan modelga bog'liq holda toza JSON qaytaradi, `extract_json`
     # baribir zaxira sifatida qoladi, xuddi boshqa ikki provayderdagidek).
+    #
+    # KO'P-MODEL: bitta model 429 (bepul tarif chegarasi) yoki uzilish bersa
+    # zanjirdagi keyingisiga o'tamiz. `OPENROUTER_MODEL` — ro'yxatning
+    # birinchi bo'g'ini; qolganlari `openrouter_client.free_models()` dan
+    # (chat yo'li bilan AYNAN bir xil ro'yxat, ikki joyda ajralib ketmasin).
     if not OPENROUTER_API_KEY:
         return None
+
+    chain = [OPENROUTER_MODEL, *[m for m in openrouter_client.free_models() if m != OPENROUTER_MODEL]]
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
-                json={
-                    "model": OPENROUTER_MODEL,
-                    "max_tokens": max_tokens,
-                    "response_format": {"type": "json_object"},
-                    "messages": [
-                        {"role": "system", "content": system},
-                        {"role": "user", "content": user_content},
-                    ],
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            raw = (data["choices"][0]["message"]["content"] or "").strip()
-            return extract_json(raw)
+            for model in chain:
+                try:
+                    resp = await client.post(
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
+                        json={
+                            "model": model,
+                            "max_tokens": max_tokens,
+                            "response_format": {"type": "json_object"},
+                            "messages": [
+                                {"role": "system", "content": system},
+                                {"role": "user", "content": user_content},
+                            ],
+                        },
+                    )
+                    if resp.status_code != 200:
+                        continue
+                    data = resp.json()
+                    raw = (data["choices"][0]["message"]["content"] or "").strip()
+                    parsed = extract_json(raw)
+                    if parsed is not None:
+                        return parsed
+                except Exception:
+                    continue  # keyingi model
     except Exception:
         return None
+    return None
 
 
 async def _anthropic_json(system: str, user_content: str, max_tokens: int, model: str) -> dict[str, Any] | None:

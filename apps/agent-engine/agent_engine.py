@@ -26,10 +26,13 @@ from pydantic import BaseModel, Field
 # Streaming yo'li (streaming.py) bularni ishlatmaydi, shuning uchun lazy import.
 try:
     from langchain_anthropic import ChatAnthropic  # noqa: F401
+    from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
     from langgraph.graph import END, StateGraph  # noqa: F401
     _LANGGRAPH_AVAILABLE = True
 except ImportError:
     _LANGGRAPH_AVAILABLE = False
+
+import agent_tools
 
 # ------------------------------------------------------------------
 # 1. No-code builder formatlari (frontenddan keladigan JSON)
@@ -54,6 +57,10 @@ class AgentDefinition(BaseModel):
     model: str = "claude-sonnet-5"
     # Halal Filter har doim yoqilgan -- foydalanuvchi o'chira olmaydi.
     halal_filter_enabled: bool = True
+    # Tool ijrosi konteksti (streaming.py bilan bir xil maydonlar). Model
+    # bularni O'ZI to'ldirmaydi -- ular serverdan keladi.
+    language: str = "en"
+    city: str = "Tashkent"
 
 
 # ------------------------------------------------------------------
@@ -67,7 +74,11 @@ MAX_TOOL_ITERATIONS = int(os.getenv("AGENT_MAX_TOOL_ITERATIONS", "8"))
 
 
 class AgentState(TypedDict):
-    messages: Annotated[list[dict[str, str]], operator.add]
+    # `dict[str, Any]` (ilgari `dict[str, str]`): assistant xabari endi
+    # `tool_calls` ro'yxatini, tool javobi esa `tool_call_id`ni ham olib
+    # yuradi -- ularsiz Anthropic `tool_result`ni mos `tool_use` blokiga
+    # bog'lay olmaydi va so'rovni rad etadi.
+    messages: Annotated[list[dict[str, Any]], operator.add]
     user_id: str
     agent_id: str
     pending_tool_calls: list[dict[str, Any]]
@@ -138,6 +149,37 @@ registry.register("islam.prayer_times", _tool_prayer_times)
 registry.register("bank.read_transactions", _tool_bank_read_transactions)
 
 
+def _to_lc_messages(messages: list[dict[str, Any]]) -> list[Any]:
+    """State'dagi oddiy dict'larni LangChain xabar obyektlariga o'giradi.
+
+    Nega qo'lda: `tool_calls` bo'lgan assistant xabari va `tool_call_id` bo'lgan
+    tool javobi -- Anthropic uchun BOG'LIQ juftlik. Ularni dict ko'rinishida
+    uzatib bo'lmaydi (`tool_result` mos `tool_use` bloki topilmasa API 400
+    qaytaradi), shuning uchun `AIMessage`/`ToolMessage` sifatida quriladi.
+    """
+    out: list[Any] = []
+    for m in messages:
+        role = m.get("role")
+        content = m.get("content", "")
+        if role == "assistant":
+            calls = [
+                {"name": c["api_name"], "args": c.get("args") or {}, "id": c.get("call_id", "")}
+                for c in (m.get("tool_calls") or [])
+            ]
+            out.append(AIMessage(content=content, tool_calls=calls))
+        elif role == "tool":
+            out.append(
+                ToolMessage(
+                    content=content,
+                    tool_call_id=str(m.get("tool_call_id", "")),
+                    name=str(m.get("name", "")),
+                )
+            )
+        else:
+            out.append(HumanMessage(content=content))
+    return out
+
+
 # ------------------------------------------------------------------
 # 4. AgentEngine -- AgentDefinition'ni LangGraph grafiga compile qiladi
 # ------------------------------------------------------------------
@@ -169,7 +211,22 @@ class AgentEngine:
             max_tokens=4096,
             model_kwargs={"extra_body": {"thinking": {"type": "disabled"}}},
         )
+        # Tool-sxemalari streaming yo'li bilan AYNAN bir manbadan quriladi
+        # (`agent_tools`) — ikki yo'l bir xil toollarni, bir xil nom qoidasi
+        # bilan ko'rsin. Ulangan konnektorlar ham shu ro'yxatga kiradi.
+        tool_specs = [t.model_dump() for t in definition.tools]
+        self.tool_defs = agent_tools.build_tools(tool_specs)
+        self.connector_targets = agent_tools.connector_targets(tool_specs)
         self.graph = self._build_graph()
+
+    def _llm(self) -> Any:
+        """Tool-sxemalari bog'langan model.
+
+        Har chaqiruvda qayta bog'lanadi (konstruktorda keshlanmaydi) — shunda
+        `self.llm` almashtirilsa (testlardagi soxta model) yangi qiymat
+        ishlatiladi va sxemalar jimgina eskirib qolmaydi.
+        """
+        return self.llm.bind_tools(self.tool_defs) if self.tool_defs else self.llm
 
     def _build_graph(self):
         workflow = StateGraph(AgentState)
@@ -198,29 +255,54 @@ class AgentEngine:
 
         return workflow.compile()
 
-    async def _halal_check_input(self, state: AgentState) -> AgentState:
+    # DIQQAT — tugunlar FAQAT o'zgarishni (delta) qaytaradi, `{**state, ...}` ni
+    # EMAS. `AgentState["messages"]` reducer'i `operator.add`: butun state qayta
+    # qaytarilsa, mavjud xabarlar ro'yxati o'ziga QO'SHILIB ketadi. Bitta
+    # aylanishli javobda bu ko'zga tashlanmasdi (oxirgi xabar baribir to'g'ri
+    # edi), lekin tool-loop bilan bu halokatli: takrorlangan `tool_use` bloklari
+    # Anthropic tomonidan rad etiladi va har aylanishda token ikkilanadi.
+    async def _halal_check_input(self, state: AgentState) -> dict[str, Any]:
         if not self.definition.halal_filter_enabled:
-            return {**state, "halal_flag": "ALLOW"}
+            return {"halal_flag": "ALLOW"}
         # Import qilingan HalalFilter ishlatiladi (main.py dan inject qilinadi)
         last_message = state["messages"][-1]["content"] if state["messages"] else ""
         flag = "ALLOW" if "qimor" not in last_message.lower() else "BLOCK"
-        return {**state, "halal_flag": flag}
+        return {"halal_flag": flag}
 
     def _route_after_input_filter(self, state: AgentState) -> str:
         return "blocked" if state.get("halal_flag") == "BLOCK" else "continue"
 
-    async def _reason_node(self, state: AgentState) -> AgentState:
-        system = {
-            "role": "system",
-            "content": (
-                f"{self.definition.system_prompt}\n\n"
-                f"Ruxsat etilgan vositalar: {[t.tool_id for t in self.definition.tools]}"
-            ),
+    async def _reason_node(self, state: AgentState) -> dict[str, Any]:
+        # Vositalar endi system-prompt MATNIDA sanab o'tilmaydi: ular modelga
+        # HAQIQIY tool-sxema (`bind_tools`) sifatida beriladi. Ilgari faqat
+        # matnli ro'yxat bor edi va `pending_tool_calls` doim bo'sh qaytardi —
+        # ya'ni `execute_tools` node'iga hech qachon yo'l ochilmasdi va bu
+        # yo'lda tool CHAQIRILISHI umuman mumkin emas edi.
+        system = SystemMessage(content=self.definition.system_prompt)
+        response = await self._llm().ainvoke([system, *_to_lc_messages(state["messages"])])
+
+        # LangChain tool-chaqiruvlarini ijro qatlami tushunadigan shaklga
+        # o'giramiz. `id` saqlanadi — `tool_result` aynan shu id orqali o'z
+        # `tool_use` blokiga bog'lanadi.
+        tool_calls = list(getattr(response, "tool_calls", None) or [])
+        pending = [
+            {
+                "api_name": str(tc.get("name", "")),
+                "args": dict(tc.get("args") or {}),
+                "call_id": str(tc.get("id") or ""),
+            }
+            for tc in tool_calls
+        ]
+
+        assistant: dict[str, Any] = {
+            "role": "assistant",
+            "content": _content_to_text(response.content),
         }
-        response = await self.llm.ainvoke([system, *state["messages"]])
-        new_messages = [{"role": "assistant", "content": _content_to_text(response.content)}]
+        if pending:
+            assistant["tool_calls"] = pending
+
         iterations = state.get("iterations", 0) + 1
-        return {**state, "messages": new_messages, "pending_tool_calls": [], "iterations": iterations}
+        return {"messages": [assistant], "pending_tool_calls": pending, "iterations": iterations}
 
     def _route_after_reasoning(self, state: AgentState) -> str:
         # Loop chegarasi: MAX_TOOL_ITERATIONS ga yetgach, tool chaqirmay javob beramiz
@@ -228,22 +310,44 @@ class AgentEngine:
             return "respond"
         return "tool_call" if state.get("pending_tool_calls") else "respond"
 
-    async def _execute_tools_node(self, state: AgentState) -> AgentState:
-        results = []
-        for call in state.get("pending_tool_calls", []):
-            tool_id = call["tool_id"]
-            allowed_ids = {t.tool_id for t in self.definition.tools}
-            if tool_id not in allowed_ids:
-                raise PermissionError(
-                    f"Agent '{self.definition.name}' uchun ruxsatsiz tool: {tool_id}"
-                )
-            fn = self.registry.get(tool_id)
-            result = fn(call.get("config", {}))
-            results.append({"role": "tool", "content": str(result)})
-        return {**state, "messages": results, "pending_tool_calls": []}
+    async def _execute_tools_node(self, state: AgentState) -> dict[str, Any]:
+        # Ruxsat: model FAQAT `bind_tools`ga berilgan sxemalardan chaqira
+        # oladi, lekin ishonmaymiz va ijrodan oldin yana tekshiramiz
+        # (fail-closed) — ro'yxat `build_tools` qurgan nomlar to'plami.
+        allowed = {d["name"] for d in self.tool_defs}
+        ctx = agent_tools.ToolCtx(
+            language=self.definition.language,
+            city=self.definition.city,
+            user_id=state["user_id"],
+            agent_id=self.definition.agent_id,
+        )
 
-    async def _halal_check_output(self, state: AgentState) -> AgentState:
-        return state
+        results: list[dict[str, Any]] = []
+        for call in state.get("pending_tool_calls", []):
+            api_name = call["api_name"]
+            if api_name not in allowed:
+                # Ilgari bu yerda PermissionError ko'tarilardi — bitta noto'g'ri
+                # tool nomi butun ijroni 500 bilan yiqitardi. Endi model xatoni
+                # tool javobi sifatida ko'radi va o'zini tuzata oladi.
+                result: dict[str, Any] = {
+                    "xato": f"Agent '{self.definition.name}' uchun ruxsatsiz tool: {api_name}"
+                }
+            else:
+                result = await agent_tools.run_tool(
+                    api_name, call.get("args", {}), ctx, self.connector_targets
+                )
+            results.append(
+                {
+                    "role": "tool",
+                    "name": api_name,
+                    "tool_call_id": call.get("call_id", ""),
+                    "content": agent_tools.to_tool_result_content(result),
+                }
+            )
+        return {"messages": results, "pending_tool_calls": []}
+
+    async def _halal_check_output(self, state: AgentState) -> dict[str, Any]:
+        return {}
 
     async def run(self, user_id: str, user_message: str) -> dict[str, Any]:
         initial_state: AgentState = {

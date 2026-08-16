@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { FreeTierBudgetService } from './free-tier-budget.service';
 import { effectivePlatformPlan } from '../billing/platform-billing.service';
 import type { Prisma, User } from '@prisma/client';
 
@@ -35,21 +36,35 @@ function intEnv(name: string, fallback: number): number {
   return Number.isFinite(v) && v > 0 ? Math.floor(v) : fallback;
 }
 
+/**
+ * Amaldagi tarif — sof funksiya sifatida.
+ *
+ * NEGA FUNKSIYA: `BillingService` ham shu qarorga muhtoj (free foydalanuvchidan
+ * pul yechilmaydi), lekin `UsageService`ni DI orqali olsa modul sikli paydo
+ * bo'lardi. `effectivePlatformPlan` bilan bir xil naqsh.
+ */
+export function effectivePlanOf(user: Pick<User, 'plan' | 'proUntil'>): string {
+  if (user.plan === 'pro' && user.proUntil && user.proUntil.getTime() < Date.now()) {
+    return 'free';
+  }
+  return user.plan;
+}
+
 @Injectable()
 export class UsageService {
   private readonly logger = new Logger('UsageService');
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly freeBudget: FreeTierBudgetService,
+  ) {}
 
   /**
    * Foydalanuvchining amaldagi tarifi — pro muddati (`proUntil`) o'tgan
    * bo'lsa limitlar avtomatik free'ga qaytadi (soxta pro yo'q).
    */
   effectivePlan(user: User): string {
-    if (user.plan === 'pro' && user.proUntil && user.proUntil.getTime() < Date.now()) {
-      return 'free';
-    }
-    return user.plan;
+    return effectivePlanOf(user);
   }
 
   /** Pricing sahifasi uchun tariflar katalogi (env'dagi haqiqiy limitlar). */
@@ -65,8 +80,14 @@ export class UsageService {
       };
     }
     // free (default)
+    //
+    // 10/kun — bu tarif endi BALANSDAN YECHILMAYDI (`BillingService.chargeForMessage`
+    // free'da no-op) va OpenRouter'ning BEPUL modellari bilan ishlaydi. Ilgari 20
+    // edi va ustiga balans-yechish ham turardi: balansi 0 bo'lgan yangi
+    // foydalanuvchi kunlik limitga umuman yetib bormasdan 402 olardi, ya'ni
+    // ikkita to'siq bir vaqtda ishlar edi. Endi yagona to'siq — shu hisoblagich.
     return {
-      chatPerDay: intEnv('USAGE_FREE_CHAT_PER_DAY', 20),
+      chatPerDay: intEnv('USAGE_FREE_CHAT_PER_DAY', 10),
       agentsMax: intEnv('USAGE_FREE_AGENTS_MAX', 5),
     };
   }
@@ -120,7 +141,8 @@ export class UsageService {
    */
   async consumeChat(user: User): Promise<{ remaining: number; plan: string }> {
     const day = this.today();
-    const limits = this.planLimits(this.effectivePlan(user));
+    const plan = this.effectivePlan(user);
+    const limits = this.planLimits(plan);
 
     // Naqsh: ATOMIK oshir → natijani tekshir → oshib ketgan bo'lsa qaytar.
     // Avvalgi "o'qi-keyin-oshir" da ikki parallel so'rov bir xil qiymatni o'qib,
@@ -150,15 +172,43 @@ export class UsageService {
       // Bu so'rov rad etildi — ikkala hisobni ham qaytaramiz
       await this.decrement(user.id, 'chat', day);
       await this.decrement(GLOBAL_KEY, 'llm', day);
+      // Free tarifda bu "xato" emas, tarifning normal chegarasi — xabar
+      // shunga mos (ayblovchi emas, yo'l ko'rsatuvchi) va `reason` alohida,
+      // shunda UI/analitika "pullik limit" dan ajrata oladi.
+      const free = plan === 'free';
       throw new HttpException(
         {
-          message: `Kunlik xabar limitiga yetdingiz (${limits.chatPerDay}/kun). Ertaga yangilanadi.`,
-          reason: 'user_daily_cap',
+          message: free
+            ? `Bugungi bepul limitingiz tugadi (${limits.chatPerDay}/${limits.chatPerDay}). Ertaga yangilanadi, yoki Pro'ga o'ting.`
+            : `Kunlik xabar limitiga yetdingiz (${limits.chatPerDay}/kun). Ertaga yangilanadi.`,
+          reason: free ? 'free_daily_limit' : 'user_daily_cap',
           plan: user.plan,
           limit: limits.chatPerDay,
         },
         HttpStatus.TOO_MANY_REQUESTS,
       );
+    }
+
+    // 3) FREE tarif — OpenRouter'ning HISOB darajasidagi kunlik budjeti.
+    // Bu bizning ixtiyoriy chegaramiz emas: bitta `OPENROUTER_API_KEY`
+    // barcha free foydalanuvchilar uchun umumiy va u tugasa OpenRouter
+    // xom 429 qaytaradi. Shuning uchun buferli chegarani O'ZIMIZ ushlaymiz.
+    if (plan === 'free') {
+      const budget = await this.freeBudget.reserve(day);
+      if (!budget.ok) {
+        await this.decrement(user.id, 'chat', day);
+        await this.decrement(GLOBAL_KEY, 'llm', day);
+        throw new HttpException(
+          {
+            message:
+              "Bepul rejim bugun juda band — kunlik umumiy chegaraga yetdik. " +
+              "Ertaga yangilanadi, yoki Pro'ga o'tsangiz darhol davom etasiz.",
+            reason: 'free_budget_exhausted',
+            plan: user.plan,
+          },
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
     }
 
     // So'rov qabul qilindi — global ogohlantirish chegarasini faqat shu yerda

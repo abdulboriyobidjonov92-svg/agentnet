@@ -22,6 +22,8 @@ import { UpdateAgentDto } from './dto/update-agent.dto';
 import { priceForAgent, usdUzsRate } from './agent-pricing';
 import { AgentBillingService } from './agent-billing.service';
 import { BillingService } from '../billing/billing.service';
+import { ConnectorsService, CONNECTOR_TOOL_PREFIX } from '../connectors/connectors.service';
+import { effectivePlanOf } from '../usage/usage.service';
 import { Prisma, type AgentFrozenReason, type User } from '@prisma/client';
 
 // Agent-yaratish advisory-lock nommaydoni (foydalanuvchi bo'yicha kalit bilan
@@ -75,7 +77,34 @@ export class AgentsService {
     private readonly usage: UsageService,
     private readonly agentBilling: AgentBillingService,
     private readonly billing: BillingService,
+    private readonly connectors: ConnectorsService,
   ) {}
+
+  /**
+   * Agent taʼrifiga foydalanuvchining ULANGAN konnektorlarini qo'shadi.
+   *
+   * Nega kerak: `agentDefinition.tools` faqat `Agent.toolsConfig` (yaratishda
+   * tanlangan tool_id'lar) dan keladi — ulangan konnektorlar u yerda umuman
+   * uchramaydi, shuning uchun model ular haqida BILMAS edi. Endi ular har
+   * so'rovda serverdan qo'shiladi (DB — yagona haqiqat manbai).
+   *
+   * Mijoz yuborgan `connector.*` yozuvlari OLIB TASHLANADI: bu ro'yxat
+   * "agent qaysi konnektorga haqli" degan avtorizatsiya qarori va u faqat
+   * serverda hal bo'ladi (aks holda mijoz o'zi biriktirmagan konnektorni
+   * ro'yxatga qo'shib ko'rardi).
+   */
+  private async withConnectorTools(
+    user: User,
+    agentDefinition: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    const agentId = typeof agentDefinition.agent_id === 'string' ? agentDefinition.agent_id : undefined;
+    const declared = Array.isArray(agentDefinition.tools) ? agentDefinition.tools : [];
+    const own = declared.filter(
+      (t: any) => typeof t?.tool_id === 'string' && !t.tool_id.startsWith(CONNECTOR_TOOL_PREFIX),
+    );
+    const connectorTools = await this.connectors.toolSpecsForAgent(user, agentId);
+    return { ...agentDefinition, tools: [...own, ...connectorTools] };
+  }
 
   /**
    * `priceOverride` — FAQAT ichki, ishonchli chaqiruvchilar uchun (masalan
@@ -430,19 +459,22 @@ export class AgentsService {
     }
     const engineUrl = process.env.AGENT_ENGINE_URL ?? 'http://localhost:8000';
 
+    // Stream yo'li bilan bir xil: ulangan konnektorlar tool sifatida qo'shiladi.
+    const agentDefinition = await this.withConnectorTools(user, {
+      agent_id: agent.id,
+      name: agent.name,
+      system_prompt: agent.systemPrompt,
+      model: agent.model,
+      tools: agent.toolsConfig,
+      halal_filter_enabled: agent.halalFilterEnabled,
+      memory_enabled: agent.memoryEnabled,
+    });
+
     let data: any;
     try {
       ({ data } = await firstValueFrom(
         this.http.post(`${engineUrl}/agents/run`, {
-          agent_definition: {
-            agent_id: agent.id,
-            name: agent.name,
-            system_prompt: agent.systemPrompt,
-            model: agent.model,
-            tools: agent.toolsConfig,
-            halal_filter_enabled: agent.halalFilterEnabled,
-            memory_enabled: agent.memoryEnabled,
-          },
+          agent_definition: agentDefinition,
           user_id: user.id,
           message,
         }),
@@ -519,13 +551,17 @@ export class AgentsService {
   ): Promise<Readable> {
     const engineUrl = process.env.AGENT_ENGINE_URL ?? 'http://localhost:8000';
 
+    // Ulangan konnektorlar tool sifatida shu yerda qo'shiladi — mijoz emas,
+    // server hal qiladi (withConnectorTools izohiga qarang).
+    const agentDefinition = await this.withConnectorTools(user, dto.agentDefinition);
+
     // `x-internal-token` avtomatik qo'shiladi (installEngineAuthInterceptor —
     // yagona axios interceptor barcha engine chaqiruvlarini qamrab oladi).
     const res = await firstValueFrom(
       this.http.post(
         `${engineUrl}/agents/stream`,
         {
-          agent_definition: dto.agentDefinition,
+          agent_definition: agentDefinition,
           // MUHIM: `user_id` body'dan EMAS, autentifikatsiyalangan
           // foydalanuvchidan olinadi. Ilgari BFF uni o'zi uzatardi; endi
           // uni umuman so'ramaymiz — "boshqa foydalanuvchi nomidan engine'ga
@@ -535,6 +571,10 @@ export class AgentsService {
           conversation_id: dto.conversationId ?? null,
           conversation_history: dto.conversationHistory ?? null,
           profession: dto.profession ?? '',
+          // Qaysi model zanjiri: free -> OpenRouter bepul modellari,
+          // pullik -> Anthropic. Qaror SERVERDA, foydalanuvchi tarifidan
+          // olinadi — mijoz uni yubormaydi va o'zgartira olmaydi.
+          tier: effectivePlanOf(user) === 'free' ? 'free' : 'paid',
         },
         { responseType: 'stream' },
       ),

@@ -29,15 +29,32 @@ async def web_automate(goal: str, start_url: str = "", user_id: str = "", langua
         return {"holat": "xato", "sabab": f"Browser bridge bilan aloqa yo'q: {e}"}
 
 
-async def connector_invoke(connector_id: str, action: str, params: dict | None = None, user_id: str = "") -> dict:
-    """S2: Connector SDK amali — agent har qanday ulangan integratsiyani chaqiradi."""
+async def connector_invoke(
+    connector_id: str,
+    action: str,
+    params: dict | None = None,
+    user_id: str = "",
+    agent_id: str = "",
+) -> dict:
+    """S2: Connector SDK amali — agent har qanday ulangan integratsiyani chaqiradi.
+
+    `agent_id` — qaysi agent chaqirayotgani. API tomonda konnektor
+    konfiguratsiyasini tanlashda ishlatiladi: agentga BIRIKTIRILGAN sozlama
+    ustun, bo'lmasa umumiy (barcha agentlar uchun) sozlama olinadi.
+    """
     if not connector_id or not action:
         return {"holat": "xato", "sabab": "connector_id va action majburiy"}
     try:
         async with httpx.AsyncClient(timeout=60) as client:
             res = await client.post(
                 f"{_API_URL}/api/connectors/internal/invoke",
-                json={"userId": user_id, "connectorId": connector_id, "action": action, "params": params or {}},
+                json={
+                    "userId": user_id,
+                    "connectorId": connector_id,
+                    "action": action,
+                    "params": params or {},
+                    "agentId": agent_id or None,
+                },
                 headers={"x-internal-token": _INTERNAL_TOKEN},
             )
             res.raise_for_status()

@@ -20,7 +20,10 @@ function makeHttp(impl: () => unknown) {
   return { post: jest.fn(impl) as unknown as jest.Mock<unknown, PostArgs> };
 }
 
-function makeService(http: { post: jest.Mock<unknown, PostArgs> }) {
+function makeService(
+  http: { post: jest.Mock<unknown, PostArgs> },
+  connectorTools: Array<Record<string, unknown>> = [],
+) {
   return new AgentsService(
     {} as never, // prisma — bu yo'lda ishlatilmaydi
     http as never,
@@ -28,6 +31,7 @@ function makeService(http: { post: jest.Mock<unknown, PostArgs> }) {
     {} as never, // usage
     {} as never, // agentBilling
     {} as never, // billing
+    { toolSpecsForAgent: jest.fn(async () => connectorTools) } as never,
   );
 }
 
@@ -66,13 +70,68 @@ describe('AgentsService.openChatStream (SEC-10)', () => {
     const [url, body] = http.post.mock.calls[0];
     expect(url).toMatch(/\/agents\/stream$/);
     expect(body).toEqual({
-      agent_definition: dto.agentDefinition,
+      // `tools` har doim serverda yig'iladi (ulangan konnektorlar shu yerga
+      // qo'shiladi) — konnektorsiz foydalanuvchida bo'sh ro'yxat.
+      agent_definition: { ...dto.agentDefinition, tools: [] },
       user_id: 'u1',
       message: 'Salom',
       conversation_id: 'conv1',
       conversation_history: dto.conversationHistory,
       profession: 'shifokor',
+      // Model zanjiri tarifdan kelib chiqadi (pastdagi alohida testga qarang).
+      tier: 'paid',
     });
+  });
+
+  it('tarifni SERVER hal qiladi: free -> OpenRouter zanjiri, pro -> Anthropic', async () => {
+    const http = makeHttp(() => of({ data: 'stream-obyekti' }));
+    const svc = makeService(http);
+
+    await svc.openChatStream({ id: 'u1', plan: 'free', proUntil: null } as never, dto);
+    expect((http.post.mock.calls[0][1] as { tier: string }).tier).toBe('free');
+
+    await svc.openChatStream(
+      { id: 'u2', plan: 'pro', proUntil: new Date(Date.now() + 999_999) } as never,
+      dto,
+    );
+    expect((http.post.mock.calls[1][1] as { tier: string }).tier).toBe('paid');
+
+    // Muddati o'tgan pro -> yana free (soxta pro yo'q)
+    await svc.openChatStream(
+      { id: 'u3', plan: 'pro', proUntil: new Date(Date.now() - 1) } as never,
+      dto,
+    );
+    expect((http.post.mock.calls[2][1] as { tier: string }).tier).toBe('free');
+  });
+
+  it('ulangan konnektorlarni agent taʼrifiga tool sifatida qo\'shadi', async () => {
+    const http = makeHttp(() => of({ data: 'stream-obyekti' }));
+    const telegram = { tool_id: 'connector.telegram-bot', config: { connector_id: 'telegram-bot' } };
+    await makeService(http, [telegram]).openChatStream(user, {
+      ...dto,
+      agentDefinition: { ...dto.agentDefinition, tools: [{ tool_id: 'utility.weather', config: {} }] },
+    });
+
+    const [, body] = http.post.mock.calls[0];
+    expect((body.agent_definition as { tools: unknown[] }).tools).toEqual([
+      { tool_id: 'utility.weather', config: {} },
+      telegram,
+    ]);
+  });
+
+  it('mijoz yuborgan soxta `connector.*` toolini TASHLAYDI (avtorizatsiya serverda)', async () => {
+    const http = makeHttp(() => of({ data: 'stream-obyekti' }));
+    // Foydalanuvchi soliq.uz'ni umuman ulamagan — server ro'yxati bo'sh.
+    await makeService(http, []).openChatStream(user, {
+      ...dto,
+      agentDefinition: {
+        ...dto.agentDefinition,
+        tools: [{ tool_id: 'connector.soliq-uz', config: { connector_id: 'soliq-uz' } }],
+      },
+    });
+
+    const [, body] = http.post.mock.calls[0];
+    expect((body.agent_definition as { tools: unknown[] }).tools).toEqual([]);
   });
 
   it('ixtiyoriy maydonlar yo\'q bo\'lsa engine kutgan null/bo\'sh qiymatlar ketadi', async () => {

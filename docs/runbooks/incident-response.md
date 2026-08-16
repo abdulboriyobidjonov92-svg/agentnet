@@ -498,3 +498,47 @@ da "production konfiguratsiyasi kerak" sifatida ochiq turibdi.
 4. **Tuzatish** — kod/konfiguratsiya/hujjat o'zgarishi (commit havolasi).
 5. `docs/status/` ga yozuv; alert chegarasi o'zgargan bo'lsa
    `.env.example` va shu runbook yangilanadi.
+
+---
+
+## 14. Free tarif budjeti
+
+**Signal:** `free_tier_budget` (warning) — bugungi OpenRouter bepul-model
+budjeti ogohlantirish chegarasidan (default 80%) o'tdi.
+
+**Bu nima:** free tarif OpenRouter'ning `:free` modellari bilan ishlaydi.
+OpenRouter limiti **hisob darajasida** `[FROM-RESEARCH]`: 20 so'rov/daqiqa
+doim; kunlik 50 (hisobda umr bo'yi <$10 kredit) yoki 1000 (bir marta ≥$10
+kredit sotib olingach). Butun mahsulotda bitta `OPENROUTER_API_KEY` bor,
+ya'ni barcha free foydalanuvchilar shu idishdan ichadi.
+
+**Bu NIMA EMAS:** bu uzilish emas va pullik foydalanuvchilarga **umuman
+ta'sir qilmaydi** — pullik tier Anthropic zanjirida, kod darajasida
+butunlay ajratilgan (`tier == "free"` shoxi, `apps/agent-engine/streaming.py`).
+
+### Tekshirish
+
+```bash
+# Joriy holat (Redis bo'lsa)
+redis-cli GET "agentnet:openrouter:free:$(date -u +%F)"
+# Redis yo'q bo'lsa — Postgres fallback
+psql "$DATABASE_URL" -c "SELECT count FROM \"UsageCounter\" \
+  WHERE \"userId\"='_global' AND kind='openrouter_free' AND day=to_char(now() at time zone 'utc','YYYY-MM-DD');"
+```
+
+### Qaror daraxti
+
+| Holat | Amal |
+|---|---|
+| 80–99% (`near`) | **Hech narsa shart emas.** Kuzatib turing — budjet ertaga UTC yarim tunda tiklanadi |
+| 100% (`exhausted`) va bu birinchi marta | Kutish maqbul. Free foydalanuvchi aniq xabar oladi ("Bepul rejim bugun juda band"), pul yechilmagan, hech kim zarar ko'rmaydi |
+| 100% va ketma-ket 2+ kun | **Doimiy yechim:** OpenRouter hisobiga bir martalik **$10 kredit** sotib oling → kunlik limit 50 → 1000 ga chiqadi. So'ng `OPENROUTER_FREE_DAILY_CAP=900` |
+| Kutilmagan tez sarf (soatlar ichida) | Abuse tekshiruvi: `SELECT "userId", count FROM "UsageCounter" WHERE day=... AND kind='chat' ORDER BY count DESC LIMIT 20;` |
+
+### QILMANG
+
+- **Yangi ro'yxatdan o'tishlarni to'xtatmang.** Bu o'sish funnel'ini o'ldiradi,
+  holbuki muammo vaqtinchalik va o'zi-o'zidan tiklanadi (siyosat qarori:
+  `docs/strategy/SAFETY_POLICY_LAYER.md`, `alert-rules.ts` izohi).
+- **Free tarifni Anthropic'ga o'tkazmang.** Bu byudjetsiz xarajat yuzasini
+  ochadi — aynan shu narsadan qochish uchun butun zanjir qurilgan.

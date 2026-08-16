@@ -4,6 +4,7 @@ import { divideTiyin, tiyinToSom } from '../common/money';
 import { PaymeService } from './payme.service';
 import { ClickService } from './click.service';
 import type { PaymentProviderService } from './payment-provider.interface';
+import { effectivePlanOf } from '../usage/usage.service';
 import { Prisma, type User } from '@prisma/client';
 
 /**
@@ -119,6 +120,15 @@ export class BillingService {
    * so'rovlarda balansdan ortiq sarflashning oldini oladi).
    */
   async chargeForMessage(user: User, meta?: Record<string, unknown>) {
+    // FREE TARIF — pul yechilmaydi. Bu tarif OpenRouter'ning BEPUL modellari
+    // bilan ishlaydi (marjinal xarajat ~0), shuning uchun uni prepaid balansga
+    // bog'lash mantiqsiz edi: balansi 0 bo'lgan yangi foydalanuvchi birinchi
+    // xabaridayoq 402 olardi va mahsulotni umuman ko'ra olmasdi. Yagona to'siq
+    // endi `UsageService.consumeChat` kunlik hisoblagichi.
+    if (effectivePlanOf(user) === 'free') {
+      return { charged: false as const, tier: 'free' as const };
+    }
+
     const amount = this.pricePerMessageTiyin;
 
     const updated = await this.prisma.user.updateMany({
@@ -162,6 +172,14 @@ export class BillingService {
    * yozuvi bitta $transaction'da — P2002 (parallel bir xil kalit) da rollback.
    */
   async refund(user: User, reason: string, idempotencyKey?: string) {
+    // FREE TARIF — pul yechilmagan, demak qaytariladigan ham narsa yo'q.
+    // Bu tekshiruvsiz BFF'ning har refund yo'li (demo_mode, stream_failed,
+    // rate_limited) free foydalanuvchiga HECH QACHON to'lamagani uchun PUL
+    // BERARDI — ya'ni cheksiz kredit ishlab chiqarish teshigi.
+    if (effectivePlanOf(user) === 'free') {
+      return { refunded: false as const, tier: 'free' as const };
+    }
+
     const amount = this.pricePerMessageTiyin;
 
     if (idempotencyKey) {

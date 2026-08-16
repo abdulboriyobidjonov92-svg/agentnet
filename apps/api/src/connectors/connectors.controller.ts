@@ -37,20 +37,52 @@ export class ConnectorsController {
     return this.connectors.catalog(user);
   }
 
+  /**
+   * `agentId` — ixtiyoriy. Berilsa konnektor FAQAT o'sha agentga
+   * biriktiriladi; berilmasa foydalanuvchining barcha agentlari ishlatadi.
+   */
   @Post(':connectorId/configure')
   @ApiBearerAuth()
   configure(
     @CurrentUser() user: User,
     @Param('connectorId') connectorId: string,
-    @Body() body: { config: Record<string, any> },
+    @Body() body: { config: Record<string, any>; agentId?: string },
   ) {
-    return this.connectors.configure(user, connectorId, body.config ?? {});
+    return this.connectors.configure(user, connectorId, body.config ?? {}, body.agentId);
   }
 
   @Delete(':connectorId/configure')
   @ApiBearerAuth()
   remove(@CurrentUser() user: User, @Param('connectorId') connectorId: string) {
     return this.connectors.remove(user, connectorId);
+  }
+
+  /**
+   * Ichki: engine'dagi connector.invoke agent-vositasi uchun. InternalTokenGuard
+   * (doimiy-vaqtli + prod fail-closed) — oldingi raw `!==` o'rniga.
+   *
+   * TARTIB MUHIM: bu STATIK yo'l pastdagi `:connectorId/invoke` PARAMETRLI
+   * yo'lidan OLDIN e'lon qilinishi SHART. Nest marshrutlarni e'lon tartibida
+   * moslaydi — teskari tartibda `/connectors/internal/invoke` parametrli
+   * yo'lga (`connectorId = "internal"`) tushib ketadi, u esa `@Public()` emas,
+   * ya'ni global `AuthGuard` uni 401 bilan rad etadi va engine hech qachon
+   * konnektorga yeta olmaydi.
+   */
+  @Post('internal/invoke')
+  @Public()
+  @UseGuards(InternalTokenGuard)
+  async internalInvoke(
+    @Body() body: {
+      userId: string;
+      connectorId: string;
+      action: string;
+      params?: Record<string, any>;
+      agentId?: string;
+    },
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: body.userId } });
+    if (!user) throw new NotFoundException('User topilmadi');
+    return this.connectors.invoke(user, body.connectorId, body.action, body.params ?? {}, body.agentId);
   }
 
   @Post(':connectorId/invoke')
@@ -61,20 +93,5 @@ export class ConnectorsController {
     @Body() body: { action: string; params?: Record<string, any> },
   ) {
     return this.connectors.invoke(user, connectorId, body.action, body.params ?? {});
-  }
-
-  /**
-   * Ichki: engine'dagi connector.invoke agent-vositasi uchun. InternalTokenGuard
-   * (doimiy-vaqtli + prod fail-closed) — oldingi raw `!==` o'rniga.
-   */
-  @Post('internal/invoke')
-  @Public()
-  @UseGuards(InternalTokenGuard)
-  async internalInvoke(
-    @Body() body: { userId: string; connectorId: string; action: string; params?: Record<string, any> },
-  ) {
-    const user = await this.prisma.user.findUnique({ where: { id: body.userId } });
-    if (!user) throw new NotFoundException('User topilmadi');
-    return this.connectors.invoke(user, body.connectorId, body.action, body.params ?? {});
   }
 }

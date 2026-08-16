@@ -156,6 +156,47 @@ export function evaluateAuthAnomaly(
   };
 }
 
+export interface FreeBudgetWindow {
+  /** Bugun ishlatilgan OpenRouter bepul-so'rovlar soni. */
+  used: number;
+  /** Buferli kunlik chegara. */
+  cap: number;
+  /** Ogohlantirish chegarasi (default cap'ning 80%). */
+  alertAt: number;
+}
+
+/**
+ * FREE TARIF BUDJETI — chegaraga YETGUNCHA ogohlantiradi.
+ *
+ * Spetsifikatsiya talabi (2.3): chegara yaqinlashsa yangi ro'yxatdan
+ * o'tishlar TO'XTATILMAYDI — faqat signal beriladi. Sabab: registratsiyani
+ * yopish o'sish voronkasini o'ldiradi, holbuki budjet tugashi vaqtinchalik
+ * va o'zi-o'zidan (ertaga) tiklanadigan holat. Qaror operatorniki: kredit
+ * sotib olib chegarani 1000/kunga ko'tarish yoki kutish.
+ */
+export function evaluateFreeTierBudget(
+  window: FreeBudgetWindow,
+  bucket: string,
+): AlertEvent | null {
+  if (window.used < window.alertAt) return null;
+  const exhausted = window.used >= window.cap;
+  return {
+    definition: ALERT_DEFINITIONS.free_tier_budget,
+    title: exhausted
+      ? 'Free tarif budjeti TUGADI — bepul so’rovlar to‘xtadi'
+      : 'Free tarif budjeti tugashiga yaqin',
+    facts: {
+      used: window.used,
+      cap: window.cap,
+      threshold: window.alertAt,
+      percent: window.cap > 0 ? Math.round((window.used / window.cap) * 100) : 0,
+    },
+    // Dedup "yaqin" va "tugadi" uchun AJRATILGAN: 80% signali tugash
+    // signalini bostirib qo'ymasin (ular boshqa qaror talab qiladi).
+    dedupeKey: `free_tier_budget:${exhausted ? 'exhausted' : 'near'}:${bucket}`,
+  };
+}
+
 /**
  * Dedup "chelagi" — oyna identifikatori.
  *

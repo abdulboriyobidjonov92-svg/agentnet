@@ -10,7 +10,9 @@ kalitisiz, deterministik yo'llarni qamraydi:
   - kasb/domain katalogi.
 """
 import asyncio
+import json
 
+import pytest
 from fastapi.testclient import TestClient
 
 import agent_engine
@@ -18,6 +20,7 @@ import agent_tools
 import computer_use_planner
 import llm_utils
 import main
+import openrouter_client
 import retail_forecast
 from halal_filter import Action, keyword_layer
 from role_detection import domains_summary
@@ -117,21 +120,98 @@ def test_domains_summary_bosh_emas():
 # #11: real-rejim tool (function-calling) registri
 # ----------------------------------------------------------------
 
-def test_agent_tools_faqat_qollab_quvvatlanadigan_info_toollarni_beradi():
+def _spec(tool_id: str, config: dict | None = None) -> dict:
+    return {"tool_id": tool_id, "config": config or {}}
+
+
+def test_agent_tools_agentga_tanlangan_toollarni_beradi():
+    """Agentga tanlangan HAR bir tool modelga yetib borishi shart.
+
+    Regressiya: ilgari `build_tools` faqat 5 ta info-toolni tanir, qolganini
+    JIMGINA tashlab yuborardi — UI 8 ta vosita ko'rsatsa ham modelga 3 tasi
+    borardi va yon-ta'sirli toollar (telegram) hech qachon chaqirilmasdi.
+    """
     defs = agent_tools.build_tools(
-        ["islam.prayer_times", "utility.weather", "messaging.telegram_send", "bogus.x"]
+        [
+            _spec("islam.prayer_times"),
+            _spec("utility.weather"),
+            _spec("messaging.telegram_send"),
+            _spec("bogus.x"),
+        ]
     )
     names = {d["name"] for d in defs}
-    # Qo'llab-quvvatlanadigan info-toollar Claude uchun to'g'ri nom (nuqtasiz) oladi
     assert "islam_prayer_times" in names
     assert "utility_weather" in names
-    # Yon-ta'sirli / noma'lum toollar ATAYLAB chiqarilmaydi
-    assert "messaging_telegram_send" not in names
+    assert "messaging_telegram_send" in names  # yon-ta'sirli, lekin TANLANGAN
+    assert "bogus_x" not in names  # implementatsiyasi yo'q — chiqarilmaydi
     assert all("." not in n for n in names)  # Claude tool-nomi nuqta qabul qilmaydi
 
 
+def test_agent_tools_ulangan_konnektor_tool_boladi():
+    """Konnektor = bitta tool, amallari `action` enum'ida."""
+    spec = _spec(
+        "connector.telegram-bot",
+        {
+            "connector_id": "telegram-bot",
+            "name": "Telegram Bot",
+            "description": "Send real messages via a Telegram bot.",
+            "actions": [
+                {
+                    "id": "send_message",
+                    "description": "Sends a text message to a chat.",
+                    "params": [
+                        {"key": "chat_id", "type": "string", "required": True},
+                        {"key": "text", "type": "string", "required": True},
+                    ],
+                },
+                {"id": "get_updates", "description": "Reads recent messages.", "params": []},
+            ],
+        },
+    )
+    defs = agent_tools.build_tools([spec])
+    assert len(defs) == 1
+    tool = defs[0]
+    assert tool["name"] == "connector_telegram_bot"
+    assert tool["input_schema"]["properties"]["action"]["enum"] == ["send_message", "get_updates"]
+    # Parametrlar tavsifga yoziladi — `params` erkin obyekt bo'lgani uchun
+    # model nimani to'ldirishni faqat shu yerdan biladi.
+    assert "chat_id:string" in tool["description"]
+    # Ijro xaritasi build bilan BIR XIL nom qoidasidan foydalanadi.
+    assert agent_tools.connector_targets([spec]) == {"connector_telegram_bot": "telegram-bot"}
+
+
+def test_agent_tools_konnektor_amali_invoke_ga_ketadi(monkeypatch):
+    """Model konnektor toolini chaqirsa — NestJS `internal/invoke` ga boradi."""
+    seen: dict = {}
+
+    async def fake_invoke(connector_id, action, params=None, user_id="", agent_id=""):
+        seen.update(
+            {"connector_id": connector_id, "action": action, "params": params,
+             "user_id": user_id, "agent_id": agent_id}
+        )
+        return {"ok": True}
+
+    monkeypatch.setattr(agent_tools, "connector_invoke", fake_invoke)
+    out = asyncio.run(
+        agent_tools.run_tool(
+            "connector_telegram_bot",
+            {"action": "send_message", "params": {"chat_id": "42", "text": "salom"}},
+            agent_tools.ToolCtx(user_id="u1", agent_id="a1"),
+            {"connector_telegram_bot": "telegram-bot"},
+        )
+    )
+    assert out == {"ok": True}
+    assert seen == {
+        "connector_id": "telegram-bot",
+        "action": "send_message",
+        "params": {"chat_id": "42", "text": "salom"},
+        "user_id": "u1",
+        "agent_id": "a1",
+    }
+
+
 def test_agent_tools_nomalum_tool_xato_beradi():
-    out = asyncio.run(agent_tools.run_tool("bogus_name", {}, "en", "Tashkent"))
+    out = asyncio.run(agent_tools.run_tool("bogus_name", {}, agent_tools.ToolCtx()))
     assert "xato" in out
 
 
@@ -313,6 +393,115 @@ def test_graf_halal_block_yolida_toxtaydi():
     assert out["iterations"] == 0  # reason tuguniga yetib bormadi
 
 
+class _ToolCallingLLM:
+    """Birinchi chaqiruvda tool so'raydi, ikkinchisida yakuniy matn beradi."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+        self.seen_messages: list = []
+
+    def bind_tools(self, tool_defs):
+        self.bound = tool_defs
+        return self
+
+    async def ainvoke(self, messages):
+        self.calls += 1
+        self.seen_messages = messages
+        if self.calls == 1:
+            return _FakeAI(
+                "",
+                [{"name": "connector_telegram_bot",
+                  "args": {"action": "send_message", "params": {"chat_id": "42", "text": "salom"}},
+                  "id": "call_1"}],
+            )
+        return _FakeAI("Xabar yuborildi.", [])
+
+
+class _FakeAI:
+    def __init__(self, text: str, tool_calls: list) -> None:
+        self.content = text
+        self.tool_calls = tool_calls
+
+
+def _connector_definition() -> agent_engine.AgentDefinition:
+    return agent_engine.AgentDefinition(
+        agent_id="a1",
+        name="Do'kon yordamchisi",
+        system_prompt="sp",
+        tools=[
+            agent_engine.ToolSpec(
+                tool_id="connector.telegram-bot",
+                config={
+                    "connector_id": "telegram-bot",
+                    "name": "Telegram Bot",
+                    "description": "Send real messages.",
+                    "actions": [
+                        {"id": "send_message", "description": "Sends a message.",
+                         "params": [{"key": "chat_id", "type": "string", "required": True}]},
+                    ],
+                },
+            )
+        ],
+    )
+
+
+def test_langgraph_yoli_haqiqiy_tool_chaqiradi(monkeypatch):
+    """REGRESSIYA: `_reason_node` ilgari `pending_tool_calls` ni DOIM bo'sh
+    qaytarardi, ya'ni `execute_tools` tuguniga yo'l hech qachon ochilmasdi va
+    bu yo'lda tool CHAQIRISH umuman mumkin emas edi (vositalar faqat
+    system-prompt matnida sanab o'tilardi)."""
+    seen: dict = {}
+
+    async def fake_invoke(connector_id, action, params=None, user_id="", agent_id=""):
+        seen.update({"connector_id": connector_id, "action": action, "params": params,
+                     "user_id": user_id, "agent_id": agent_id})
+        return {"ok": True, "data": {"message_id": 7}}
+
+    monkeypatch.setattr(agent_tools, "connector_invoke", fake_invoke)
+
+    eng = agent_engine.AgentEngine(_connector_definition(), agent_engine.registry)
+    llm = _ToolCallingLLM()
+    eng.llm = llm
+    out = asyncio.run(eng.graph.ainvoke(_state("42 ga salom yubor")))
+
+    # 1) Tool sxemasi modelga HAQIQATAN bog'landi (matnli ro'yxat emas).
+    assert [d["name"] for d in llm.bound] == ["connector_telegram_bot"]
+    # 2) Konnektor haqiqatan chaqirildi, foydalanuvchi/agent konteksti bilan.
+    assert seen == {
+        "connector_id": "telegram-bot",
+        "action": "send_message",
+        "params": {"chat_id": "42", "text": "salom"},
+        "user_id": "u1",
+        "agent_id": "a1",
+    }
+    # 3) Natija modelga qaytarildi va u yakuniy javob berdi (2 aylanish).
+    assert llm.calls == 2
+    assert out["messages"][-1]["content"] == "Xabar yuborildi."
+    tool_msgs = [m for m in out["messages"] if m.get("role") == "tool"]
+    assert len(tool_msgs) == 1
+    assert tool_msgs[0]["tool_call_id"] == "call_1"
+    assert "message_id" in tool_msgs[0]["content"]
+
+
+def test_langgraph_yoli_ruxsatsiz_tool_ijroni_yiqitmaydi(monkeypatch):
+    """Ruxsatsiz tool nomi — 500 emas, modelga qaytariladigan xato."""
+
+    class _BadToolLLM(_ToolCallingLLM):
+        async def ainvoke(self, messages):
+            self.calls += 1
+            if self.calls == 1:
+                return _FakeAI("", [{"name": "soliq_uz_hammasi", "args": {}, "id": "c1"}])
+            return _FakeAI("Kechirasiz, bunga ruxsatim yo'q.", [])
+
+    eng = agent_engine.AgentEngine(_connector_definition(), agent_engine.registry)
+    eng.llm = _BadToolLLM()
+    out = asyncio.run(eng.graph.ainvoke(_state("soliq ma'lumotini ol")))
+
+    tool_msgs = [m for m in out["messages"] if m.get("role") == "tool"]
+    assert "ruxsatsiz tool" in tool_msgs[0]["content"]
+    assert out["messages"][-1]["content"] == "Kechirasiz, bunga ruxsatim yo'q."
+
+
 def test_checkpoint_serializatsiyasi_round_trip():
     """`langgraph-checkpoint` 2.1.2 -> 4.2.0 MAJOR sakradi. `AgentState`
     shakli serde'dan o'zgarmasdan o'tishi kerak."""
@@ -341,3 +530,225 @@ def test_xavfsizlik_versiya_pollari():
     for pkg, floor in floors.items():
         got = tuple(int(p) for p in version(pkg).split(".")[:3])
         assert got >= floor, f"{pkg} {got} < {floor} — CVE qayta ochiladi"
+
+
+# ----------------------------------------------------------------
+# FREE TARIF — OpenRouter ko'p-model zanjiri (2026-08-16).
+#
+# Bepul modellar HISOB darajasida cheklangan (20/daq, 50 yoki 1000/kun), ya'ni
+# bitta model 429 berishi NORMAL holat, xato emas. Zanjir shuning uchun bor.
+# ----------------------------------------------------------------
+
+
+
+class _FakeHttpResp:
+    def __init__(self, status: int, payload: dict | None = None):
+        self.status_code = status
+        self._payload = payload or {}
+
+    def json(self):
+        return self._payload
+
+
+def _msg(content: str = "javob", tool_calls=None):
+    return {
+        "choices": [{"message": {"content": content, "tool_calls": tool_calls}}]
+    }
+
+
+class _FakeClient:
+    """`httpx.AsyncClient` o'rniga — har chaqiruvda navbatdagi javobni beradi."""
+
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.models_tried: list[str] = []
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a):
+        return False
+
+    async def post(self, url, headers=None, json=None):
+        self.models_tried.append(json["model"])
+        nxt = self.responses.pop(0)
+        if isinstance(nxt, Exception):
+            raise nxt
+        return nxt
+
+
+def _patch_client(monkeypatch, client):
+    monkeypatch.setattr(openrouter_client.httpx, "AsyncClient", lambda **kw: client)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+
+
+def test_openrouter_birinchi_ishlagan_modelda_toxtaydi(monkeypatch):
+    client = _FakeClient([_FakeHttpResp(200, _msg("salom"))])
+    _patch_client(monkeypatch, client)
+
+    out = asyncio.run(openrouter_client.complete(system="s", messages=[{"role": "user", "content": "u"}]))
+    assert out["text"] == "salom"
+    assert out["model"] == openrouter_client.DEFAULT_FREE_MODELS[0]
+    assert len(client.models_tried) == 1  # keyingilarga umuman tegilmadi
+
+
+def test_openrouter_429_da_keyingi_modelga_otadi(monkeypatch):
+    # 1-model 429 (kunlik/daqiqalik chegara), 2-model 503, 3-model ishlaydi.
+    client = _FakeClient([_FakeHttpResp(429), _FakeHttpResp(503), _FakeHttpResp(200, _msg("uchinchidan"))])
+    _patch_client(monkeypatch, client)
+
+    out = asyncio.run(openrouter_client.complete(system="s", messages=[{"role": "user", "content": "u"}]))
+    assert out["text"] == "uchinchidan"
+    assert client.models_tried == openrouter_client.DEFAULT_FREE_MODELS[:3]
+    assert [a.get("status") for a in out["attempts"]] == [429, 503, 200]
+
+
+def test_openrouter_tarmoq_uzilishi_ham_keyingi_modelga_otadi(monkeypatch):
+    client = _FakeClient([RuntimeError("timeout"), _FakeHttpResp(200, _msg("ikkinchidan"))])
+    _patch_client(monkeypatch, client)
+
+    out = asyncio.run(openrouter_client.complete(system="s", messages=[{"role": "user", "content": "u"}]))
+    assert out["text"] == "ikkinchidan"
+    assert out["attempts"][0]["error"] == "RuntimeError"
+
+
+def test_openrouter_hamma_model_tugasa_aniq_xato(monkeypatch):
+    n = len(openrouter_client.DEFAULT_FREE_MODELS)
+    client = _FakeClient([_FakeHttpResp(429)] * n)
+    _patch_client(monkeypatch, client)
+
+    with pytest.raises(openrouter_client.NoFreeModelAvailable):
+        asyncio.run(openrouter_client.complete(system="s", messages=[{"role": "user", "content": "u"}]))
+    assert len(client.models_tried) == n
+
+
+def test_openrouter_kalitsiz_darhol_xato(monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    with pytest.raises(openrouter_client.NoFreeModelAvailable):
+        asyncio.run(openrouter_client.complete(system="s", messages=[]))
+
+
+def test_openrouter_model_royxati_env_bilan_almashadi(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_FREE_MODELS", "a/b:free, c/d:free")
+    assert openrouter_client.free_models() == ["a/b:free", "c/d:free"]
+
+
+def test_openrouter_tool_sxemasi_openai_shakliga_ogiriladi():
+    anthropic_tools = agent_tools.build_tools([{"tool_id": "utility.weather", "config": {}}])
+    openai_tools = openrouter_client.to_openai_tools(anthropic_tools)
+    assert openai_tools[0]["type"] == "function"
+    assert openai_tools[0]["function"]["name"] == "utility_weather"
+    # `input_schema` -> `parameters` (nom farqi; mazmun bir xil qoladi)
+    assert openai_tools[0]["function"]["parameters"] == anthropic_tools[0]["input_schema"]
+
+
+def test_openrouter_buzuq_tool_argumenti_javobni_yiqitmaydi():
+    """Kichik bepul modellar ba'zan yaroqsiz JSON chiqaradi — bu butun
+    javobni yiqitmasligi kerak, tool o'zi 'parametr yo'q' deb javob beradi."""
+    calls = openrouter_client.parse_tool_calls(
+        {"tool_calls": [{"id": "c1", "function": {"name": "utility_weather", "arguments": "{buzuq"}}]}
+    )
+    assert calls == [{"id": "c1", "name": "utility_weather", "args": {}}]
+
+
+def test_free_tarif_oqimi_konnektor_toolini_chaqiradi(monkeypatch):
+    """Free tarif OpenRouter zanjiridan o'tadi VA tool-calling saqlanadi.
+
+    Bu — mahsulotning butun qiymati: bepul foydalanuvchi ham konnektorini
+    ishlata olishi kerak, aks holda free tarif faqat "chat" bo'lib qoladi.
+    """
+    import streaming
+
+    calls: list[dict] = []
+
+    async def fake_complete(*, system, messages, tools=None, max_tokens=2048, timeout=90.0):
+        calls.append({"messages": list(messages), "tools": tools})
+        if len(calls) == 1:
+            # `complete()` Anthropic shaklini oladi va OpenAI'ga O'ZI o'giradi
+            # (yagona tool-quruvchi — free va pullik tarif ajralib ketmasin).
+            assert any(t["name"] == "connector_telegram_bot" for t in tools)
+            return {
+                "text": "Yuboraman.",
+                "tool_calls": [{"id": "c1", "name": "connector_telegram_bot",
+                                "args": {"action": "send_message", "params": {"chat_id": "42"}}}],
+                "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+                "attempts": [],
+            }
+        return {"text": "Yuborildi.", "tool_calls": [], "model": "x:free", "attempts": []}
+
+    async def fake_invoke(connector_id, action, params=None, user_id="", agent_id=""):
+        return {"ok": True}
+
+    monkeypatch.setattr(streaming.openrouter_client, "complete", fake_complete)
+    monkeypatch.setattr(agent_tools, "connector_invoke", fake_invoke)
+
+    definition = {
+        "agent_id": "a1",
+        "name": "Do'kon",
+        "system_prompt": "sp",
+        "tools": [{
+            "tool_id": "connector.telegram-bot",
+            "config": {"connector_id": "telegram-bot", "name": "Telegram Bot", "description": "d",
+                       "actions": [{"id": "send_message", "description": "s", "params": []}]},
+        }],
+    }
+
+    async def run():
+        return [json.loads(e) async for e in streaming.stream_agent_response(
+            agent_definition=definition, user_id="u1", message="42 ga salom yubor", tier="free")]
+
+    events = asyncio.run(run())
+    kinds = [e["type"] for e in events]
+    assert "tool_result" in kinds           # tool HAQIQATAN chaqirildi
+    assert kinds[-1] == "done"
+    assert events[-1]["demo_mode"] is False  # demo emas — real javob
+    # Ikki aylanish: tool so'raldi -> natija qaytdi -> yakuniy matn
+    assert len(calls) == 2
+    # 2-aylanishda tool natijasi OpenAI shaklida qaytarilgan
+    assert calls[1]["messages"][-1]["role"] == "tool"
+    assert calls[1]["messages"][-1]["tool_call_id"] == "c1"
+
+
+def test_free_tarif_hamma_model_tugasa_demo_BERMAYDI(monkeypatch):
+    """Zanjir tugasa aniq xato — demo-javob emas.
+
+    Demo javob "ishladi" degan yolg'on taassurot qoldirardi va foydalanuvchi
+    qayta urinish kerakligini bilmasdi.
+    """
+    import streaming
+
+    async def fake_complete(**kw):
+        raise streaming.openrouter_client.NoFreeModelAvailable("hammasi 429")
+
+    monkeypatch.setattr(streaming.openrouter_client, "complete", fake_complete)
+
+    async def run():
+        return [json.loads(e) async for e in streaming.stream_agent_response(
+            agent_definition={"agent_id": "a1", "name": "A", "system_prompt": "sp", "tools": []},
+            user_id="u1", message="salom", tier="free")]
+
+    events = asyncio.run(run())
+    assert events[-1]["type"] == "error"
+    assert events[-1]["reason"] == "free_models_unavailable"
+    assert all(e["type"] != "done" for e in events)  # "muvaffaqiyat" ko'rsatilmaydi
+
+
+def test_pullik_tarif_openrouter_ga_UMUMAN_bormaydi(monkeypatch):
+    """Regressiya qulfi: pullik oqim o'zgarmagan — OpenRouter chaqirilmaydi."""
+    import streaming
+
+    async def boom(**kw):
+        raise AssertionError("pullik tarif OpenRouter'ga bormasligi kerak")
+
+    monkeypatch.setattr(streaming.openrouter_client, "complete", boom)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    async def run():
+        return [json.loads(e) async for e in streaming.stream_agent_response(
+            agent_definition={"agent_id": "a1", "name": "A", "system_prompt": "sp", "tools": []},
+            user_id="u1", message="salom", tier="paid")]
+
+    events = asyncio.run(run())
+    # Kalitsiz pullik yo'l demo rejimga tushadi (eski, o'zgarmagan xulq).
+    assert events[-1]["type"] == "done"
+    assert events[-1]["demo_mode"] is True

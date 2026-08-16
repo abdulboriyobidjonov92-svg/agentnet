@@ -7,11 +7,40 @@ import {
   evaluatePaymentFailure,
   resolveThresholds,
   timeBucket,
+  evaluateFreeTierBudget,
 } from './alert-rules';
 import { ALERT_DEFINITIONS, type AlertKey } from './alert.types';
 import { resetSecretValueCache } from '../redaction';
 
 /** Phase 5 (P5.4) — alert testlari. */
+
+
+/**
+ * Free tarif budjeti (OpenRouter) — 5-qoida.
+ *
+ * Spetsifikatsiya talabi: chegara yaqinlashsa yangi ro'yxatdan o'tishlar
+ * TO'XTATILMAYDI, faqat signal beriladi. Shuning uchun bu qoida sof
+ * kuzatuv — hech qanday bloklovchi ta'siri yo'q.
+ */
+describe('evaluateFreeTierBudget', () => {
+  it('chegaradan past -> signal YO‘Q (shovqin qilmaydi)', () => {
+    expect(evaluateFreeTierBudget({ used: 35, cap: 45, alertAt: 36 }, 'b1')).toBeNull();
+  });
+
+  it('80% chegarasida -> "near" signali, foizi bilan', () => {
+    const ev = evaluateFreeTierBudget({ used: 36, cap: 45, alertAt: 36 }, 'b1');
+    expect(ev).not.toBeNull();
+    expect(ev!.definition.key).toBe('free_tier_budget');
+    expect(ev!.dedupeKey).toBe('free_tier_budget:near:b1');
+    expect(ev!.facts.percent).toBe(80);
+  });
+
+  it('budjet tugaganda -> ALOHIDA dedup kaliti ("near" uni bostirmasin)', () => {
+    const ev = evaluateFreeTierBudget({ used: 45, cap: 45, alertAt: 36 }, 'b1');
+    expect(ev!.dedupeKey).toBe('free_tier_budget:exhausted:b1');
+    expect(ev!.facts.percent).toBe(100);
+  });
+});
 
 describe('alert shartnomasi', () => {
   const keys: AlertKey[] = [
@@ -19,9 +48,10 @@ describe('alert shartnomasi', () => {
     'agent_execution_failure',
     'infrastructure_degraded',
     'auth_anomaly',
+    'free_tier_budget',
   ];
 
-  it('to‘rtta alert e’lon qilingan', () => {
+  it('beshta alert e’lon qilingan', () => {
     expect(Object.keys(ALERT_DEFINITIONS).sort()).toEqual([...keys].sort());
   });
 

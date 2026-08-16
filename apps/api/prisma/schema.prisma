@@ -510,6 +510,10 @@ model Agent {
   orgId              String?
   org                Org?           @relation(fields: [orgId], references: [id])
   conversations      Conversation[]
+  // Agentga ANIQ biriktirilgan konnektorlar. Biriktirilmagan (agentId=null)
+  // konnektorlar bu ro'yxatda ko'rinmaydi, lekin agent ularni baribir
+  // ishlatadi — ConnectorConfig.agentId izohiga qarang.
+  connectorConfigs   ConnectorConfig[]
   isPublished        Boolean        @default(false)
   marketplacePrice   BigInt? // UZS tiyin, null = bepul
 
@@ -918,6 +922,15 @@ model ConnectorConfig {
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   connectorId String // registry slug: "telegram-bot", "whatsapp-business", ...
+  // Qaysi agent bu konnektorni ishlata oladi.
+  //   null  = foydalanuvchining BARCHA agentlari (Ulanishlar sahifasining
+  //           "Bir marta ulang — barcha agentlar foydalanadi" va'dasi; mavjud
+  //           yozuvlar migratsiyadan keyin aynan shu holatda qoladi)
+  //   to'la = FAQAT shu agent ko'radi (bir agentga xos bot/do'kon/hisob).
+  // Agent o'chirilsa unga xos konfiguratsiya ham ketadi (Cascade) — bu sirlar
+  // ortda qolib ketmasligi uchun.
+  agentId     String?
+  agent       Agent?    @relation(fields: [agentId], references: [id], onDelete: Cascade)
   label       String    @default("default")
   // Auth + sozlamalar (token, chat_id, shop domain...). At-rest AES-256-GCM
   // bilan shifrlangan saqlanadi (CryptoService) — bu ustunda shifrlangan blob.
@@ -930,6 +943,7 @@ model ConnectorConfig {
 
   @@unique([userId, connectorId, label])
   @@index([userId])
+  @@index([agentId])
 }
 
 // --- S4: Retail Intelligence (kamera + inventar fuziyasi) ---

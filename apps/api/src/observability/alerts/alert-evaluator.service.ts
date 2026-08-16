@@ -2,11 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
 import { HealthService } from '../../health/health.service';
+import { FreeTierBudgetService } from '../../usage/free-tier-budget.service';
 import { AlertService } from './alert.service';
 import { drainCounters } from './alert-counters';
 import {
   evaluateAgentFailure,
   evaluateAuthAnomaly,
+  evaluateFreeTierBudget,
   evaluateInfrastructure,
   evaluatePaymentFailure,
   resolveThresholds,
@@ -49,6 +51,7 @@ export class AlertEvaluatorService {
     private readonly prisma: PrismaService,
     private readonly health: HealthService,
     private readonly alerts: AlertService,
+    private readonly freeBudget: FreeTierBudgetService,
   ) {}
 
   private get enabled(): boolean {
@@ -130,6 +133,15 @@ export class AlertEvaluatorService {
       timeBucket(now, ALERT_DEFINITIONS.agent_execution_failure.cooldownMinutes),
     );
     if (agent && (await this.alerts.send(agent, now)).delivered) sent += 1;
+
+    // --- Free tarif budjeti (OpenRouter), KUNLIK oyna ---
+    // Bu qoida DB/5xx hisoblagichlariga tayanmaydi — u joriy holatni
+    // (bugun qancha ishlatilgan) o'qiydi, shuning uchun oyna yig'ish shart emas.
+    const budget = evaluateFreeTierBudget(
+      await this.freeBudget.snapshot(),
+      timeBucket(now, ALERT_DEFINITIONS.free_tier_budget.cooldownMinutes),
+    );
+    if (budget && (await this.alerts.send(budget, now)).delivered) sent += 1;
 
     return sent;
   }

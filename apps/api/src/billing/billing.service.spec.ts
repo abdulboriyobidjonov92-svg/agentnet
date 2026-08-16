@@ -152,3 +152,55 @@ describe('BillingService.refund (L12 — idempotent)', () => {
     );
   });
 });
+
+/**
+ * FREE TARIF — pul yo'lidan butunlay chiqarilgan (2026-08-16).
+ *
+ * Free tarif OpenRouter'ning BEPUL modellari bilan ishlaydi, ya'ni marjinal
+ * xarajat ~0. Uni prepaid balansga bog'lash yangi foydalanuvchini birinchi
+ * xabaridayoq 402 bilan to'xtatardi (balans default 0).
+ */
+describe('BillingService — free tarif pul yo\'lidan chiqarilgan', () => {
+  const freeUser = { id: 'f1', plan: 'free', proUntil: null } as any;
+  const proUser = { id: 'p1', plan: 'pro', proUntil: new Date(Date.now() + 999_999) } as any;
+
+  it('chargeForMessage free\'da BALANSGA TEGMAYDI va 402 tashlamaydi', async () => {
+    const prisma = { user: { updateMany: jest.fn() }, creditLedger: { create: jest.fn() } } as any;
+    const svc = new BillingService(prisma, {} as any, {} as any);
+
+    await expect(svc.chargeForMessage(freeUser)).resolves.toEqual({ charged: false, tier: 'free' });
+    expect(prisma.user.updateMany).not.toHaveBeenCalled();
+    expect(prisma.creditLedger.create).not.toHaveBeenCalled();
+  });
+
+  it('refund free\'da PUL BERMAYDI (aks holda cheksiz kredit teshigi bo\'lardi)', async () => {
+    const prisma = {
+      user: { update: jest.fn() },
+      creditLedger: { findUnique: jest.fn(), create: jest.fn() },
+      $transaction: jest.fn(),
+    } as any;
+    const svc = new BillingService(prisma, {} as any, {} as any);
+
+    await expect(svc.refund(freeUser, 'demo_mode', 'k1')).resolves.toEqual({
+      refunded: false,
+      tier: 'free',
+    });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('PRO foydalanuvchida eski xulq O\'ZGARMAGAN — balans yechiladi', async () => {
+    const prisma = {
+      user: {
+        updateMany: jest.fn(async () => ({ count: 1 })),
+        findUniqueOrThrow: jest.fn(async () => ({ balanceTiyin: 1000n })),
+      },
+      creditLedger: { create: jest.fn(async (a: any) => a.data) },
+    } as any;
+    const svc = new BillingService(prisma, {} as any, {} as any);
+
+    const led = await svc.chargeForMessage(proUser);
+    expect(prisma.user.updateMany).toHaveBeenCalled();
+    expect((led as any).kind).toBe('usage');
+  });
+});
