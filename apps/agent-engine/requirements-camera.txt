@@ -11,6 +11,6 @@
 # pinlari bilan ziddiyatsiz o'rnatilishi tekshirilgan.
 opencv-python==5.0.0.93
 onvif-zeep==0.2.12
-ultralytics==8.4.92
+ultralytics==8.4.120
 torch==2.13.0
 torchvision==0.28.0
