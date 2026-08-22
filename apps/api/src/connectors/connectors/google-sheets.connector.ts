@@ -9,6 +9,14 @@ export const googleSheetsConnector: ConnectorDefinition = {
   description: 'Append rows and read ranges — the universal small-business database.',
   docsUrl: 'https://developers.google.com/sheets/api',
   availability: 'live',
+  // P0-6 (SAFETY_POLICY_LAYER §3.1/§3.2): O'qish-only yo'l — yon ta'sirsiz
+  limits: {
+    rateLimit: { max: 60, windowSec: 60 },
+    dailySpendCap: null,
+    riskTier: 'LOW',
+    killable: true,
+    reversible: true,
+  },
   auth: {
     type: 'token',
     fields: [

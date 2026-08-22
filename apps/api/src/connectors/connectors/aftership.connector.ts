@@ -9,6 +9,14 @@ export const aftershipConnector: ConnectorDefinition = {
   description: 'Live shipment tracking across 1000+ carriers (used by the Trade agent).',
   docsUrl: 'https://www.aftership.com/docs/tracking/quickstart',
   availability: 'live',
+  // P0-6 (SAFETY_POLICY_LAYER §3.1/§3.2): Yetkazib berish holatini o'qish
+  limits: {
+    rateLimit: { max: 60, windowSec: 60 },
+    dailySpendCap: null,
+    riskTier: 'LOW',
+    killable: true,
+    reversible: true,
+  },
   auth: {
     type: 'api_key',
     fields: [{ key: 'api_key', label: 'AfterShip API key', required: true, secret: true }],

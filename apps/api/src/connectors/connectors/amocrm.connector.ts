@@ -9,6 +9,14 @@ export const amocrmConnector: ConnectorDefinition = {
   description: 'Create and list leads in amoCRM/Kommo — popular sales CRM in CIS.',
   docsUrl: 'https://www.amocrm.ru/developers',
   availability: 'live',
+  // P0-6 (SAFETY_POLICY_LAYER §3.1/§3.2): Biznes ma'lumotini o'zgartiradi; teskari yozuv mumkin
+  limits: {
+    rateLimit: { max: 60, windowSec: 60 },
+    dailySpendCap: { amount: 1_000, unit: 'calls' },
+    riskTier: 'HIGH',
+    killable: true,
+    reversible: true,
+  },
   auth: {
     type: 'token',
     fields: [

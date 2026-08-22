@@ -120,8 +120,9 @@ export class AgentsController {
     // oladi — BFF esa `!upstream.ok` ko'rib pulni qaytaradi. Sarlavhalarni
     // oldin yuborsak, xatoni 200-oqim ichida yashirgan bo'lardik.
     let upstream: Readable;
+    let runId: string | null;
     try {
-      upstream = await this.agents.openChatStream(user, dto);
+      ({ stream: upstream, runId } = await this.agents.openChatStream(user, dto));
     } catch {
       throw new ServiceUnavailableException({
         message: "Agent engine bilan aloqa yo'q",
@@ -134,6 +135,12 @@ export class AgentsController {
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders?.();
+
+    // UI-4: `runId` oqimning BIRINCHI hodisasi. Sarlavha (`X-Run-Id`) o'rniga
+    // hodisa — chunki BFF oqimni qayta o'raydi va sarlavhalarni tanlab
+    // uzatadi; hodisa esa mavjud yo'ldan o'zgarishsiz o'tadi. `null` bo'lsa
+    // (trace boshlanmadi) UI shunchaki qadamlarni ko'rsatmaydi.
+    if (runId) res.write(`data: ${JSON.stringify({ type: 'run', runId })}\n\n`);
 
     // Mijoz uzilsa (tab yopildi, tarmoq ketdi) — engine ulanishini ham yopamiz,
     // aks holda engine tomonda LLM oqimi va soket ochiq qolib ketardi.

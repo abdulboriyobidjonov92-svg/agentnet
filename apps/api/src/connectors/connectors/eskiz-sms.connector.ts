@@ -10,6 +10,14 @@ export const eskizSmsConnector: ConnectorDefinition = {
   description: 'Send real SMS to Uzbek numbers via Eskiz.uz gateway.',
   docsUrl: 'https://documenter.getpostman.com/view/663428/RzfmES4z',
   availability: 'live',
+  // P0-6 (SAFETY_POLICY_LAYER §3.1/§3.2): SMS — pul + reklama/spam javobgarligi; qaytarilmaydi
+  limits: {
+    rateLimit: { max: 20, windowSec: 60 },
+    dailySpendCap: { amount: 200, unit: 'calls' },
+    riskTier: 'HIGH',
+    killable: true,
+    reversible: false,
+  },
   auth: {
     type: 'basic',
     fields: [

@@ -18,6 +18,14 @@ import type { User } from '@prisma/client';
  * qo'shib qo'ysa, bu test DARHOL qizarardi.
  */
 
+/** Ijro izi (P0-13) mocklari — bu testlar iz xulqini tekshirmaydi (fail-open). */
+const traceBus = () =>
+  ({ emit: jest.fn(async () => null), forgetRun: jest.fn(), subscribe: jest.fn(() => () => undefined) }) as any;
+const traceRuns = () =>
+  ({ createRun: jest.fn(async () => ({ id: 'run1' })), finishRun: jest.fn(async () => undefined) }) as any;
+/** P0-5 o'lchovi — bu testlar xarajatni tekshirmaydi. */
+const traceMetering = () => ({ recordLlm: jest.fn(async () => ({ recorded: true })) }) as any;
+
 function makeMock() {
   const prisma: any = {
     user: { updateMany: jest.fn(), findUniqueOrThrow: jest.fn() },
@@ -85,7 +93,7 @@ describe('BLOK A/B izolyatsiyasi — platforma obunasi vertikal agentlarga TA\'S
   it("obunasiz foydalanuvchi do'kon-agentini (vertikal, retail) MUVAFFAQIYATLI yaratadi", async () => {
     const { prisma, http, audit, usage, agentBilling, billing, connectors } = makeMock();
     prisma.agent.create.mockResolvedValue({ id: 'agent1', name: "Do'kon agenti", vertical: 'retail' });
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
     const agent = await svc.create(noSubscriptionUser, {
       name: "Do'kon agenti",
@@ -114,7 +122,7 @@ describe('BLOK A/B izolyatsiyasi — platforma obunasi vertikal agentlarga TA\'S
       memoryEnabled: true,
     });
     http.post.mockReturnValue(of({ data: { messages: [{ content: 'Salom! Qanday yordam bera olaman?' }] } }));
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
     const res = await svc.run('agent1', noSubscriptionUser, "Tovar qoldig'i qancha?");
 
@@ -144,7 +152,7 @@ describe('BLOK A/B izolyatsiyasi — platforma obunasi vertikal agentlarga TA\'S
       toolsConfig: [], halalFilterEnabled: true, memoryEnabled: true,
     });
     http.post.mockReturnValue(of({ data: { messages: [{ content: 'ok' }] } }));
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
     // platformPlanFrozen: true HAM bo'lsa (eng yomon holat) — vertikal agent baribir ishlashi kerak
     const frozenPlatformUser = { ...noSubscriptionUser, platformPlan: 'pro', platformPlanFrozen: true } as unknown as User;

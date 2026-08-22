@@ -22,6 +22,21 @@ import type { User } from '@prisma/client';
  * (3) bir xil so'rov ikki marta yuborilsa IKKINCHI marta yechilmaydi (idempotency).
  */
 
+/**
+ * Ijro izi (P0-13/P0-7) mocklari.
+ *
+ * Bu testlar trace'ni TEKSHIRMAYDI — ular pul va agent mantiqini
+ * tekshiradi. Trace fail-open bo'lgani uchun bo'sh mock yetarli;
+ * izning o'z xulqi `src/events/*.spec.ts` da qoplangan.
+ */
+const traceBus = () =>
+  ({ emit: jest.fn(async () => null), forgetRun: jest.fn(), subscribe: jest.fn(() => () => undefined) }) as any;
+const traceRuns = () =>
+  ({ createRun: jest.fn(async () => ({ id: 'run1' })), finishRun: jest.fn(async () => undefined) }) as any;
+
+/** P0-5 o'lchovi — bu testlar xarajatni tekshirmaydi (u `metering.service.spec.ts` da). */
+const traceMetering = () => ({ recordLlm: jest.fn(async () => ({ recorded: true })) }) as any;
+
 function makeMock() {
   const prisma: any = {
     user: {
@@ -75,7 +90,7 @@ describe('AgentsService.create — haqiqiy pul yechish (avval faqat kalkulyator 
   it('standart yaratish (override yo\'q) -> BEPUL, balansga tegilmaydi, ledger yozilmaydi', async () => {
     const { prisma, http, audit, usage, agentBilling, billing, connectors } = makeMock();
     prisma.agent.create.mockResolvedValue({ id: 'agent1', ...baseDto });
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
     await svc.create(user, { ...baseDto, complexity: 5 } as any); // eng qimmat murakkablik ham bepul
 
@@ -93,7 +108,11 @@ describe('AgentsService.create — haqiqiy pul yechish (avval faqat kalkulyator 
     prisma.user.updateMany.mockResolvedValue({ count: 1 });
     prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 50_000_000n });
     prisma.agent.create.mockResolvedValue({ id: 'agent1', ...baseDto });
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+    // ⚠️ IKKINCHI agent: BIRINCHI agentning yaratish narxi kechiriladi
+    // (UI-2 qarori), shuning uchun pul yechish yo'lini tekshirish uchun
+    // foydalanuvchida allaqachon agent bo'lishi SHART.
+    prisma.agent.count.mockResolvedValue(1);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
     const fxRate = usdUzsRate();
     const priceOverride = { creationUsd: 30, monthlyUsd: 15 };
@@ -118,7 +137,9 @@ describe('AgentsService.create — haqiqiy pul yechish (avval faqat kalkulyator 
   it('priceOverride bilan balans yetarli emas -> 402, agent YARATILMAYDI, ledger yozilmaydi', async () => {
     const { prisma, http, audit, usage, agentBilling, billing, connectors } = makeMock();
     prisma.user.updateMany.mockResolvedValue({ count: 0 });
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+    // Ikkinchi agent — birinchisi bepul bo'lgani uchun 402 faqat shu yerda mumkin.
+    prisma.agent.count.mockResolvedValue(1);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
     try {
       await svc.create(user, baseDto as any, { creationUsd: 30, monthlyUsd: 15 });
@@ -132,10 +153,47 @@ describe('AgentsService.create — haqiqiy pul yechish (avval faqat kalkulyator 
     expect(prisma.creditLedger.create).not.toHaveBeenCalled();
   });
 
+  it("⚠️ BIRINCHI agent: pullik shablon bo'lsa ham yaratish narxi KECHIRILADI (balans 0 bilan ham)", async () => {
+    const { prisma, http, audit, usage, agentBilling, billing, connectors } = makeMock();
+    // Yangi foydalanuvchi: balansi 0 va hali agenti yo'q.
+    prisma.agent.count.mockResolvedValue(0);
+    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 0n });
+    prisma.agent.create.mockResolvedValue({ id: 'agent1', ...baseDto });
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
+
+    // $70 lik shablon — ilgari bu 402 bilan to'xtardi va onboarding o'lardi.
+    await svc.create(user, baseDto as any, { creationUsd: 70, monthlyUsd: 40 });
+
+    // Balansdan HECH NARSA yechilmaydi.
+    expect(prisma.user.updateMany).not.toHaveBeenCalled();
+    expect(prisma.agent.create).toHaveBeenCalled();
+    // Agent yozuvida ham yechilgan summa (0) turadi — katalog narxi emas.
+    expect(prisma.agent.create.mock.calls[0][0].data.creationPriceTiyin).toBe(0n);
+    // Ledger'ga YOZILMAYDI — pul harakati bo'lmadi. `CreditLedger` pul
+    // o'zgarishlari jurnali (Konstitutsiya #17); unga 0 summali no-op
+    // qator qo'shish jurnalni ifloslantirardi. Kechirish fakti
+    // `Agent.creationPriceTiyin = 0` va audit yozuvida ko'rinadi.
+    expect(prisma.creditLedger.create).not.toHaveBeenCalled();
+  });
+
+  it("IKKINCHI agentda kechirish YO'Q — narx yechiladi", async () => {
+    const { prisma, http, audit, usage, agentBilling, billing, connectors } = makeMock();
+    prisma.agent.count.mockResolvedValue(1);
+    prisma.user.updateMany.mockResolvedValue({ count: 1 });
+    prisma.user.findUniqueOrThrow.mockResolvedValue({ balanceTiyin: 10_000_000n });
+    prisma.agent.create.mockResolvedValue({ id: 'agent2', ...baseDto });
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
+
+    await svc.create(user, baseDto as any, { creationUsd: 70, monthlyUsd: 40 });
+
+    expect(prisma.user.updateMany).toHaveBeenCalled();
+    expect(prisma.creditLedger.create.mock.calls[0][0].data.meta.waivedReason).toBeUndefined();
+  });
+
   it('tarif chegarasiga yetgan -> ForbiddenException, balans TEGILMAYDI', async () => {
     const { prisma, http, audit, usage, agentBilling, billing, connectors } = makeMock();
     usage.assertCanCreateAgent.mockRejectedValue(new ForbiddenException({ reason: 'agent_limit' }));
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
     await expect(svc.create(user, baseDto as any)).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.user.updateMany).not.toHaveBeenCalled();
@@ -147,7 +205,7 @@ describe('AgentsService.create — haqiqiy pul yechish (avval faqat kalkulyator 
     // Birinchi so'rov allaqachon shu kalit bilan yozilgan (ledger + agent mavjud)
     prisma.creditLedger.findUnique.mockResolvedValue({ id: 'ledger1', meta: { agentId: 'agent1' } });
     prisma.agent.findUnique.mockResolvedValue({ id: 'agent1', ...baseDto });
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
     const res = await svc.create(user, { ...baseDto, idempotencyKey: 'key-1' } as any);
 
@@ -172,7 +230,7 @@ describe('AgentsService.create — haqiqiy pul yechish (avval faqat kalkulyator 
     // Xato yuz berganda findByIdempotencyKey g'olib yozuvni topadi
     prisma.creditLedger.findUnique.mockResolvedValue({ id: 'ledger-winner', meta: { agentId: 'agent-winner' } });
     prisma.agent.findUnique.mockResolvedValue({ id: 'agent-winner' });
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
     const res = await svc.create(user, { ...baseDto, idempotencyKey: 'key-race' } as any);
 
@@ -202,7 +260,7 @@ describe('AgentsService.compose — bir-klik agent taklifi (AI engine orqali)', 
         },
       }),
     );
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
     const res = await svc.compose(user, 'menga sotuv yordamchisi kerak', 'uz');
 
@@ -222,7 +280,7 @@ describe('AgentsService.compose — bir-klik agent taklifi (AI engine orqali)', 
     http.post.mockReturnValue(
       throwError(() => ({ response: { status: 422, data: { detail: { message: "So'rovni qayta ifodalab ko'ring." } } } })),
     );
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
     await expect(svc.compose(user, 'harom mahsulot sotish')).rejects.toBeInstanceOf(BadRequestException);
   });
@@ -230,7 +288,7 @@ describe('AgentsService.compose — bir-klik agent taklifi (AI engine orqali)', 
   it('engine bilan aloqa yo\'q -> ServiceUnavailableException', async () => {
     const { prisma, http, audit, usage, agentBilling, billing, connectors } = makeMock();
     http.post.mockReturnValue(throwError(() => new Error('ECONNREFUSED')));
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
     await expect(svc.compose(user, 'nimadir')).rejects.toBeInstanceOf(ServiceUnavailableException);
   });
@@ -258,7 +316,7 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
   it('agent muzlatilgan bo\'lsa -> 402, usage.consumeChat CHAQIRILMAYDI, engine\'ga chiqilmaydi', async () => {
     const { prisma, http, audit, usage, agentBilling, billing, connectors } = makeMock();
     prisma.agent.findUnique.mockResolvedValue({ ...agent, frozen: true });
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
     try {
       await svc.run('agent1', user, 'salom');
@@ -275,7 +333,7 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
   it('boshqa foydalanuvchining agenti -> ForbiddenException', async () => {
     const { prisma, http, audit, usage, agentBilling, billing, connectors } = makeMock();
     prisma.agent.findUnique.mockResolvedValue({ ...agent, userId: 'boshqa-user' });
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
     await expect(svc.run('agent1', user, 'salom')).rejects.toBeInstanceOf(ForbiddenException);
   });
@@ -287,7 +345,7 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
     http.post.mockReturnValue(
       of({ data: { messages: [{ role: 'assistant', content: 'Salom!' }], halal_flag: 'ok' } }),
     );
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
     const res = await svc.run('agent1', user, 'salom');
 
@@ -319,7 +377,7 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
       userId: 'u1', // egasi shu foydalanuvchi — IDOR tekshiruvidan o'tadi
     });
     http.post.mockReturnValue(of({ data: { messages: [{ content: 'Davom etamiz' }] } }));
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
     const res = await svc.run('agent1', user, 'davom et', 'conv-existing');
 
@@ -338,7 +396,7 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
     http.post.mockReturnValue(
       throwError(() => ({ response: { status: 422, data: { detail: { blocked: true, reason: 'halal_filter' } } } })),
     );
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
     await expect(svc.run('agent1', user, 'harom so\'rov')).rejects.toBeInstanceOf(UnprocessableEntityException);
   });
@@ -347,7 +405,7 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
     const { prisma, http, audit, usage, agentBilling, billing, connectors } = makeMock();
     prisma.agent.findUnique.mockResolvedValue(agent);
     http.post.mockReturnValue(throwError(() => new Error('ECONNREFUSED')));
-    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+    const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
     await expect(svc.run('agent1', user, 'x')).rejects.toBeInstanceOf(BadGatewayException);
   });
@@ -359,7 +417,7 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
       const { prisma, http, audit, usage, agentBilling, billing, connectors } = makeMock();
       prisma.agent.findUnique.mockResolvedValue(agent);
       http.post.mockReturnValue(of({ data: { messages: [{ content: 'ok' }] } }));
-      const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+      const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
       await svc.run('agent1', user, 'salom');
 
@@ -373,7 +431,7 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
       billing.chargeForMessage.mockRejectedValue(
         new HttpException({ reason: 'insufficient_balance' }, 402),
       );
-      const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+      const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
       await expect(svc.run('agent1', user, 'salom')).rejects.toBeInstanceOf(HttpException);
       expect(http.post).not.toHaveBeenCalled();
@@ -384,7 +442,7 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
       const { prisma, http, audit, usage, agentBilling, billing, connectors } = makeMock();
       prisma.agent.findUnique.mockResolvedValue(agent);
       http.post.mockReturnValue(throwError(() => new Error('ECONNREFUSED')));
-      const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+      const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
       await expect(svc.run('agent1', user, 'x')).rejects.toBeInstanceOf(BadGatewayException);
       expect(billing.chargeForMessage).toHaveBeenCalled();
@@ -397,7 +455,7 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
       const { prisma, http, audit, usage, agentBilling, billing, connectors } = makeMock();
       prisma.agent.findUnique.mockResolvedValue(agent);
       usage.consumeChat.mockRejectedValue(new HttpException({ reason: 'user_daily_cap' }, 429));
-      const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+      const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
       await expect(svc.run('agent1', user, 'salom')).rejects.toBeInstanceOf(HttpException);
       expect(billing.chargeForMessage).toHaveBeenCalled(); // pul avval yechildi
@@ -419,7 +477,7 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
       const { prisma, http, audit, usage, agentBilling, billing, connectors } = makeMock();
       prisma.agent.findUnique.mockResolvedValue(trialAgent);
       http.post.mockReturnValue(of({ data: { messages: [{ content: 'ok' }] } }));
-      const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+      const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
       await svc.run('agent1', user, 'salom');
 
@@ -440,7 +498,7 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
       prisma.agent.updateMany.mockResolvedValue({ count: 0 }); // limit to'ldi -> atomik bump 0 qator
       agentBilling.resolveTrialEnd.mockResolvedValue({ ...atLimit, isTrialAgent: false, frozen: false, frozenReason: null });
       http.post.mockReturnValue(of({ data: { messages: [{ content: 'ok' }] } }));
-      const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+      const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
       const res = await svc.run('agent1', user, '21-chi xabar');
 
@@ -460,7 +518,7 @@ describe('AgentsService.run — agentni ishga tushirish (AI engine orqali)', () 
         frozen: true,
         frozenReason: 'trial_expired',
       });
-      const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors);
+      const svc = new AgentsService(prisma, http, audit, usage, agentBilling, billing, connectors, traceBus(), traceRuns(), traceMetering());
 
       try {
         await svc.run('agent1', user, '21-chi xabar');

@@ -9,6 +9,14 @@ export const woocommerceConnector: ConnectorDefinition = {
   description: 'Read products/orders from a WooCommerce (WordPress) store.',
   docsUrl: 'https://woocommerce.github.io/woocommerce-rest-api-docs/',
   availability: 'live',
+  // P0-6 (SAFETY_POLICY_LAYER §3.1/§3.2): Do'kon ma'lumotini o'zgartiradi
+  limits: {
+    rateLimit: { max: 60, windowSec: 60 },
+    dailySpendCap: { amount: 1_000, unit: 'calls' },
+    riskTier: 'HIGH',
+    killable: true,
+    reversible: true,
+  },
   auth: {
     type: 'basic',
     fields: [

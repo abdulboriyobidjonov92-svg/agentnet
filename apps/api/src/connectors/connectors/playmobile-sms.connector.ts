@@ -10,6 +10,14 @@ export const playmobileSmsConnector: ConnectorDefinition = {
   description: 'Corporate SMS broker used by Uzbek banks and large businesses.',
   docsUrl: 'https://playmobile.uz',
   availability: 'live',
+  // P0-6 (SAFETY_POLICY_LAYER §3.1/§3.2): SMS — ayni sabab
+  limits: {
+    rateLimit: { max: 20, windowSec: 60 },
+    dailySpendCap: { amount: 200, unit: 'calls' },
+    riskTier: 'HIGH',
+    killable: true,
+    reversible: false,
+  },
   auth: {
     type: 'basic',
     fields: [

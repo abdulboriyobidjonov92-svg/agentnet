@@ -9,6 +9,14 @@ export const whatsappBusinessConnector: ConnectorDefinition = {
   description: 'Send WhatsApp messages to clients via the official Meta Cloud API.',
   docsUrl: 'https://developers.facebook.com/docs/whatsapp/cloud-api',
   availability: 'live',
+  // P0-6 (SAFETY_POLICY_LAYER §3.1/§3.2): Tashqi dunyoga xabar
+  limits: {
+    rateLimit: { max: 30, windowSec: 60 },
+    dailySpendCap: { amount: 500, unit: 'calls' },
+    riskTier: 'HIGH',
+    killable: true,
+    reversible: false,
+  },
   auth: {
     type: 'token',
     fields: [

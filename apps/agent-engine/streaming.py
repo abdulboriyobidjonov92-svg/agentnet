@@ -11,7 +11,7 @@ import json
 import logging
 import os
 import re
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 
 from anthropic import AsyncAnthropic
 
@@ -34,6 +34,38 @@ _MAX_TOOL_ROUNDS = 4
 # quyidagi izohga qarang), lekin UI token-token oqim kutadi. Shu o'lchamdagi
 # bo'laklarga bo'lib yuboramiz.
 _FREE_CHUNK_CHARS = 24
+
+
+def _anthropic_usage(final: object, model: str) -> dict:
+    """Anthropic javobidan token hisobini oladi (P0-5).
+
+    `getattr` — SDK versiyalari `cache_read_input_tokens` ni har doim
+    ham bermaydi; yo'q bo'lsa 0. Jimgina yiqilish o'rniga nol.
+    """
+    u = getattr(final, "usage", None)
+    if u is None:
+        return {}
+    return {
+        "model": model,
+        "input_tokens": int(getattr(u, "input_tokens", 0) or 0),
+        "output_tokens": int(getattr(u, "output_tokens", 0) or 0),
+        "cache_read_tokens": int(getattr(u, "cache_read_input_tokens", 0) or 0),
+    }
+
+
+def _accumulate_usage(total: dict, part: dict) -> None:
+    """Tool-loop aylanishlarini QO'SHADI (almashtirmaydi).
+
+    Har aylanish alohida LLM chaqiruvi — faqat oxirgisini olish real
+    sarfni quyi baholardi va marja soxta yaxshi chiqardi.
+    """
+    if not part:
+        return
+    if part.get("model"):
+        total["model"] = part["model"]
+    for k in ("input_tokens", "output_tokens", "cache_read_tokens"):
+        total[k] = int(total.get(k) or 0) + int(part.get(k) or 0)
+
 
 
 async def stream_agent_response(
@@ -101,6 +133,14 @@ async def stream_agent_response(
 
     full_response = ""
     used_real_api = False
+    # P0-5 — o'lchov yig'indisi (ADR-023). Oqim oxirida BITTA `usage`
+    # hodisasi bo'lib chiqadi; API uni `UsageEvent` ga yozadi.
+    usage_total: dict[str, Any] = {
+        "model": None,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_read_tokens": 0,
+    }
 
     # 2a. FREE TARIF — OpenRouter ko'p-model zanjiri (pullik yo'lga TEGMAYDI).
     if tier == "free":
@@ -115,6 +155,8 @@ async def stream_agent_response(
                 if ev.startswith("__TEXT__"):
                     full_response += ev[len("__TEXT__"):]
                     used_real_api = True
+                elif ev.startswith("__USAGE__"):
+                    _accumulate_usage(usage_total, json.loads(ev[len("__USAGE__"):]))
                 else:
                     yield ev
         except openrouter_client.NoFreeModelAvailable as e:
@@ -153,6 +195,11 @@ async def stream_agent_response(
                         full_response += text
                         yield _sse({"type": "token", "content": text})
                     final = await stream.get_final_message()
+
+                # P0-5: har aylanish o'z tokenini qo'shadi (tool-loop bir
+                # necha marta aylanadi — faqat oxirgisini olish sarfni
+                # QUYI baholardi).
+                _accumulate_usage(usage_total, _anthropic_usage(final, model))
 
                 # Tool so'ralmagan bo'lsa — javob tugadi.
                 if not tool_defs or final.stop_reason != "tool_use":
@@ -229,6 +276,11 @@ async def stream_agent_response(
         if cc["disclaimer_needed"] and cc["disclaimer"]:
             yield _sse({"type": "disclaimer", "content": cc["disclaimer"], "vertical": vertical})
 
+    # P0-5: o'lchov hodisasi `done` dan OLDIN — API oqim yopilishidan
+    # avval uni ko'rib ulgursin (tap `done` da run'ni yakunlaydi).
+    if usage_total["input_tokens"] or usage_total["output_tokens"]:
+        yield _sse({"type": "usage", **usage_total})
+
     yield _sse({"type": "done", "halal_flag": input_check.action.value, "demo_mode": not used_real_api})
 
 
@@ -265,6 +317,13 @@ async def _openrouter_rounds(
         # foydalanuvchiga ko'rsatilmaydi).
         _log.info("free-tier javob: model=%s urinishlar=%s", result["model"], result["attempts"])
 
+        # P0-5: o'lchov. `__USAGE__` — ichki signal (SSE emas), uni
+        # chaqiruvchi yig'ib, oxirida BITTA `usage` hodisasi qiladi.
+        u = result.get("usage") or {}
+        if u:
+            yield "__USAGE__" + json.dumps(
+                {"model": result.get("model"), **u}, ensure_ascii=False
+            )
         text = result["text"]
         for i in range(0, len(text), _FREE_CHUNK_CHARS):
             chunk = text[i : i + _FREE_CHUNK_CHARS]

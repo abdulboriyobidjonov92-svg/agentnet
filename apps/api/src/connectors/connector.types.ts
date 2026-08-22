@@ -53,6 +53,40 @@ export interface ExecuteContext {
   userId: string;
 }
 
+/**
+ * P0-6 — konnektor xavfsizlik cheklovlari (SAFETY_POLICY_LAYER §3.1).
+ *
+ * Har maydon ATAYLAB majburiy: yarim to'ldirilgan konfiguratsiya
+ * "himoyalangandek ko'rinadi, lekin himoyalanmagan" holatini yaratadi.
+ */
+export interface ConnectorLimits {
+  /** Vaqt birligida maksimal chaqiruv (foydalanuvchi boshiga). */
+  rateLimit: { max: number; windowSec: number };
+  /**
+   * Kunlik maksimal sarf (tiyin) yoki chaqiruv soni.
+   *
+   * `null` — pul sarflamaydigan konnektor (o'qish-only). Bu "limit yo'q"
+   * degani EMAS: `rateLimit` baribir amal qiladi.
+   */
+  dailySpendCap: { amount: number; unit: 'tiyin' | 'calls' } | null;
+  /**
+   * Bu konnektor orqali amallarning MINIMAL tieri (§3.2 jadvali).
+   * Konkret amal bundan YUQORI bo'lishi mumkin, past bo'lishi — yo'q.
+   */
+  riskTier: RiskTierName;
+  /** Kill switch bilan to'xtatiladimi — SAFETY §3.1: doim `true`. */
+  killable: true;
+  /**
+   * Amal qaytariladimi (§5). `false` bo'lsa policy engine tierni
+   * avtomatik `CRITICAL` ga ko'taradi — "undo yozilmagan amal
+   * CRITICAL sifatida qaraladi".
+   */
+  reversible: boolean;
+}
+
+/** Prisma `RiskTier` enum bilan bir xil qiymatlar (registr kompilyatsiya vaqtida). */
+export type RiskTierName = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
 export interface ConnectorDefinition {
   id: string; // registry slug: "telegram-bot"
   name: string;
@@ -67,6 +101,15 @@ export interface ConnectorDefinition {
    * agreement_required — rasmiy kelishuv/API ruxsati shart (halol stub)
    */
   availability: 'live' | 'agreement_required';
+  /**
+   * P0-6 — XAVFSIZLIK CHEKLOVLARI (SAFETY_POLICY_LAYER §3.1).
+   *
+   * MAJBURIY (ixtiyoriy emas): bu maydon `?` bilan e'lon qilinmagan, ya'ni
+   * yangi konnektor uni to'ldirmasa **kompilyatsiya yiqiladi**. Ilgari 17
+   * konnektorning HECH BIRIDA limit yo'q edi (grep → 0 moslik) — aynan
+   * "keyin qo'shamiz" shu holatga olib kelgan.
+   */
+  limits: ConnectorLimits;
   execute(actionId: string, params: Record<string, any>, ctx: ExecuteContext): Promise<ConnectorResult>;
 }
 

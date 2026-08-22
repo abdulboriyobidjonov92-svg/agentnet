@@ -15,6 +15,14 @@ export const myGovUzConnector: ConnectorDefinition = {
   description: 'Submit citizen applications and check status on the national services portal. Requires an official data-sharing agreement.',
   docsUrl: 'https://my.gov.uz',
   availability: 'agreement_required',
+  // P0-6 (SAFETY_POLICY_LAYER §3.1/§3.2): Davlat xizmati — huquqiy oqibat
+  limits: {
+    rateLimit: { max: 10, windowSec: 60 },
+    dailySpendCap: { amount: 50, unit: 'calls' },
+    riskTier: 'CRITICAL',
+    killable: true,
+    reversible: false,
+  },
   auth: {
     type: 'api_key',
     fields: [

@@ -178,6 +178,21 @@ async def complete(
                 continue
 
             attempts.append({"model": model, "status": 200})
-            return {"text": text, "tool_calls": calls, "model": model, "attempts": attempts}
+            # P0-5: `usage` ni SAQLAYMIZ (ilgari tashlanardi). OpenAI-mos
+            # shakl: prompt_tokens / completion_tokens. Bepul modellarda
+            # marjinal xarajat 0, lekin HAJM baribir o'lchanadi — G0.1
+            # qamrovi bepul tierni ham qamraydi.
+            usage = data.get("usage") or {}
+            return {
+                "text": text,
+                "tool_calls": calls,
+                "model": model,
+                "attempts": attempts,
+                "usage": {
+                    "input_tokens": int(usage.get("prompt_tokens") or 0),
+                    "output_tokens": int(usage.get("completion_tokens") or 0),
+                    "cache_read_tokens": 0,
+                },
+            }
 
     raise NoFreeModelAvailable(json.dumps(attempts, ensure_ascii=False))

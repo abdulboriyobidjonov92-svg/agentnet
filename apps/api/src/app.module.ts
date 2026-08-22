@@ -40,6 +40,9 @@ import { BriefingModule } from './briefing/briefing.module';
 import { DeviceControlModule } from './device-control/device-control.module';
 import { HealthModule } from './health/health.module';
 import { ObservabilityModule } from './observability/observability.module';
+import { EventsModule } from './events/events.module';
+import { PolicyModule } from './policy/policy.module';
+import { MeteringModule } from './metering/metering.module';
 
 @Module({
   imports: [
@@ -96,6 +99,12 @@ import { ObservabilityModule } from './observability/observability.module';
     ReferralModule,
     BriefingModule,
     DeviceControlModule,
+    // V3-P0: ijro hodisa shinasi (P0-13) + trace o'qish (P0-7).
+    EventsModule,
+    // V3-P0: policy engine + kill switch + approval logging (P0-6).
+    PolicyModule,
+    // V3-P0: foydalanish o'lchovi — G0.1/G0.2 (P0-5).
+    MeteringModule,
   ],
   providers: [
     // Global rate-limiting: har IP uchun 60s ichida 100 so'rov (ThrottlerModule

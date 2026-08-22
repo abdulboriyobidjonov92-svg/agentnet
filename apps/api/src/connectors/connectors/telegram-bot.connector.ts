@@ -9,6 +9,14 @@ export const telegramBotConnector: ConnectorDefinition = {
   description: 'Send real messages via a Telegram bot (owner alerts, client notifications).',
   docsUrl: 'https://core.telegram.org/bots/api',
   availability: 'live',
+  // P0-6 (SAFETY_POLICY_LAYER §3.1/§3.2): Tashqi dunyoga xabar — qaytarilmaydi
+  limits: {
+    rateLimit: { max: 30, windowSec: 60 },
+    dailySpendCap: { amount: 500, unit: 'calls' },
+    riskTier: 'HIGH',
+    killable: true,
+    reversible: false,
+  },
   auth: {
     type: 'token',
     fields: [

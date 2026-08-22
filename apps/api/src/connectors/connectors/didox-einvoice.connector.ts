@@ -10,6 +10,14 @@ export const didoxEinvoiceConnector: ConnectorDefinition = {
   description: 'List and check electronic invoices (e-faktura) through Didox EDI.',
   docsUrl: 'https://didox.uz',
   availability: 'live',
+  // P0-6 (SAFETY_POLICY_LAYER §3.1/§3.2): E-invoice — davlat hujjati oqimi
+  limits: {
+    rateLimit: { max: 15, windowSec: 60 },
+    dailySpendCap: { amount: 100, unit: 'calls' },
+    riskTier: 'CRITICAL',
+    killable: true,
+    reversible: false,
+  },
   auth: {
     type: 'token',
     fields: [

@@ -11,6 +11,14 @@ export const clickMerchantConnector: ConnectorDefinition = {
   description: 'Create invoices and check payment status via Click merchant API.',
   docsUrl: 'https://docs.click.uz/',
   availability: 'live',
+  // P0-6 (SAFETY_POLICY_LAYER §3.1/§3.2): Qaytarilmas pul harakati
+  limits: {
+    rateLimit: { max: 10, windowSec: 60 },
+    dailySpendCap: { amount: 50_000_000, unit: 'tiyin' },
+    riskTier: 'CRITICAL',
+    killable: true,
+    reversible: false,
+  },
   auth: {
     type: 'api_key',
     fields: [

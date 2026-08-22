@@ -8,6 +8,7 @@ import {
   UnprocessableEntityException,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
@@ -24,7 +25,11 @@ import { AgentBillingService } from './agent-billing.service';
 import { BillingService } from '../billing/billing.service';
 import { ConnectorsService, CONNECTOR_TOOL_PREFIX } from '../connectors/connectors.service';
 import { effectivePlanOf } from '../usage/usage.service';
-import { Prisma, type AgentFrozenReason, type User } from '@prisma/client';
+import { EventActor, ExecutionEventType, Prisma, type AgentFrozenReason, type User } from '@prisma/client';
+import { ExecutionEventBus } from '../events/execution-event-bus.service';
+import { ExecutionRunService } from '../events/execution-run.service';
+import { tapExecutionTrace } from '../events/execution-trace-tap';
+import { MeteringService } from '../metering/metering.service';
 
 // Agent-yaratish advisory-lock nommaydoni (foydalanuvchi bo'yicha kalit bilan
 // birga ishlatiladi — bir foydalanuvchining parallel yaratishlari seriyalashadi).
@@ -70,6 +75,8 @@ export function addDays(date: Date, n: number): Date {
 
 @Injectable()
 export class AgentsService {
+  private readonly logger = new Logger(AgentsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly http: HttpService,
@@ -78,6 +85,12 @@ export class AgentsService {
     private readonly agentBilling: AgentBillingService,
     private readonly billing: BillingService,
     private readonly connectors: ConnectorsService,
+    /** P0-13 — ijro hodisalari shinasi (UI-4 chat qadamlari shundan keladi). */
+    private readonly traceBus: ExecutionEventBus,
+    /** P0-7 — run yozuvini ochadi/yopadi. */
+    private readonly traceRuns: ExecutionRunService,
+    /** P0-5 — har LLM chaqiruvi o'lchanadi (shadow rejim, ADR-023). */
+    private readonly metering: MeteringService,
   ) {}
 
   /**
@@ -144,6 +157,11 @@ export class AgentsService {
     const monthlyPriceTiyin = somToTiyin(price.monthlySom);
 
     let agent;
+    // Tranzaksiya ICHIDA hisoblanadi (u yerda `isFirstAgent` ma'lum), lekin
+    // auditga tashqarida kerak. `agent.creationPriceTiyin` dan o'qish
+    // mumkin emas edi: `create` mock/select natijasida bu ustun bo'lmasligi
+    // mumkin va audit jimgina yiqilardi.
+    let chargedCreationTiyin = 0n;
     try {
       agent = await this.prisma.$transaction(async (tx) => {
         // Tarif chegarasi — "tekshir-keyin-yarat" ATOMIK bo'lishi shart. Aks holda
@@ -153,20 +171,46 @@ export class AgentsService {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(${AGENT_CREATE_LOCK_NS}::int, hashtext(${user.id}))`;
         await this.usage.assertCanCreateAgent(user, tx);
 
-        if (creationPriceTiyin > 0n) {
-          const updated = await tx.user.updateMany({
-            where: { id: user.id, balanceTiyin: { gte: creationPriceTiyin } },
-            data: { balanceTiyin: { decrement: creationPriceTiyin } },
-          });
-          if (updated.count === 0) throw new InsufficientBalanceError(price.creationSom);
-        }
-
         // Sinov — FAQAT foydalanuvchining ENG BIRINCHI agenti (lock ostida
         // hisoblangani uchun parallel so'rovlarda ham faqat bittasi "birinchi"
         // bo'lib chiqadi). 2-va-keyingi agentlar to'g'ridan-to'g'ri oddiy oylik
         // rejimga o'tadi (foydalanuvchi allaqachon qiymatni ko'rgan).
+        //
+        // ⚠️ HISOB PUL YECHISHDAN OLDIN: birinchi agentning YARATISH narxi ham
+        // kechiriladi (pastga qarang), ya'ni "birinchimi?" savoliga javob
+        // charge'dan oldin kerak.
         const existingCount = await tx.agent.count({ where: { userId: user.id } });
         const isFirstAgent = existingCount === 0;
+
+        // ============================================================
+        // UI-2 — BIRINCHI AGENTNING YARATISH NARXI KECHIRILADI.
+        //
+        // MUAMMO: yangi foydalanuvchining balansi 0 (`User.balanceTiyin`
+        // default). Generik narxlash yaratishni allaqachon bepul qiladi
+        // (`priceForAgent` → `creationUsd: 0`), LEKIN shablon o'rnatish
+        // katalog narxini ANIQ uzatadi (`createUsd: 70`) — natijada
+        // onboarding'ning shablon yo'li BIRINCHI qadamda 402 bilan
+        // to'xtardi va foydalanuvchi hech qachon birinchi natijani
+        // ko'rmasdi (PRICING §4: eng ko'p yo'qotiladigan qadam).
+        //
+        // Bu — mavjud NIYATNING davomi: platforma allaqachon birinchi
+        // agentni sinov deb belgilaydi (`isTrialAgent`, 3 kun / 20 xabar).
+        // Oylik to'lovni kechirib, yaratish uchun $70 talab qilish o'sha
+        // niyatga zid edi. Sinov tugagach oddiy oylik rejim ishlaydi —
+        // daromad YO'QOLMAYDI, kechikadi.
+        //
+        // Qaror: founder, 2026-08-17 (DECISION_LOG).
+        // ============================================================
+        const chargeableCreationTiyin = isFirstAgent ? 0n : creationPriceTiyin;
+        chargedCreationTiyin = chargeableCreationTiyin;
+
+        if (chargeableCreationTiyin > 0n) {
+          const updated = await tx.user.updateMany({
+            where: { id: user.id, balanceTiyin: { gte: chargeableCreationTiyin } },
+            data: { balanceTiyin: { decrement: chargeableCreationTiyin } },
+          });
+          if (updated.count === 0) throw new InsufficientBalanceError(price.creationSom);
+        }
 
         const now = new Date();
         const created = await tx.agent.create({
@@ -181,7 +225,9 @@ export class AgentsService {
             description: dto.description ?? null,
             templateId: dto.templateId ?? null,
             userId: user.id,
-            creationPriceTiyin,
+            // HAQIQATAN yechilgan summa yoziladi (kechirilgan bo'lsa 0) —
+            // aks holda agent yozuvi ledger bilan zid bo'lardi.
+            creationPriceTiyin: chargeableCreationTiyin,
             monthlyPriceTiyin,
             isTrialAgent: isFirstAgent && monthlyPriceTiyin > 0n,
             trialStartedAt: isFirstAgent && monthlyPriceTiyin > 0n ? now : null,
@@ -194,15 +240,26 @@ export class AgentsService {
           },
         });
 
-        if (creationPriceTiyin > 0n || dto.idempotencyKey) {
+        // Ledger HAQIQATAN yechilgan summani yozadi. `creationPriceTiyin`
+        // (katalog narxi) yozilsa, birinchi agentda jurnal "−70" deb
+        // ko'rsatib, balans o'zgarmagan bo'lardi — jurnal balans bilan zid
+        // (Konstitutsiya #17/#18). Kechirilgani `meta` da OCHIQ qoladi.
+        if (chargeableCreationTiyin > 0n || dto.idempotencyKey) {
           const fresh = await tx.user.findUniqueOrThrow({ where: { id: user.id }, select: { balanceTiyin: true } });
           await tx.creditLedger.create({
             data: {
               userId: user.id,
               kind: 'agent_creation',
-              amount: -creationPriceTiyin,
+              amount: -chargeableCreationTiyin,
               balanceAfter: fresh.balanceTiyin,
-              meta: { agentId: created.id, creationPriceSom: price.creationSom, monthlyPriceSom: price.monthlySom },
+              meta: {
+                agentId: created.id,
+                creationPriceSom: price.creationSom,
+                monthlyPriceSom: price.monthlySom,
+                ...(isFirstAgent && creationPriceTiyin > 0n
+                  ? { waivedCreationSom: price.creationSom, waivedReason: 'first_agent_trial' }
+                  : {}),
+              },
               idempotencyKey: dto.idempotencyKey ?? undefined,
             },
           });
@@ -234,7 +291,17 @@ export class AgentsService {
       action: 'agent.create',
       resourceType: 'agent',
       resourceId: agent.id,
-      metadata: { creationPriceTiyin: creationPriceTiyin.toString(), monthlyPriceTiyin: monthlyPriceTiyin.toString() },
+      metadata: {
+        // Katalog narxi (nima turishi kerak edi) va HAQIQATAN yechilgani —
+        // ikkalasi ham yoziladi, aks holda kechirilgan holat auditda
+        // "narx 0 edi" bo'lib ko'rinardi va sababi yo'qolardi.
+        creationPriceTiyin: creationPriceTiyin.toString(),
+        chargedCreationTiyin: chargedCreationTiyin.toString(),
+        monthlyPriceTiyin: monthlyPriceTiyin.toString(),
+        ...(creationPriceTiyin > 0n && chargedCreationTiyin === 0n
+          ? { waivedReason: 'first_agent_trial' }
+          : {}),
+      },
     });
     return agent;
   }
@@ -547,8 +614,10 @@ export class AgentsService {
       conversationId?: string;
       conversationHistory?: Array<Record<string, unknown>>;
       profession?: string;
+      /** UI-4: qaysi agent (iz uchun). BFF uzatadi, egalik shu yerda tekshiriladi. */
+      agentId?: string;
     },
-  ): Promise<Readable> {
+  ): Promise<{ stream: Readable; runId: string | null }> {
     const engineUrl = process.env.AGENT_ENGINE_URL ?? 'http://localhost:8000';
 
     // Ulangan konnektorlar tool sifatida shu yerda qo'shiladi — mijoz emas,
@@ -580,6 +649,69 @@ export class AgentsService {
       ),
     );
 
-    return res.data as Readable;
+    const upstream = res.data as Readable;
+
+    // ============================================================
+    // P0-7/P0-13 — IJRO IZI.
+    //
+    // Oqim "eshitiladi" va kanonik hodisalarga o'giriladi; baytlar
+    // O'ZGARMASDAN o'tadi (`tapExecutionTrace`). Chat oqimi — pul va
+    // halal-filter yo'li, shuning uchun iz uni HECH QACHON to'xtatmaydi:
+    // har xato yutiladi va oqim davom etadi (fail-open).
+    //
+    // `runId` chaqiruvchiga QAYTARILADI (sarlavha emas, hodisa sifatida
+    // kontroller yozadi) — BFF oqimni qayta o'raydi va sarlavhalarni
+    // tanlab uzatadi, hodisa esa o'zgarishsiz o'tadi.
+    // ============================================================
+    // ⚠️ MANBA — `dto.agentId` (BFF uzatadi), `agentDefinition` EMAS.
+    //
+    // `agentDefinition` mijoz quradigan obyekt: undagi `agent_id` ga ishonib
+    // iz yozilsa, foydalanuvchi BEGONA agent nomiga hodisa yozdira olardi.
+    // `dto.agentId` esa quyida egalik bilan tekshiriladi (IDOR himoyasi).
+    const agentId = dto.agentId ?? null;
+    if (!agentId) return { stream: upstream, runId: null };
+
+    let run: { id: string };
+    try {
+      // Egalik: begona agentga iz yozib bo'lmaydi.
+      const owned = await this.prisma.agent.findFirst({
+        where: { id: agentId, userId: user.id },
+        select: { id: true },
+      });
+      if (!owned) return { stream: upstream, runId: null };
+
+      run = await this.traceRuns.createRun({
+        userId: user.id,
+        agentId,
+        conversationId: dto.conversationId ?? null,
+      });
+    } catch (e: any) {
+      // Iz ochilmadi — chat baribir ishlaydi, faqat qadamlar ko'rinmaydi.
+      this.logger.warn(`Ijro izi ochilmadi: ${e?.message}`);
+      return { stream: upstream, runId: null };
+    }
+
+    void this.traceBus.emit({
+      runId: run.id,
+      agentId,
+      tenantId: user.id,
+      type: ExecutionEventType.RUN_STARTED,
+      actor: EventActor.user,
+      payload: { conversationId: dto.conversationId ?? null },
+    });
+
+    return {
+      stream: tapExecutionTrace({
+        source: upstream,
+        bus: this.traceBus,
+        runs: this.traceRuns,
+        runId: run.id,
+        agentId,
+        tenantId: user.id,
+        conversationId: dto.conversationId ?? null,
+        metering: this.metering,
+      }),
+      runId: run.id,
+    };
   }
 }

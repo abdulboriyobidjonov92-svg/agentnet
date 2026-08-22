@@ -6,6 +6,7 @@ import {
   NotFoundException,
   Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -51,10 +52,19 @@ export class ConnectorsController {
     return this.connectors.configure(user, connectorId, body.config ?? {}, body.agentId);
   }
 
+  /**
+   * `?agentId=` — ixtiyoriy. Berilsa FAQAT o'sha agentning biriktirmasi
+   * uziladi; berilmasa FAQAT umumiy yozuv. Qamrov `ConnectorsService.remove`
+   * izohida batafsil.
+   */
   @Delete(':connectorId/configure')
   @ApiBearerAuth()
-  remove(@CurrentUser() user: User, @Param('connectorId') connectorId: string) {
-    return this.connectors.remove(user, connectorId);
+  remove(
+    @CurrentUser() user: User,
+    @Param('connectorId') connectorId: string,
+    @Query('agentId') agentId?: string,
+  ) {
+    return this.connectors.remove(user, connectorId, agentId || undefined);
   }
 
   /**

@@ -8,6 +8,14 @@ export const smtpEmailConnector: ConnectorDefinition = {
   region: 'global',
   description: 'Send real emails through any SMTP server (Gmail, Mail.ru, corporate).',
   availability: 'live',
+  // P0-6 (SAFETY_POLICY_LAYER §3.1/§3.2): Yuborilgan email qaytarilmaydi
+  limits: {
+    rateLimit: { max: 30, windowSec: 60 },
+    dailySpendCap: { amount: 300, unit: 'calls' },
+    riskTier: 'HIGH',
+    killable: true,
+    reversible: false,
+  },
   auth: {
     type: 'basic',
     fields: [

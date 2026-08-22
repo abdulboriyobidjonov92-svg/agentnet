@@ -12,6 +12,14 @@ export const soliqUzConnector: ConnectorDefinition = {
   description: 'Check tax debts and filing deadlines. Requires accredited access (ERI).',
   docsUrl: 'https://soliq.uz',
   availability: 'agreement_required',
+  // P0-6 (SAFETY_POLICY_LAYER §3.1/§3.2): Davlat hujjati — huquqiy oqibat
+  limits: {
+    rateLimit: { max: 10, windowSec: 60 },
+    dailySpendCap: { amount: 50, unit: 'calls' },
+    riskTier: 'CRITICAL',
+    killable: true,
+    reversible: false,
+  },
   auth: {
     type: 'api_key',
     fields: [

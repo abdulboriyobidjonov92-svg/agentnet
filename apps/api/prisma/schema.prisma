@@ -96,6 +96,83 @@ enum DeviceActionCategory {
   connect
 }
 
+// ----------------------------------------------------------------
+// V3-P0 (P0-13 / P0-7) — AGENT IJROSI HODISALARI
+//
+// Bu uch enum + ikki model (ExecutionRun, ExecutionEvent) —
+// `docs/blueprints/P0_BLUEPRINT.md` §2.3 dagi KANONIK hodisa sxemasi.
+// UI, trace, admin panel va analytics AYNAN shu manbadan o'qiydi;
+// ikkinchi hodisa modeli yozilmaydi.
+//
+// `AuditLog` (hash-zanjirli) bilan ARALASHTIRILMAYDI: u — "kim nima
+// qildi" auditi (ADR-008, zanjir formati muzlatilgan); bu esa "agent
+// qanday ishladi" jurnali. Ularni birlashtirish ADR-008 buzilishi.
+// ----------------------------------------------------------------
+
+/// Ijro holati (ExecutionRun.status).
+enum RunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+/// Hodisa turi (ExecutionEvent.type) — YOPIQ ro'yxat.
+/// Yangi qiymat faqat ADR bilan qo'shiladi (blueprint §2.3).
+enum ExecutionEventType {
+  RUN_STARTED
+  MODEL_STARTED
+  MODEL_COMPLETED
+  TOOL_SELECTED
+  POLICY_CHECK
+  APPROVAL_REQUIRED
+  APPROVAL_GRANTED
+  APPROVAL_DENIED
+  TOOL_STARTED
+  TOOL_RESULT
+  TOOL_FAILED
+  RETRY_STARTED
+  CHECKPOINT_SAVED
+  RUN_COMPLETED
+  RUN_FAILED
+  RUN_CANCELLED
+}
+
+/// Hodisani kim keltirib chiqardi (ExecutionEvent.actor).
+enum EventActor {
+  system
+  agent
+  user
+  admin
+}
+
+// ----------------------------------------------------------------
+// V3-P0 · P0-6 — POLICY va TASDIQ
+// Spetsifikatsiya: docs/strategy/SAFETY_POLICY_LAYER.md §2, §8
+// ----------------------------------------------------------------
+
+/// Amal xavflilik darajasi.
+///
+/// P0 da `LOW`/`HIGH` MAJBURLANADI; `MEDIUM`/`CRITICAL` e'lon qilinadi va
+/// yoziladi, lekin alohida oqimga ega bo'lishi V3-P2 da (SAFETY §2.2).
+/// Tierni PASAYTIRISH ADR talab qiladi (§2.1.3) — ko'tarish bemalol.
+enum RiskTier {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+/// Inson qarori.
+///
+/// ⚠️ `boolean` EMAS: "rad etdi" va "tuzatib tasdiqladi" butunlay boshqa
+/// signal. Ularni bitta bayroqqa siqish SAFETY §8 dagi moatni yo'q qiladi.
+enum ApprovalDecision {
+  APPROVED
+  REJECTED
+  MODIFIED
+}
+
 /// Qurilmaga yuborilgan buyruq turi (DeviceCommand.kind).
 enum CommandKind {
   send_sms
@@ -352,6 +429,9 @@ model User {
   impersonationsAsActor  ImpersonationSession[] @relation("ImpersonationActor")
   impersonationsAsTarget ImpersonationSession[] @relation("ImpersonationTarget")
   sharedResults          SharedResult[]
+  executionRuns          ExecutionRun[]
+  approvalEvents         ApprovalEvent[]
+  usageEvents            UsageEvent[]
 
   // --- Proaktiv haftalik brifing (cron -> Telegram) ---
   // Faqat telegramChatId ulangan foydalanuvchilarga yuboriladi; opt-out mumkin.
@@ -522,6 +602,20 @@ model Agent {
   monthlyPriceTiyin  BigInt             @default(0) // har oy avtomatik yechiladigan obuna narxi
   frozen             Boolean            @default(false) // balans yetmagach — o'chirilmaydi, "muzlatiladi"
   frozenReason       AgentFrozenReason? // null = muzlatilmagan
+
+  // --- P0-6: KILL SWITCH (SAFETY_POLICY_LAYER §4) ---
+  //
+  // ⚠️ `frozen` DAN ATAYLAB ALOHIDA. `frozen` — BILLING holati (balans
+  // yetmadi, sinov tugadi) va u to'lov bilan avtomatik yechiladi.
+  // `killedAt` — XAVFSIZLIK to'xtatuvi: agent noto'g'ri ish qilyapti va
+  // uni DARHOL to'xtatish kerak. Ikkalasini bitta maydonga siqish
+  // "to'lov qildim — xavfsizlik to'xtatuvi ham yechildi" degan xatoni
+  // yaratardi.
+  //
+  // Kill switch AVTOMATIK o'chmaydi (§4): faqat qo'lda `resume` bilan.
+  killedAt     DateTime?
+  killedById   String? // FK YO'Q — o'chirilgan admin xavfsizlik qarorini yo'qotmasin
+  killReason   String?
   nextChargeAt       DateTime? // keyingi oylik yechim sanasi (monthlyPriceTiyin>0 bo'lsagina)
   chargeRetries      Int                @default(0) // ketma-ket muvaffaqiyatsiz oylik urinishlar soni
 
@@ -541,10 +635,11 @@ model Agent {
   ratingCount  Int     @default(0)
   verified     Boolean @default(false) // sifat chegarasidan o'tgan agentlar
 
-  reviews   AgentReview[]
-  installs  AgentInstall[] @relation("SourceAgent")
-  payouts   Payout[]
-  createdAt DateTime       @default(now())
+  reviews       AgentReview[]
+  installs      AgentInstall[] @relation("SourceAgent")
+  payouts       Payout[]
+  executionRuns ExecutionRun[]
+  createdAt     DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
   @@index([userId])
@@ -1351,4 +1446,173 @@ model ClickTransaction {
 
   @@index([userId])
   @@index([state])
+}
+
+// ----------------------------------------------------------------
+// V3-P0 · P0-13 (Event Bus) + P0-7 (Trace) — ijro izi
+// Blueprint: docs/blueprints/P0_BLUEPRINT.md §2.3, P0-7 §6
+// ----------------------------------------------------------------
+
+/// Bitta agent ijrosi (run). Hodisalar shunga bog'lanadi.
+///
+/// `status`/`endedAt`/`stepCount` — YAKUNIY holatning tezkor nusxasi.
+/// Hodisalar append-only bo'lgani uchun yakun `RUN_COMPLETED`/`RUN_FAILED`
+/// hodisasi bilan e'lon qilinadi; bu ustunlar esa ro'yxat va filtr uchun
+/// (har safar butun hodisa zanjirini skanerlamaslik uchun).
+model ExecutionRun {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentId        String
+  agent          Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  conversationId String?
+  status         RunStatus @default(RUNNING)
+  startedAt      DateTime  @default(now())
+  endedAt        DateTime?
+  /// Konstitutsiya #20: pul — BigInt tiyin, float HECH QACHON.
+  totalCostTiyin BigInt    @default(0)
+  stepCount      Int       @default(0)
+
+  events ExecutionEvent[]
+
+  @@index([userId, startedAt])
+  @@index([agentId, startedAt])
+  @@index([status])
+}
+
+/// Kanonik ijro hodisasi (blueprint §2.3 konverti).
+///
+/// APPEND-ONLY: yozuv hech qachon yangilanmaydi va o'chirilmaydi
+/// (retention bundan mustasno — P0-15).
+///
+/// `payload` HAR DOIM redaksiyadan o'tgan (§2.3.1) — xom sir, xom tool
+/// argumenti va DOM matni bu ustunga tushmaydi. Redaksiya
+/// `ExecutionEventBus.emit()` ichida MAJBURIY va uni chetlab o'tib
+/// bo'lmaydi (yagona yozuv nuqtasi).
+model ExecutionEvent {
+  id     String       @id @default(cuid())
+  runId  String
+  run    ExecutionRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  stepId String?
+  /// Run ichida MONOTONIK. `createdAt` millisekundda teng bo'lib qolishi
+  /// mumkin, `seq` — hech qachon (AuditLog.seq bilan bir xil mantiq).
+  seq    Int
+
+  type      ExecutionEventType
+  actor     EventActor
+  agentId   String
+  /// Bugungi tenant modelida = `userId`. Alohida ustun ATAYLAB: org-darajali
+  /// tenant kelganda hodisa sxemasi o'zgarmasligi uchun.
+  tenantId  String
+  payload   Json?
+  costTiyin BigInt?
+  latencyMs Int?
+  createdAt DateTime           @default(now())
+
+  /// Dublikat hodisa (retry) ikkinchi marta yozilmaydi.
+  @@unique([runId, seq])
+  @@index([runId, seq])
+  @@index([tenantId, createdAt])
+}
+
+/// V3-P0 · P0-5 — FOYDALANISH O'LCHOVI (metering).
+///
+/// ADR-023: platforma har chaqiruvda qancha yo'qotayotganini BILMAYDI.
+/// Bu jadval o'sha bo'shliqni yopadi — G0.1 (qamrov ≥95%) va G0.2
+/// (gross margin raqami MAVJUD) ikkalasi ham shundan o'lchanadi.
+///
+/// ⚠️ SHADOW REJIM: yoziladi, lekin foydalanuvchi hisobiga TA'SIR
+/// QILMAYDI (ADR-023 §5). Narx o'zgarishi — V3-P1 ishi.
+///
+/// ⚠️ `Message.tokensIn/tokensOut` ATAYLAB QO'SHILMADI. Sxemadagi
+/// mavjud izoh (Message modeli ustida) "bo'sh ustun = o'lik sxema"
+/// deydi; endi ma'lumot bor, lekin uni IKKI joyda saqlash ikkita
+/// haqiqat manbai yaratardi. `UsageEvent` da `conversationId` bor —
+/// suhbat bo'yicha token yig'indisi shundan olinadi.
+model UsageEvent {
+  id String @id @default(cuid())
+  /// `runId + stepId` (§2.2) — retry dublikat yozuv yaratmaydi.
+  idempotencyKey String @unique
+
+  userId         String
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentId        String?
+  runId          String?
+  conversationId String?
+
+  kind  UsageKind
+  model String?
+
+  // PRICING_ARCHITECTURE §2.1 o'lchamlari (U1–U10).
+  inputTokens     Int    @default(0) // U1
+  outputTokens    Int    @default(0) // U2
+  cacheReadTokens Int    @default(0) // U10 — arzonlashtiruvchi
+  toolCalls       Int    @default(0) // U4
+  browserMs       Int    @default(0) // U5
+  visionOps       Int    @default(0) // U6
+  connectorCalls  Int    @default(0) // U7
+  executionMs     Int    @default(0) // U8
+  storageBytes    BigInt @default(0) // U9
+
+  /// BIZGA qancha turdi (Konstitutsiya #20: BigInt tiyin, float YO'Q).
+  /// ⚠️ Bu ICHKI ma'lumot — oddiy foydalanuvchiga hech qachon qaytarilmaydi.
+  internalCostTiyin BigInt @default(0)
+  /// Model narx jadvalida topilmadi — `internalCostTiyin` ishonchsiz.
+  /// Jim 0 o'rniga ANIQ belgi (aks holda marja soxta yaxshi ko'rinardi).
+  costUnknown Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([agentId, createdAt])
+  @@index([runId])
+  @@index([createdAt])
+}
+
+/// O'lchov turi — qaysi resurs sarflandi.
+enum UsageKind {
+  LLM
+  TOOL
+  BROWSER
+  VISION
+  CONNECTOR
+  STORAGE
+}
+
+/// P0-6 — INSON TASDIG'I HODISASI (SAFETY_POLICY_LAYER §8).
+///
+/// Bu jadval — UI elementi emas, **ma'lumot aktivi**: "inson qaysi amalni
+/// tasdiqladi/rad etdi/TUZATDI" korpusi (MASTER_ROADMAP §2 M3). U retroaktiv
+/// tiklab bo'lmaydi — bugun yig'ilmasa hech qachon olinmaydi.
+///
+/// `modifiedAction` — eng qimmatli maydon: inson agent taklifini AYNAN nimaga
+/// o'zgartirgani. Aynan shu ma'lumot keyinchalik agentni yaxshilashga xizmat
+/// qiladi va uni hech qanday tashqi manbadan sotib olib bo'lmaydi.
+///
+/// Retention: P0-15 jadvalida **365 kun** (moat) va retention cron'idan
+/// CHIQARILGAN; faqat foydalanuvchi o'chirilganda kaskad bilan ketadi.
+model ApprovalEvent {
+  id      String  @id @default(cuid())
+  runId   String
+  stepId  String?
+  /// Qaysi tool chaqiruvi — idempotency kaliti bilan bir xil o'q (§2.2).
+  actionId String
+  agentId String
+  userId  String
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  riskTier RiskTier
+  /// Agent NIMA taklif qildi (redaksiyalangan — §2.3.1).
+  proposedAction Json
+  decision       ApprovalDecision
+  /// ⭐ `MODIFIED` bo'lsa MAJBURIY: inson nimani tuzatdi.
+  modifiedAction Json?
+  /// Qaror qancha vaqt oldi — ishonch signali (tez "ha" = ko'r-ko'rona tasdiq).
+  latencyMs Int
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([agentId, createdAt])
+  @@index([runId])
 }

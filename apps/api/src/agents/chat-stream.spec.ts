@@ -32,6 +32,12 @@ function makeService(
     {} as never, // agentBilling
     {} as never, // billing
     { toolSpecsForAgent: jest.fn(async () => connectorTools) } as never,
+    // Ijro izi — bu yo'lda `agentDefinition.id` yo'q, ya'ni trace boshlanmaydi
+    // (fail-open). Mocklar shunchaki konstruktorni to'ldiradi.
+    { emit: jest.fn(async () => null), forgetRun: jest.fn() } as never,
+    { createRun: jest.fn(async () => ({ id: 'run1' })), finishRun: jest.fn() } as never,
+    // P0-5 o'lchovi — bu yo'lda trace boshlanmaydi, mock konstruktorni to'ldiradi.
+    { recordLlm: jest.fn(async () => ({ recorded: true })) } as never,
   );
 }
 

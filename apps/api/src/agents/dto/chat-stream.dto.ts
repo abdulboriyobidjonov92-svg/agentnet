@@ -27,6 +27,18 @@ export class ChatStreamDto {
   @MaxLength(128)
   conversationId?: string;
 
+  /**
+   * Qaysi agent ijro etadi — ijro izi (P0-7) shu bilan bog'lanadi.
+   *
+   * IXTIYORIY va fail-open: berilmasa (yoki begona agent bo'lsa) chat
+   * ODATDAGIDEK ishlaydi, faqat trace yozilmaydi. Trace uchun pul yo'lini
+   * bloklash — noto'g'ri almashinuv.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  agentId?: string;
+
   /** Oldingi xabarlar (engine kontekst uchun ishlatadi). */
   @IsOptional()
   @IsArray()
