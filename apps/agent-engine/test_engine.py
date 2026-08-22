@@ -342,7 +342,7 @@ def test_langgraph_mavjud_va_graf_compile_boladi():
     """LangGraph 1.x da `StateGraph` qurilishi va `compile()` ishlashi."""
     assert agent_engine._LANGGRAPH_AVAILABLE is True
     d = agent_engine.AgentDefinition(agent_id="a1", name="t", system_prompt="sp")
-    eng = agent_engine.AgentEngine(d, agent_engine.registry)
+    eng = agent_engine.AgentEngine(d, agent_engine.registry, checkpointer=None)
     assert type(eng.graph).__name__ == "CompiledStateGraph"
 
 
@@ -359,7 +359,7 @@ class _FakeLLM:
 
 def _engine_with_fake_llm():
     d = agent_engine.AgentDefinition(agent_id="a1", name="t", system_prompt="sp")
-    eng = agent_engine.AgentEngine(d, agent_engine.registry)
+    eng = agent_engine.AgentEngine(d, agent_engine.registry, checkpointer=None)
     eng.llm = _FakeLLM()
     return eng
 
@@ -459,7 +459,7 @@ def test_langgraph_yoli_haqiqiy_tool_chaqiradi(monkeypatch):
 
     monkeypatch.setattr(agent_tools, "connector_invoke", fake_invoke)
 
-    eng = agent_engine.AgentEngine(_connector_definition(), agent_engine.registry)
+    eng = agent_engine.AgentEngine(_connector_definition(), agent_engine.registry, checkpointer=None)
     llm = _ToolCallingLLM()
     eng.llm = llm
     out = asyncio.run(eng.graph.ainvoke(_state("42 ga salom yubor")))
@@ -493,7 +493,7 @@ def test_langgraph_yoli_ruxsatsiz_tool_ijroni_yiqitmaydi(monkeypatch):
                 return _FakeAI("", [{"name": "soliq_uz_hammasi", "args": {}, "id": "c1"}])
             return _FakeAI("Kechirasiz, bunga ruxsatim yo'q.", [])
 
-    eng = agent_engine.AgentEngine(_connector_definition(), agent_engine.registry)
+    eng = agent_engine.AgentEngine(_connector_definition(), agent_engine.registry, checkpointer=None)
     eng.llm = _BadToolLLM()
     out = asyncio.run(eng.graph.ainvoke(_state("soliq ma'lumotini ol")))
 

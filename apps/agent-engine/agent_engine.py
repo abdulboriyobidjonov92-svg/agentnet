@@ -15,6 +15,7 @@ Talab qilinadigan paketlar:
 
 from __future__ import annotations
 
+import logging
 import operator
 import os
 import uuid
@@ -185,8 +186,43 @@ def _to_lc_messages(messages: list[dict[str, Any]]) -> list[Any]:
 # ------------------------------------------------------------------
 
 
+# `checkpointer` argumenti UCH holatni ajratishi kerak:
+#   berilmagan  → muhitdan tanlanadi (prod: API saqlagichi)
+#   None        → ATAYLAB o'chirilgan (graf mantig'ini tekshiruvchi testlar)
+#   obyekt      → aynan shu saqlagich
+# `None` ni "berilmagan" bilan aralashtirish ikkinchi holatni imkonsiz qilardi.
+_UNSET = object()
+
+
+def _default_checkpointer() -> Any | None:
+    """Muhitdan checkpoint saqlagichini tanlaydi (P0-8).
+
+    `AGENT_CHECKPOINTS=off` — butunlay o'chiradi (rollback yo'li: graf
+    ilgarigidek checkpointer'siz compile bo'ladi).
+
+    Import XATOSI ijroni yiqitmaydi: checkpoint — qulaylik qatlami, uning
+    yo'qligi agentni ishlashdan to'xtatmasligi kerak.
+    """
+    if os.getenv("AGENT_CHECKPOINTS", "on").lower() == "off":
+        return None
+    try:
+        from api_checkpointer import ApiCheckpointSaver
+
+        return ApiCheckpointSaver()
+    except Exception as exc:  # pragma: no cover — muhitga bog'liq
+        logging.getLogger(__name__).warning(
+            "Checkpoint saqlagichi yuklanmadi, ijro holati saqlanmaydi: %s", exc
+        )
+        return None
+
+
 class AgentEngine:
-    def __init__(self, definition: AgentDefinition, tool_registry: ToolRegistry):
+    def __init__(
+        self,
+        definition: AgentDefinition,
+        tool_registry: ToolRegistry,
+        checkpointer: Any = _UNSET,
+    ):
         if not _LANGGRAPH_AVAILABLE:
             raise RuntimeError(
                 "AgentEngine (blokli ijro) langgraph va langchain-anthropic talab qiladi. "
@@ -217,6 +253,13 @@ class AgentEngine:
         tool_specs = [t.model_dump() for t in definition.tools]
         self.tool_defs = agent_tools.build_tools(tool_specs)
         self.connector_targets = agent_tools.connector_targets(tool_specs)
+        # P0-8 — ijro holati (checkpoint).
+        #
+        # `None` bo'lsa saqlagich MUHITDAN olinadi: prod'da
+        # `ApiCheckpointSaver` (holat Postgres'da, API orqali), testda esa
+        # ataylab `None` uzatiladi. Konstruktorda majburiy qilinmadi —
+        # mavjud 50+ test chaqiruvi buzilmasin.
+        self.checkpointer = _default_checkpointer() if checkpointer is _UNSET else checkpointer
         self.graph = self._build_graph()
 
     def _llm(self) -> Any:
@@ -253,7 +296,12 @@ class AgentEngine:
         workflow.add_edge("execute_tools", "reason")
         workflow.add_edge("halal_check_output", END)
 
-        return workflow.compile()
+        # `checkpointer` berilsa graf holatni SAQLAYDI: `thread_id` (bizda
+        # `ExecutionRun.id`) bo'yicha ijroni to'xtatib, AYNAN o'sha joydan
+        # davom ettirish mumkin bo'ladi. Busiz HITL tasdig'i (P0-6) har
+        # safar noldan boshlashni talab qilardi — ikki barobar LLM xarajati
+        # va takroriy yon ta'sir.
+        return workflow.compile(checkpointer=self.checkpointer)
 
     # DIQQAT — tugunlar FAQAT o'zgarishni (delta) qaytaradi, `{**state, ...}` ni
     # EMAS. `AgentState["messages"]` reducer'i `operator.add`: butun state qayta
@@ -349,7 +397,22 @@ class AgentEngine:
     async def _halal_check_output(self, state: AgentState) -> dict[str, Any]:
         return {}
 
-    async def run(self, user_id: str, user_message: str) -> dict[str, Any]:
+    async def run(
+        self,
+        user_id: str,
+        user_message: str,
+        run_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Bitta blokli ijro.
+
+        `run_id` — P0-8 `thread_id`. API `ExecutionRun.id` ni uzatadi, ya'ni
+        ijro holati AYNAN o'sha run bilan bog'lanadi (blueprint §2.9 M3:
+        holat runga bog'langan, ulanishga emas). Berilmasa yangi id
+        yaratiladi — checkpointer yoqilgan bo'lsa u `thread_id`SIZ ishlay
+        olmaydi, va "id yo'q" holatini jimgina checkpointsiz o'tkazish
+        resume'ni sababsiz yo'qotardi.
+        """
+        thread_id = run_id or str(uuid.uuid4())
         initial_state: AgentState = {
             "messages": [{"role": "user", "content": user_message}],
             "user_id": user_id,
@@ -360,11 +423,35 @@ class AgentEngine:
         }
         # LangGraph'ning o'z recursion_limit'i — qo'shimcha xavfsizlik to'ri
         final_state = await self.graph.ainvoke(
-            initial_state, config={"recursion_limit": MAX_TOOL_ITERATIONS * 2 + 4}
+            initial_state,
+            config={
+                "recursion_limit": MAX_TOOL_ITERATIONS * 2 + 4,
+                "configurable": {"thread_id": thread_id},
+            },
         )
         return {
             "agent_id": self.definition.agent_id,
-            "run_id": str(uuid.uuid4()),
+            "run_id": thread_id,
+            "halal_flag": final_state.get("halal_flag"),
+            "messages": final_state["messages"],
+        }
+
+    async def resume(self, run_id: str) -> dict[str, Any]:
+        """To'xtatilgan ijroni AYNAN o'sha joydan davom ettiradi (P0-8).
+
+        `ainvoke(None, ...)` — LangGraph semantikasi: yangi kirish yo'q,
+        saqlangan checkpointdan davom et. Tasdiq (P0-6) berilgach chaqiriladi.
+        """
+        final_state = await self.graph.ainvoke(
+            None,
+            config={
+                "recursion_limit": MAX_TOOL_ITERATIONS * 2 + 4,
+                "configurable": {"thread_id": run_id},
+            },
+        )
+        return {
+            "agent_id": self.definition.agent_id,
+            "run_id": run_id,
             "halal_flag": final_state.get("halal_flag"),
             "messages": final_state["messages"],
         }

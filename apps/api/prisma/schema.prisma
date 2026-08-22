@@ -1579,6 +1579,67 @@ enum UsageKind {
   STORAGE
 }
 
+/// P0-8 — LangGraph ijro holati (checkpoint).
+///
+/// ⚠️ NEGA API'DA, ENGINE'DA EMAS: `apps/agent-engine` da hech qanday DB
+/// kutubxonasi yo'q va u Postgres'ga UMUMAN ulanmaydi — API bilan faqat
+/// HTTP orqali gaplashadi. `langgraph-checkpoint-postgres` ni engine'ga
+/// qo'shish unga DB kredensiallarini berish, ya'ni arxitektura chegarasini
+/// ochish bo'lardi (engine buzilsa — to'g'ridan-to'g'ri baza).
+///
+/// Shuning uchun: holat AYNAN KERAKLI joyda — Postgres'da (Contract A10,
+/// yagona haqiqat manbai), lekin unga yozish API orqali. Engine tomonda
+/// `ApiCheckpointSaver` (`BaseCheckpointSaver`) `/internal/checkpoints`
+/// endpointiga boradi.
+///
+/// `blob` — LangGraph serializatori chiqishi (base64). Ichida XOM SIR
+/// BO'LMASLIGI kerak: sirlar modelga `secretRef` sifatida beriladi (P0-9),
+/// checkpoint esa faqat ichki holatni saqlaydi (blueprint §2.1 T5).
+model AgentCheckpoint {
+  id String @id @default(cuid())
+  /// LangGraph `thread_id` — bizda `ExecutionRun.id` (blueprint §2.9 M3:
+  /// holat RUNGA bog'langan, ulanishga emas).
+  threadId String
+  /// LangGraph checkpoint identifikatori (ULID-simon, tartibli).
+  checkpointId String
+  /// Ota-checkpoint — tarix zanjiri (`before`/resume uchun).
+  parentCheckpointId String?
+  /// `checkpoint_ns` — subgraph nommaydoni; asosiy grafda bo'sh satr.
+  checkpointNs String @default("")
+
+  blob     String
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  /// Bir thread ichida bir checkpoint IKKI MARTA yozilmaydi (retry xavfsiz).
+  @@unique([threadId, checkpointNs, checkpointId])
+  /// `get_tuple` (oxirgisi) va `list` (tarix) — ikkalasi ham shu indeksdan.
+  @@index([threadId, checkpointNs, createdAt])
+}
+
+/// P0-8 — tugun yozuvlari (`put_writes`).
+///
+/// LangGraph tugun natijalarini checkpointdan ALOHIDA yozadi: ular
+/// keyingi checkpoint qurilishida qo'llaniladi. Bitta jadvalga siqish
+/// `get_tuple` ni noto'g'ri qilardi.
+model AgentCheckpointWrite {
+  id           String @id @default(cuid())
+  threadId     String
+  checkpointNs String @default("")
+  checkpointId String
+  taskId       String
+  /// Yozuv tartibi — LangGraph ularni AYNAN shu tartibda qayta o'qiydi.
+  idx      Int
+  channel  String
+  blob     String
+
+  createdAt DateTime @default(now())
+
+  @@unique([threadId, checkpointNs, checkpointId, taskId, idx])
+  @@index([threadId, checkpointNs, checkpointId])
+}
+
 /// P0-6 — INSON TASDIG'I HODISASI (SAFETY_POLICY_LAYER §8).
 ///
 /// Bu jadval — UI elementi emas, **ma'lumot aktivi**: "inson qaysi amalni
