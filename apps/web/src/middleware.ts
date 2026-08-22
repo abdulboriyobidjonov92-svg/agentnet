@@ -161,7 +161,11 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/api") ||
     pathname.startsWith("/_next") ||
     // Ulashilgan natija (/s/<token>) — PLG public sahifa, kirishsiz ochilishi SHART
-    pathname.startsWith("/s/");
+    pathname.startsWith("/s/") ||
+    // `/design-system` (UI-1) — ichki dizayn ma'lumotnomasi. FAQAT dev'da:
+    // prod'da sahifa layout'i baribir 404 qaytaradi, bu yerdagi shart esa
+    // ikkinchi qatlam (himoya bitta joyga tayanmasin).
+    (process.env.NODE_ENV !== "production" && pathname.startsWith("/design-system"));
 
   if (isPublic) {
     return withCsp(NextResponse.next({ request: { headers: requestHeaders } }));

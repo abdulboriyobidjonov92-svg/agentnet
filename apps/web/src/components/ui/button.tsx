@@ -36,12 +36,58 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean;
+  /**
+   * Kutish holati (UI-1: tugmaning beshinchi holati).
+   *
+   * NEGA TUGMA ICHIDA: ilgari har ekran o'zicha `disabled={saving}` +
+   * matnni "Saqlanmoqda..." ga almashtirar edi — natijada har joyda
+   * boshqacha ko'rinardi va tugma ENI SAKRARDI. Bu yerda matn JOYIDA
+   * qoladi (faqat ko'rinmas bo'ladi), spinner ustiga chiziladi —
+   * layout siljimaydi.
+   */
+  loading?: boolean;
+}
+
+/** Bitta spinner — barcha kutish holatlari uchun (SVG, qo'shimcha kutubxonasiz). */
+function Spinner() {
+  return (
+    <svg
+      className="absolute h-4 w-4 animate-spin"
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2" />
+      <path d="M14.5 8a6.5 6.5 0 0 0-6.5-6.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, loading = false, children, disabled, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
-    return <Comp ref={ref} className={cn(buttonVariants({ variant, size }), className)} {...props} />;
+    // `asChild` da bola YAGONA element bo'lishi shart (Radix Slot talabi) —
+    // shuning uchun spinner qatlami faqat oddiy tugmada qo'shiladi.
+    if (asChild) {
+      return (
+        <Comp ref={ref} className={cn(buttonVariants({ variant, size }), className)} {...props}>
+          {children}
+        </Comp>
+      );
+    }
+    return (
+      <Comp
+        ref={ref}
+        className={cn(buttonVariants({ variant, size }), loading && "relative", className)}
+        disabled={disabled || loading}
+        aria-busy={loading || undefined}
+        {...props}
+      >
+        {loading && <Spinner />}
+        {/* Matn o'chirilmaydi — yashiriladi. Tugma eni o'zgarmaydi. */}
+        <span className={cn("contents", loading && "invisible")}>{children}</span>
+      </Comp>
+    );
   },
 );
 Button.displayName = "Button";

@@ -80,6 +80,35 @@
     --dur-2: 260ms;
     --dur-3: 480ms;
     --heartbeat: 1000ms; /* 60bpm — tizim yuragi */
+
+    /* =================================================================
+       V3-P0 SEMANTIK TOKENLAR (UI-1)
+
+       Bulardan OLDIN faqat umumiy `--ok/--warn/--danger` bor edi. P0
+       ekranlari (policy, approval, trace, konnektor) ikki ANIQ o'lchamni
+       ko'rsatishi kerak va ular BIR XIL EMAS:
+
+         risk tier  — amal QANCHALIK XAVFLI (SAFETY_POLICY_LAYER §2)
+         run state  — ijro HOZIR QAYSI HOLATDA (P0_BLUEPRINT §2.3)
+
+       "HIGH risk" va "failed" ikkalasi ham qizil bo'lsa, foydalanuvchi
+       "xavfli amal" va "yiqilgan ijro"ni ajrata olmaydi — shuning uchun
+       ikkita alohida shkala.
+       ================================================================= */
+
+    /* Risk tierlari — SAFETY_POLICY_LAYER §2 (LOW → CRITICAL) */
+    --risk-low: 165 42% 48%;
+    --risk-medium: 40 72% 56%;
+    --risk-high: 20 88% 60%;
+    --risk-critical: 355 80% 62%;
+
+    /* Ijro holatlari — P0_BLUEPRINT §2.3 hodisa turlari */
+    --state-running: 188 100% 62%; /* vena-cyan: tirik, ishlayapti */
+    --state-waiting: 260 100% 70%; /* vena-violet: SENDAN javob kutmoqda */
+    --state-blocked: 20 88% 60%; /* policy to'xtatdi — ataylab, xato emas */
+    --state-success: 160 55% 52%;
+    --state-failed: 355 80% 62%;
+    --state-cancelled: 222 10% 58%; /* o'chgan — muted bilan bir xil */
   }
 }
 
@@ -273,6 +302,72 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), 0 24px 80px rgba(0, 0, 0, 0.65);
   }
   .glow-ring:hover { border-color: rgba(255, 255, 255, 0.16); }
+
+  /* =================================================================
+     RISK TIER — "qanchalik tirik" shkalasi (UI-1 imzo qarori)
+
+     Liquid Obsidian qonuni #3: "Raqam emas — HOLAT". Shuning uchun risk
+     rangli tabletka bilan emas, elementning TIRIKLIK darajasi bilan
+     ko'rsatiladi — bu tizimning o'z tilida gapiradi, yangi vizual
+     lug'at import qilmaydi:
+
+       LOW      — tekis, porlashsiz   (jim = xavfsiz)
+       MEDIUM   — ingichka qirra
+       HIGH     — barqaror qirra porlashi
+       CRITICAL — porlash + 60bpm yurak urishi (tizim yuragi)
+
+     ⚠️ A11Y: rang YAKKA O'ZI hech qachon yagona signal emas — har tier
+     matn yorlig'i bilan keladi (`RiskBadge`). `prefers-reduced-motion`
+     da CRITICAL puls to'xtaydi, shuning uchun uning porlashi va to'ldirishi
+     ataylab HIGH dan kuchliroq — harakatsiz ham farq ko'rinadi.
+     ================================================================= */
+  .risk-surface {
+    background: hsl(var(--risk-color) / 0.1);
+    color: hsl(var(--risk-color));
+  }
+  [data-risk="low"] { --risk-color: var(--risk-low); }
+  [data-risk="medium"] { --risk-color: var(--risk-medium); }
+  [data-risk="high"] { --risk-color: var(--risk-high); }
+  [data-risk="critical"] { --risk-color: var(--risk-critical); }
+
+  [data-risk="low"].risk-edge { box-shadow: none; }
+  [data-risk="medium"].risk-edge { box-shadow: inset 0 0 0 1px hsl(var(--risk-color) / 0.35); }
+  [data-risk="high"].risk-edge {
+    box-shadow:
+      inset 0 0 0 1px hsl(var(--risk-color) / 0.5),
+      0 0 20px hsl(var(--risk-color) / 0.16);
+  }
+  [data-risk="critical"].risk-edge {
+    /* Harakatsiz ham HIGH dan kuchliroq — reduced-motion uchun. */
+    background: hsl(var(--risk-color) / 0.16);
+    box-shadow:
+      inset 0 0 0 1px hsl(var(--risk-color) / 0.75),
+      0 0 28px hsl(var(--risk-color) / 0.26);
+    animation: heartbeat var(--heartbeat) ease-in-out infinite;
+  }
+
+  /* =================================================================
+     IJRO HOLATI — P0_BLUEPRINT §2.3 hodisalarining ko'rinishi
+     ================================================================= */
+  .state-surface {
+    background: hsl(var(--state-color) / 0.1);
+    color: hsl(var(--state-color));
+  }
+  [data-state-kind="running"] { --state-color: var(--state-running); }
+  [data-state-kind="waiting"] { --state-color: var(--state-waiting); }
+  [data-state-kind="blocked"] { --state-color: var(--state-blocked); }
+  [data-state-kind="success"] { --state-color: var(--state-success); }
+  [data-state-kind="failed"] { --state-color: var(--state-failed); }
+  [data-state-kind="cancelled"] { --state-color: var(--state-cancelled); }
+
+  /* Faqat IKKI holat harakatlanadi — ular foydalanuvchidan e'tibor so'raydi.
+     Tugagan holatlar (success/failed/cancelled) ataylab qotib turadi. */
+  .state-dot { border-radius: 9999px; background: hsl(var(--state-color)); }
+  [data-state-kind="running"].state-dot { animation: breathe 2.4s ease-in-out infinite; }
+  [data-state-kind="waiting"].state-dot {
+    animation: softPulse 1.6s ease-in-out infinite;
+    box-shadow: 0 0 12px hsl(var(--state-color) / 0.6);
+  }
 
   /* Vena qirrasi — tirik element belgisi */
   .vein-edge {
