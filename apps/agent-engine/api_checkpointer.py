@@ -34,9 +34,10 @@ import base64
 import logging
 import os
 from collections.abc import Iterator, Sequence
-from typing import Any
+from typing import Any, cast
 
 import httpx
+from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import (
     BaseCheckpointSaver,
     ChannelVersions,
@@ -81,11 +82,11 @@ class ApiCheckpointSaver(BaseCheckpointSaver):
     # ---------- yordamchilar ----------
 
     @staticmethod
-    def _thread_id(config: dict[str, Any]) -> str | None:
+    def _thread_id(config: RunnableConfig | None) -> str | None:
         return (config or {}).get("configurable", {}).get("thread_id")
 
     @staticmethod
-    def _ns(config: dict[str, Any]) -> str:
+    def _ns(config: RunnableConfig | None) -> str:
         return (config or {}).get("configurable", {}).get("checkpoint_ns", "") or ""
 
     def _dumps(self, value: Any) -> str:
@@ -98,7 +99,7 @@ class ApiCheckpointSaver(BaseCheckpointSaver):
         return self.serde.loads_typed((type_, base64.b64decode(b64)))
 
     def _tuple_from_payload(self, payload: dict[str, Any]) -> CheckpointTuple:
-        config = {
+        config: RunnableConfig = {
             "configurable": {
                 "thread_id": payload["threadId"],
                 "checkpoint_ns": payload.get("checkpointNs", ""),
@@ -106,7 +107,7 @@ class ApiCheckpointSaver(BaseCheckpointSaver):
             }
         }
         parent = payload.get("parentCheckpointId")
-        parent_config = (
+        parent_config: RunnableConfig | None = (
             {
                 "configurable": {
                     "thread_id": payload["threadId"],
@@ -124,7 +125,9 @@ class ApiCheckpointSaver(BaseCheckpointSaver):
         return CheckpointTuple(
             config=config,
             checkpoint=self._loads(payload["blob"]),
-            metadata=payload.get("metadata") or {},
+            # API `metadata` ni xom JSON qaytaradi; `CheckpointMetadata` —
+            # `total=False` TypedDict, ya'ni bo'sh lug'at ham yaroqli qiymat.
+            metadata=cast(CheckpointMetadata, payload.get("metadata") or {}),
             parent_config=parent_config,
             pending_writes=writes,
         )
@@ -133,11 +136,11 @@ class ApiCheckpointSaver(BaseCheckpointSaver):
 
     def put(
         self,
-        config: dict[str, Any],
+        config: RunnableConfig,
         checkpoint: Checkpoint,
         metadata: CheckpointMetadata,
         new_versions: ChannelVersions,
-    ) -> dict[str, Any]:
+    ) -> RunnableConfig:
         thread_id = self._thread_id(config)
         # `thread_id` yo'q — bu graf run'ga bog'lanmagan (masalan test yoki
         # eski chaqiruv). Saqlash MA'NOSIZ, lekin ijro to'xtamasligi kerak.
@@ -173,7 +176,7 @@ class ApiCheckpointSaver(BaseCheckpointSaver):
 
     def put_writes(
         self,
-        config: dict[str, Any],
+        config: RunnableConfig,
         writes: Sequence[tuple[str, Any]],
         task_id: str,
         task_path: str = "",
@@ -200,7 +203,7 @@ class ApiCheckpointSaver(BaseCheckpointSaver):
         except Exception as exc:  # fail-open
             logger.warning("Checkpoint yozuvlari saqlanmadi (%s): %s", thread_id, exc)
 
-    def get_tuple(self, config: dict[str, Any]) -> CheckpointTuple | None:
+    def get_tuple(self, config: RunnableConfig) -> CheckpointTuple | None:
         thread_id = self._thread_id(config)
         if not thread_id:
             return None
@@ -224,10 +227,10 @@ class ApiCheckpointSaver(BaseCheckpointSaver):
 
     def list(
         self,
-        config: dict[str, Any] | None,
+        config: RunnableConfig | None,
         *,
         filter: dict[str, Any] | None = None,
-        before: dict[str, Any] | None = None,
+        before: RunnableConfig | None = None,
         limit: int | None = None,
     ) -> Iterator[CheckpointTuple]:
         thread_id = self._thread_id(config or {})
