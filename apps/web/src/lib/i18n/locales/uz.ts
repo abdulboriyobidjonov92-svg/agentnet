@@ -202,8 +202,6 @@ const uz: Dict = {
     "landing.ctaDesc": "Bir daqiqada ro'yxatdan o'ting va birinchi AI agentingizni yarating.",
     "landing.ctaButton": "Bepul hisob yaratish",
     "landing.footer": "AgentNet — Suveren AI operatsiyalar platformasi",
-    "landing.audienceTitle": "Har kim uchun qurilgan",
-    "landing.audienceSub": "Oddiy foydalanuvchidan davlatgacha — bitta platforma, cheksiz imkoniyat.",
     "landing.indTitle": "Shaxslar uchun",
     "landing.indDesc": "Life Twin moliyangiz, ishingiz va maqsadlaringizni modellashtiradi — AI jamoa esa ularni rejadan bajarishgacha amalga oshiradi.",
     "landing.bizTitle": "Biznes va davlat uchun",
@@ -214,9 +212,6 @@ const uz: Dict = {
     "landing.bizP1": "C-suite orkestratsiyasi",
     "landing.bizP2": "Ethics Guard + audit",
     "landing.bizP3": "Real vaqt operatsiyalari",
-    "landing.stat1": "Agent joylashtirilgan",
-    "landing.stat2": "Til",
-    "landing.stat3": "Ishlash vaqti",
     "landing.trusted": "Claude asosida · Etika bilan tekshirilgan bajarish",
 
     "auth.welcomeBadge": "Xush kelibsiz",
@@ -930,7 +925,7 @@ const uz: Dict = {
     "pricing.pt.ent.f2": "Compliance paketlar + maxsus qo'llab-quvvatlash",
 
     // Cinematic hero ekranlari
-    "hero.welcome": "Xush kelibsiz, Aziza!",
+    "hero.welcome": "Sizning ish maydoningiz",
     "hero.today": "Bugun",
     "hero.easy": "Oson",
     "hero.medium": "O'rtacha",

@@ -205,8 +205,6 @@ const en: Dict = {
     "landing.ctaDesc": "Sign up in a minute and create your first AI agent.",
     "landing.ctaButton": "Create free account",
     "landing.footer": "AgentNet — Sovereign AI operations platform",
-    "landing.audienceTitle": "Built for everyone",
-    "landing.audienceSub": "From individuals to governments — one platform, endless possibilities.",
     "landing.indTitle": "For individuals",
     "landing.indDesc": "A Life Twin that models your finances, work and goals — and an AI workforce that acts on them, from planning to execution.",
     "landing.bizTitle": "For enterprises & government",
@@ -217,9 +215,6 @@ const en: Dict = {
     "landing.bizP1": "AI C-suite orchestration",
     "landing.bizP2": "Ethics Guard + audit log",
     "landing.bizP3": "Real-time operations",
-    "landing.stat1": "Agents deployed",
-    "landing.stat2": "Languages",
-    "landing.stat3": "Uptime",
     "landing.trusted": "Powered by Claude · Ethics-verified execution",
 
     // Auth
@@ -942,7 +937,7 @@ const en: Dict = {
     "pricing.pt.ent.f2": "Compliance packs + dedicated support",
 
     // Cinematic hero screens
-    "hero.welcome": "Welcome back, Alex!",
+    "hero.welcome": "Your workspace",
     "hero.today": "Today",
     "hero.easy": "Easy",
     "hero.medium": "Medium",

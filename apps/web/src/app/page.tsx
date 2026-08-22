@@ -10,7 +10,7 @@ import { decodeSession, SESSION_COOKIE } from "@/lib/session";
 import { getT } from "@/lib/i18n/server";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Reveal, Tilt, Counter } from "@/components/motion";
+import { Reveal, Tilt } from "@/components/motion";
 import { Button } from "@/components/ui/button";
 import { CinematicHero } from "@/components/hero/CinematicHero";
 import { HalalBadge } from "@/components/hero/HalalBadge";
@@ -85,35 +85,17 @@ export default async function HomePage() {
         {/* 3D sahna — qurilmalar + hologramlar (lazy, reduced-motion fallback) */}
         <CinematicHero className="relative z-10 mx-auto h-[440px] w-full max-w-6xl sm:h-[500px] lg:h-[580px]" />
 
-        {/* Stats — sahna ostida */}
-        <div className="relative z-10 mx-auto grid max-w-3xl grid-cols-3 border-t border-white/10 px-4 pb-10 pt-6 sm:px-6">
-          {[
-            { v: <Counter to={1200} suffix="+" />, l: t("landing.stat1") },
-            { v: "3", l: t("landing.stat2") },
-            { v: "99.9%", l: t("landing.stat3") },
-          ].map((s, i) => (
-            <div key={s.l} className={i > 0 ? "border-l border-white/10 pl-4 sm:pl-6" : "pr-2"}>
-              <p className="nums text-2xl font-semibold tracking-tight text-white sm:text-3xl">{s.v}</p>
-              <p className="mt-1 text-[0.7rem] font-medium uppercase tracking-[0.14em] text-white/50">{s.l}</p>
-            </div>
-          ))}
-        </div>
-        <div className="relative z-10 pb-8 text-center text-xs text-white/40">{t("landing.trusted")}</div>
+        {/* Statistika bandi ATAYLAB olib tashlandi (founder qarori, 2026-08-22):
+            "1200+ agent · 3 til · 99.9% uptime" — ikkitasi tekshirib bo'lmaydigan
+            da'vo edi (agent soni, uptime), uchinchisi esa xususiyat emas. */}
+        <div className="relative z-10 pb-8 pt-2 text-center text-xs text-white/40">{t("landing.trusted")}</div>
       </section>
 
       {/* ===== Audience: individuals + business ===== */}
+      {/* Sarlavha bloki ("01 · Har kim uchun qurilgan" + tavsif) ATAYLAB olib
+          tashlandi (founder qarori, 2026-08-22): ikkita karta o'zini o'zi
+          tushuntiradi, sarlavha esa faqat takrorlardi. */}
       <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
-        <Reveal className="mb-10 text-center">
-          <div className="mb-4 flex items-center justify-center gap-2.5">
-            <span className="h-px w-8 bg-gradient-to-r from-transparent to-[hsl(var(--accent-line))]" />
-            <span className="nums text-[0.7rem] font-medium uppercase tracking-[0.24em] text-line">
-              01
-            </span>
-            <span className="h-px w-8 bg-gradient-to-l from-transparent to-[hsl(var(--accent-line))]" />
-          </div>
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">{t("landing.audienceTitle")}</h2>
-          <p className="mx-auto mt-3 max-w-xl text-muted-foreground">{t("landing.audienceSub")}</p>
-        </Reveal>
         <div className="grid gap-5 md:grid-cols-2">
           <Reveal delay={80}>
             <Tilt max={6} className="h-full">

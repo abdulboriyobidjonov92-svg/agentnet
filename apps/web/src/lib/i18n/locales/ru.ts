@@ -202,8 +202,6 @@ const ru: Dict = {
     "landing.ctaDesc": "Зарегистрируйтесь за минуту и создайте первого ИИ-агента.",
     "landing.ctaButton": "Создать бесплатный аккаунт",
     "landing.footer": "AgentNet — Платформа суверенных ИИ-операций",
-    "landing.audienceTitle": "Создано для каждого",
-    "landing.audienceSub": "От частных лиц до государства — одна платформа, безграничные возможности.",
     "landing.indTitle": "Для частных лиц",
     "landing.indDesc": "Life Twin моделирует ваши финансы, работу и цели — а ИИ-команда действует на их основе, от плана до исполнения.",
     "landing.bizTitle": "Для бизнеса и государства",
@@ -214,9 +212,6 @@ const ru: Dict = {
     "landing.bizP1": "Оркестрация C-suite",
     "landing.bizP2": "Ethics Guard + аудит",
     "landing.bizP3": "Операции в реальном времени",
-    "landing.stat1": "Агентов развёрнуто",
-    "landing.stat2": "Языка",
-    "landing.stat3": "Аптайм",
     "landing.trusted": "На базе Claude · Исполнение с проверкой этики",
 
     "auth.welcomeBadge": "С возвращением",
@@ -930,7 +925,7 @@ const ru: Dict = {
     "pricing.pt.ent.f2": "Пакеты Compliance + выделенная поддержка",
 
     // Cinematic hero экраны
-    "hero.welcome": "С возвращением, Азиза!",
+    "hero.welcome": "Ваше рабочее пространство",
     "hero.today": "Сегодня",
     "hero.easy": "Просто",
     "hero.medium": "Средне",
