@@ -54,8 +54,20 @@ EXPOSE 3001
 # migratsiya kechikishiga BOG'LAB qo'yadi.
 #
 # ENDI: konteyner DARHOL portni ochadi. Migratsiya — ALOHIDA qadam:
-#     npx prisma migrate deploy --schema=prisma/schema.prod.prisma
-# (lokal/CI'dan MIGRATION_URL bilan, yoki Render "One-Off Job").
+#     cd apps/api && DATABASE_URL="<prod-url>" npx prisma migrate deploy
+# (lokal/CI'dan, yoki Render "One-Off Job").
+#
+# ⚠️ 2026-08-22 da TUZATILDI — bu izohning oldingi tahriri IKKI MARTA
+# noto'g'ri edi va migratsiyani bajaruvchini adashtirardi:
+#   · `--schema=prisma/schema.prod.prisma` — bunday fayl YO'Q (faqat
+#     `prisma/schema.prisma` mavjud), buyruq shu holida yiqilardi;
+#   · `MIGRATION_URL` — bunday o'zgaruvchi hech qayerda o'qilmaydi;
+#     sxema `env("DATABASE_URL")` deydi (`schema.prisma` datasource).
+# `apps/api/.env` da lokal `DATABASE_URL` bo'lsa ham, buyruq oldida
+# berilgan qiymat undan USTUN turadi (dotenv mavjud env'ni bosmaydi) —
+# baribir chiqishdagi `Datasource "db": ... at "<host>"` qatorini
+# ko'z bilan tekshiring.
+#
 # MUHIM: port 5432 (session pooler) ishlatilsin — 6543 (transaction)
 # da `migrate deploy` advisory-lock'da MUZLAB QOLADI.
 #
