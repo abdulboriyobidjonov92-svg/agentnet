@@ -8,6 +8,7 @@ import { ArrowLeft, Globe, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useT } from "@/lib/i18n/client";
 import { Button } from "@/components/ui/button";
+import { AgentConnectors } from "@/components/agents/agent-connectors";
 
 export default function AgentSettingsPage({ params }: { params: Promise<{ agentId: string }> }) {
   const { agentId } = use(params);
@@ -65,6 +66,8 @@ export default function AgentSettingsPage({ params }: { params: Promise<{ agentI
           submitLabel={t("form.save")}
         />
       )}
+
+      <AgentConnectors agentId={agentId} />
 
       <div className="rounded-2xl border bg-card p-6 shadow-soft">
         <h2 className="mb-1 font-semibold">{t("nav.marketplace")}</h2>
