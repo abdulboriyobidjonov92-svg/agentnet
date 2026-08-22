@@ -148,6 +148,11 @@ export async function POST(req: NextRequest) {
         conversationId: body.conversationId ?? undefined,
         conversationHistory: body.conversationHistory ?? undefined,
         profession: body.profession ?? undefined,
+        // UI-4: ijro izi (P0-7) shu agentga bog'lanadi. Mijoz uni allaqachon
+        // yuboradi; ilgari BFF uni tashlab ketardi va API `agentDefinition.id`
+        // ga tayanishga majbur bo'lardi. API egalikni baribir tekshiradi
+        // (begona `agentId` bilan boshqa agentga iz yozib bo'lmaydi).
+        agentId: body.agentId ?? undefined,
       }),
     });
   } catch (e: any) {
@@ -156,6 +161,31 @@ export async function POST(req: NextRequest) {
     return new Response(
       `data: ${JSON.stringify({ type: "error", message: "Agent engine bilan aloqa yo'q" })}\n\n`,
       { status: 503, headers: { "Content-Type": "text/event-stream" } },
+    );
+  }
+
+  // UI-5: 402 — bu ENGINE XATOSI EMAS, boshqariladigan to'lov holati.
+  //
+  // Ilgari u pastdagi umumiy shoxga tushib "Agent engine xatosi" bo'lardi:
+  // foydalanuvchi agenti muzlatilganini (yoki balansi yetmasligini) bilmasdan
+  // "texnik nosozlik" ko'rardi va nima qilishni tushunmasdi. Sabab API'da
+  // ANIQ bor (`frozenErrorPayload` → `reason`), shuni oxirigacha olib chiqamiz.
+  if (upstream.status === 402) {
+    const info: any = await upstream.json().catch(() => ({}));
+    const reason: string | undefined = info?.reason ?? info?.message?.reason;
+    const message: string | undefined =
+      typeof info?.message === "string" ? info.message : info?.message?.message;
+    // Xizmat ko'rsatilmadi — yechilgan pul qaytariladi (Konstitutsiya #21).
+    postRefund("payment_required");
+    // `trial_expired` ham agentga bog'liq holat — bir xil kartochka, o'z matni.
+    const type =
+      reason === "agent_frozen" || reason === "trial_expired"
+        ? "agent_frozen"
+        : "insufficient_balance";
+    return new Response(
+      `data: ${JSON.stringify({ type, message, reason })}\n\n` +
+        `data: ${JSON.stringify({ type: "done", demo_mode: false })}\n\n`,
+      { status: 200, headers: { "Content-Type": "text/event-stream" } },
     );
   }
 

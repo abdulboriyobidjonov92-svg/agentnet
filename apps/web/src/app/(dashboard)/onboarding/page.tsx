@@ -89,17 +89,37 @@ export default function OnboardingPage() {
     setInstalling(true);
     setError("");
     try {
-      const agents = profile.recommended_agents
-        .filter((_, i) => selected.has(i))
-        .map((a) => ({
-          name: pick(a.name, locale),
-          systemPrompt: a.system_prompt,
-          toolsConfig: a.tools,
-        }));
+      const chosen = profile.recommended_agents.filter((_, i) => selected.has(i));
+      const agents = chosen.map((a) => ({
+        name: pick(a.name, locale),
+        systemPrompt: a.system_prompt,
+        toolsConfig: a.tools,
+      }));
+
+      let installed: { id: string; name: string }[] = [];
       if (agents.length > 0) {
-        await api.post("/users/me/recommendations/install", { agents });
+        installed = await api.post<{ id: string; name: string }[]>(
+          "/users/me/recommendations/install",
+          { agents },
+        );
       }
       queryClient.invalidateQueries({ queryKey: ["agents"] });
+
+      // ⚠️ UI-2 NING YADROSI: oqim BIRINCHI XABARDA tugaydi, dashboard'da EMAS.
+      //
+      // Ilgari bu yerda `/dashboard` ga o'tilardi va foydalanuvchi agent
+      // yaratilgani bilan HECH QANDAY natija ko'rmasdi. PRICING §4 bo'yicha
+      // eng ko'p yo'qotiladigan qadam aynan `FIRST AGENT → FIRST SUCCESS` —
+      // uni bosib o'tishga majburlash o'rniga, foydalanuvchini to'g'ridan-
+      // to'g'ri chat'ga, tayyor birinchi savol bilan olib boramiz.
+      const first = installed[0];
+      if (first) {
+        const starter = pick(chosen[0]?.description, locale) || t("onb.starterFallback");
+        router.push(
+          `/agents/${first.id}?q=${encodeURIComponent(starter)}&onboarding=1`,
+        );
+        return;
+      }
       router.push("/dashboard");
     } catch (err: any) {
       setError(apiErrorMessage(err, t));
@@ -109,6 +129,9 @@ export default function OnboardingPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
+      {/* UI-2: qayerdaman? Uch qadam — oxirgisi BIRINCHI NATIJA, "tayyor" emas. */}
+      <OnboardingSteps current={profile ? 2 : 1} t={t} />
+
       {/* Bosqich 1: erkin matnli tavsif */}
       {!profile && (
         <form onSubmit={analyze} className="space-y-5">
@@ -165,6 +188,22 @@ export default function OnboardingPage() {
               </>
             )}
           </Button>
+
+          {/* ⚠️ KAFOLATLANGAN ZAXIRA YO'L (blueprint §2.8 D5).
+              1-qadam LLM chaqiruviga tayanadi; bepul tarifda u band bo'lishi
+              yoki yiqilishi mumkin (5 modelli rotatsiya tugasa). Bunday
+              holatda onboarding TO'XTAB QOLMASLIGI kerak — shablon galereyasi
+              LLM'siz ishlaydi va birinchi agent bepul (yaratish narxi
+              kechiriladi). */}
+          <div className="rounded-2xl border border-dashed p-4 text-center">
+            <p className="text-sm font-medium">{t("onb.fallbackTitle")}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t("onb.fallbackDesc")}</p>
+            <Button asChild variant="outline" size="sm" className="mt-3">
+              <Link href="/templates?from=onboarding">
+                <BadgeCheck /> {t("onb.fallbackAction")}
+              </Link>
+            </Button>
+          </div>
 
           <p className="text-center">
             <Link href="/dashboard" className="text-sm text-muted-foreground hover:underline">
@@ -281,5 +320,49 @@ export default function OnboardingPage() {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * UI-2 — uch qadamli progress.
+ *
+ * Uchinchi qadam ataylab "Tayyor" EMAS, balki "Birinchi natija": onboarding
+ * agent yaratilganda tugamaydi — u foydalanuvchi haqiqiy javobni ko'rganda
+ * tugaydi (PRICING §4, eng ko'p yo'qotiladigan qadam).
+ */
+function OnboardingSteps({ current, t }: { current: 1 | 2 | 3; t: (k: string) => string }) {
+  const steps = [t("onb.step1"), t("onb.step2"), t("onb.step3")];
+  return (
+    <ol className="flex items-center gap-2" aria-label={t("onb.progressLabel")}>
+      {steps.map((label, i) => {
+        const n = (i + 1) as 1 | 2 | 3;
+        const done = n < current;
+        const active = n === current;
+        return (
+          <li key={label} className="flex flex-1 items-center gap-2">
+            <span
+              aria-current={active ? "step" : undefined}
+              className={cn(
+                "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold",
+                done && "border-transparent bg-ok/15 text-ok",
+                active && "border-transparent bg-primary text-primary-foreground",
+                !done && !active && "text-muted-foreground",
+              )}
+            >
+              {done ? <Check className="h-3 w-3" /> : n}
+            </span>
+            <span
+              className={cn(
+                "hidden truncate text-xs sm:block",
+                active ? "font-medium" : "text-muted-foreground",
+              )}
+            >
+              {label}
+            </span>
+            {n < 3 && <span className="h-px flex-1 bg-border" />}
+          </li>
+        );
+      })}
+    </ol>
   );
 }

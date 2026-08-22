@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Wallet, Loader2 } from "lucide-react";
+import { create } from "zustand";
 import { useApiClient } from "@/lib/api-client";
 import { useT } from "@/lib/i18n/client";
 import { Button } from "@/components/ui/button";
@@ -11,10 +12,32 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 
-interface BalanceInfo {
+export interface BalanceInfo {
   balanceSom: number;
   pricePerMessageSom: number;
   messagesRemaining: number;
+}
+
+/**
+ * To'ldirish oynasini ISTALGAN joydan ochish (UI-5).
+ *
+ * `BalanceWidget` dashboard qobig'ida doim mount qilingan, shuning uchun
+ * chatdagi "balans yetmadi" kartochkasi yangi dialog qurmaydi — mavjudini
+ * ochadi. Naqsh `useToastStore` bilan bir xil (repo'da allaqachon bor):
+ * jarayon-ichi kichik store, prop-drilling yo'q.
+ */
+interface TopupDialogStore {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}
+export const useTopupDialog = create<TopupDialogStore>((set) => ({
+  open: false,
+  setOpen: (open) => set({ open }),
+}));
+
+/** Chaqiruv nuqtasi: `openTopup()` — komponentga bog'liq emas. */
+export function openTopup() {
+  useTopupDialog.getState().setOpen(true);
 }
 
 /**
@@ -25,7 +48,7 @@ interface BalanceInfo {
 export function BalanceWidget() {
   const api = useApiClient();
   const { t } = useT();
-  const [open, setOpen] = useState(false);
+  const { open, setOpen } = useTopupDialog();
   const [amount, setAmount] = useState("10000");
   const [provider, setProvider] = useState<"payme" | "click">("payme");
 
@@ -34,6 +57,18 @@ export function BalanceWidget() {
     queryFn: () => api.get<BalanceInfo>("/billing/me"),
     refetchInterval: 30_000,
   });
+
+  // Oyna tashqaridan ochilganda (chatdagi "balans yetmadi" kartochkasi)
+  // summani yetishmayotgan miqdorga yaqinlashtiramiz — foydalanuvchi
+  // "qancha kerak?" savolini o'zi hisoblamasin.
+  useEffect(() => {
+    if (!open || !data) return;
+    const perMessage = data.pricePerMessageSom || 0;
+    if (perMessage <= 0) return;
+    // Kamida 10 ta xabarga yetadigan, 1000 ga yaxlitlangan summa.
+    const suggested = Math.max(1000, Math.ceil((perMessage * 10) / 1000) * 1000);
+    setAmount(String(suggested));
+  }, [open, data]);
 
   const topup = useMutation({
     mutationFn: (amountSom: number) => api.post<{ payUrl: string }>("/billing/topup", { amountSom, provider }),

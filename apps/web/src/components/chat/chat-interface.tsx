@@ -1,12 +1,18 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Send, ShieldAlert, ShieldCheck, User, Bot, Loader2 } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Send, ShieldAlert, ShieldCheck, User, Bot, Loader2, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
 import { useT } from "@/lib/i18n/client";
 import { useApiClient } from "@/lib/api-client";
+import { LimitNotice, type LimitKind } from "@/components/chat/limit-notice";
+import { StepCard, isChatVisible } from "@/components/chat/step-card";
+import { useRunEvents } from "@/lib/use-run-events";
+import { ApprovalCard } from "@/components/chat/approval-card";
+import { toast } from "@/components/ui/toast";
+import Link from "next/link";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -15,6 +21,18 @@ interface Message {
   // Engine demo rejimda javob berdi (real Claude emas) — foydalanuvchiga
   // ochiq ko'rsatiladi, pul BFF tomonidan avtomatik qaytariladi.
   demoMode?: boolean;
+  /**
+   * UI-5 — chegara holati (limit/balans). Bo'lsa, matn pufagi O'RNIGA
+   * `LimitNotice` kartochkasi chiziladi: nima bo'ldi, qachon tiklanadi,
+   * keyingi qadam. Ilgari bu holatlar `⏳ ${message}` matniga aylanardi,
+   * ya'ni oddiy xatodan farq qilmasdi.
+   */
+  limit?: { kind: LimitKind; message?: string; reason?: string };
+  /**
+   * UI-4 — bu javob qaysi ijroga tegishli (P0-7 trace). Bo'lsa, xabar
+   * ostida "Agent nima qildi?" havolasi chiqadi.
+   */
+  runId?: string | null;
   timestamp: string;
 }
 
@@ -31,6 +49,47 @@ export function ChatInterface({ agentId, agentDefinition }: ChatInterfaceProps) 
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [conversationId, setConversationId] = useState<string | null>(null);
+  /** UI-4: joriy ijro — qadamlar shu orqali jonli keladi. */
+  const [activeRunId, setActiveRunId] = useState<string | null>(null);
+  /** UI-2: onboarding'dan kelindimi (keyingi qadam kartasi uchun). */
+  const [fromOnboarding, setFromOnboarding] = useState(false);
+  const liveSteps = useRunEvents(activeRunId);
+
+  /**
+   * Tasdiq kutayotgan qadamlar: `APPROVAL_REQUIRED` bor, lekin unga mos
+   * `APPROVAL_GRANTED`/`APPROVAL_DENIED` hali kelmagan.
+   *
+   * Moslashtirish `stepId` bo'yicha — bitta ijroda bir nechta tasdiq
+   * so'rovi bo'lishi mumkin va ularni aralashtirish noto'g'ri kartani
+   * "hal qilingan" ko'rsatardi.
+   */
+  const settledStepIds = new Set(
+    liveSteps
+      .filter((e) => e.type === "APPROVAL_GRANTED" || e.type === "APPROVAL_DENIED")
+      .map((e) => e.stepId ?? ""),
+  );
+  const isPending = (e: (typeof liveSteps)[number]) =>
+    e.type === "APPROVAL_REQUIRED" && !settledStepIds.has(e.stepId ?? "");
+  const pendingApprovals = liveSteps.filter(isPending);
+
+  /**
+   * Kill switch (P0-6). Agentni to'xtatadi — faol ijrolar `RUN_CANCELLED`
+   * bo'ladi va trace'da iz qoladi.
+   *
+   * ⚠️ Bu agentni MUTLAQ to'xtatadi (keyingi xabarlar ham ishlamaydi,
+   * qayta faollashtirilgunicha) — shuning uchun tasdiq so'raladi. "Bitta
+   * ijroni bekor qilish" alohida tushuncha va u hali yo'q; foydalanuvchini
+   * chalg'itmaslik uchun matn aynan shuni aytadi.
+   */
+  const killAgent = useMutation({
+    mutationFn: () => api.post(`/agents/${agentId}/kill`, { reason: "Foydalanuvchi chatdan to'xtatdi" }),
+    onSuccess: () => {
+      setIsStreaming(false);
+      toast({ title: t("chat.stopped"), description: t("chat.stoppedDesc") });
+    },
+    onError: (e: Error) =>
+      toast({ variant: "destructive", title: t("chat.stopFailed"), description: e.message }),
+  });
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -42,11 +101,16 @@ export function ChatInterface({ agentId, agentDefinition }: ChatInterfaceProps) 
 
   // Dashboard tezkor amalidan kelgan ?q= promptni oldindan to'ldirish
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search).get("q");
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get("q");
     if (q) {
       setInput(q);
       inputRef.current?.focus();
     }
+    // UI-2: onboarding'dan kelgan foydalanuvchi — birinchi muvaffaqiyatli
+    // javobdan KEYIN keyingi qadam taklif qilinadi (PRICING §5: taklif
+    // faqat qiymat KO'RSATILGANDAN keyin).
+    if (params.get("onboarding") === "1") setFromOnboarding(true);
   }, []);
 
   useEffect(() => {
@@ -119,17 +183,29 @@ export function ChatInterface({ agentId, agentDefinition }: ChatInterfaceProps) 
       let halalFlag = "ALLOW";
       let demoMode = false;
       let newConvId = conversationId;
+      let limitState: Message["limit"];
+      let runId: string | null = null;
 
       // Bitta SSE `data:` satrini qayta ishlaydi.
       const handleEvent = (event: any) => {
-        if (event.type === "token") {
+        if (event.type === "run") {
+          // UI-4: oqimning BIRINCHI hodisasi — qadamlarni jonli kuzatishni
+          // shu yerdan boshlaymiz (P0-13 SSE'ga ulanamiz).
+          runId = event.runId ?? null;
+          setActiveRunId(runId);
+        } else if (event.type === "token") {
           fullContent += event.content;
           setStreamingContent(fullContent);
         } else if (event.type === "rate_limit") {
-          fullContent = `⏳ ${event.message}`;
+          // Matnga aylantirmaymiz — bu XATO emas, boshqariladigan holat (UI-5).
+          limitState = { kind: "rate_limit", message: event.message, reason: event.reason };
           halalFlag = "ALLOW";
         } else if (event.type === "insufficient_balance") {
-          fullContent = `💳 ${event.message}`;
+          limitState = { kind: "insufficient_balance", message: event.message };
+          halalFlag = "ALLOW";
+        } else if (event.type === "agent_frozen") {
+          // 402 `agent_frozen` / `trial_expired` — BFF aniq sabab bilan yuboradi.
+          limitState = { kind: "agent_frozen", message: event.message, reason: event.reason };
           halalFlag = "ALLOW";
         } else if (event.type === "error") {
           // Engine yoki BFF xatosi (stream uzildi / to'lov tasdig'i o'tmadi).
@@ -195,10 +271,14 @@ export function ChatInterface({ agentId, agentDefinition }: ChatInterfaceProps) 
         content: demoMode ? `${fullContent}\n\n_${t("chat.demoNotice")}_` : fullContent,
         halalFlag,
         demoMode,
+        limit: limitState,
+        runId,
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, assistantMsg]);
-      void persistExchange(userMsg, assistantMsg);
+      // Chegara holatida javob YO'Q — saqlanadigan suhbat almashinuvi ham yo'q
+      // (bo'sh "assistant" xabari tarixni ifloslantirardi).
+      if (!limitState) void persistExchange(userMsg, assistantMsg);
     } catch (err: any) {
       setMessages((prev) => [
         ...prev,
@@ -235,8 +315,47 @@ export function ChatInterface({ agentId, agentDefinition }: ChatInterfaceProps) 
         )}
 
         {messages.map((msg, i) => (
-          <MessageBubble key={i} message={msg} />
+          <MessageBubble key={i} message={msg} agentId={agentId} />
         ))}
+
+        {/* UI-2 — KEYINGI QADAM. Faqat onboarding'dan kelganda va faqat
+            BIRINCHI muvaffaqiyatli javobdan keyin: foydalanuvchi qiymatni
+            allaqachon ko'rdi, shuning uchun taklif o'rinli (PRICING §5).
+            Chegara holati (limit/balans) javobi muvaffaqiyat HISOBLANMAYDI. */}
+        {fromOnboarding &&
+          !isStreaming &&
+          messages.some((m) => m.role === "assistant" && !m.limit && m.halalFlag !== "BLOCK") && (
+            <div className="ml-11 rounded-xl border border-dashed p-4">
+              <p className="text-sm font-semibold">{t("onb.nextStepTitle")}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t("onb.nextStepDesc")}</p>
+              <Button asChild size="sm" variant="outline" className="mt-3">
+                <Link href="/connectors">{t("onb.nextStepAction")}</Link>
+              </Button>
+            </div>
+          )}
+
+        {/* UI-4: jonli qadamlar — javob yozilayotgan paytda ko'rinadi.
+            Faqat foydalanuvchi uchun ma'noli hodisalar (isChatVisible);
+            to'liq zanjir trace sahifasida.
+
+            ⚠️ Tasdiq kutayotgan qadam oqim TUGAGANDAN KEYIN HAM qoladi:
+            P0-6 xavfli amalni bloklaydi va ijro to'xtaydi — agar karta
+            `isStreaming` bilan birga yo'qolsa, foydalanuvchi tasdiqlash
+            imkonini umuman ko'rmasdi. */}
+        {(isStreaming || pendingApprovals.length > 0) &&
+          liveSteps.filter((e) => isChatVisible(e.type)).length > 0 && (
+            <div className="ml-11 space-y-1.5">
+              {liveSteps
+                .filter((e) => isChatVisible(e.type))
+                .map((e) =>
+                  e.type === "APPROVAL_REQUIRED" && isPending(e) ? (
+                    <ApprovalCard key={e.id} payload={e.payload} />
+                  ) : (
+                    <StepCard key={e.id} event={e} />
+                  ),
+                )}
+            </div>
+          )}
 
         {/* Streaming */}
         {isStreaming && streamingContent && (
@@ -285,6 +404,24 @@ export function ChatInterface({ agentId, agentDefinition }: ChatInterfaceProps) 
             className="flex-1 resize-none rounded-xl border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 overflow-hidden"
             style={{ minHeight: 44 }}
           />
+          {/* UI-4 / SAFETY §4 — KILL SWITCH.
+              Header'da emas, aynan shu yerda: ijro davomida foydalanuvchi
+              e'tibori yuborish tugmasida bo'ladi va "to'xtat" o'sha joyda
+              bo'lishi kerak. Ijro tugagach tugma yo'qoladi — to'xtatadigan
+              narsa qolmagan. */}
+          {isStreaming && (
+            <Button
+              size="icon"
+              variant="destructive"
+              onClick={() => killAgent.mutate()}
+              loading={killAgent.isPending}
+              aria-label={t("chat.stop")}
+              title={t("chat.stop")}
+              className="h-11 w-11 shrink-0"
+            >
+              <Square />
+            </Button>
+          )}
           <Button
             size="icon"
             onClick={sendMessage}
@@ -305,10 +442,21 @@ export function ChatInterface({ agentId, agentDefinition }: ChatInterfaceProps) 
 
 const TIME_LOCALES: Record<string, string> = { uz: "uz-UZ", ru: "ru-RU", en: "en-US" };
 
-function MessageBubble({ message }: { message: Message }) {
+function MessageBubble({ message, agentId }: { message: Message; agentId: string }) {
   const { t, locale } = useT();
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
+
+  // UI-5: chegara holati matn pufagi emas — o'z kartochkasi.
+  if (message.limit) {
+    return (
+      <LimitNotice
+        kind={message.limit.kind}
+        message={message.limit.message}
+        reason={message.limit.reason}
+      />
+    );
+  }
 
   if (isSystem) {
     return (
@@ -364,6 +512,16 @@ function MessageBubble({ message }: { message: Message }) {
           <div className="flex items-center gap-1 text-xs px-2 py-0.5 text-primary">
             <ShieldCheck className="h-3 w-3" /> {t("chat.halalPassed")}
           </div>
+        )}
+
+        {/* UI-4: "Agent nima qildi?" — to'liq ijro izi (P0-7). */}
+        {message.runId && !isUser && (
+          <Link
+            href={`/agents/${agentId}/runs/${message.runId}`}
+            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          >
+            {t("trace.whatHappened")}
+          </Link>
         )}
 
         <p className={cn("text-[11px] text-muted-foreground", isUser && "text-right")}>
