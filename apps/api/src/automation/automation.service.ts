@@ -9,7 +9,15 @@ import { firstValueFrom } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../auth/auth.service';
 import { CryptoService } from '../crypto/crypto.service';
-import { BrowserBridge, BridgeAction, PageState, StorageState, mergeStorageStates } from './browser-bridge';
+import {
+  BrowserBridge,
+  BridgeAction,
+  DomainBlockEvent,
+  PageState,
+  StorageState,
+  mergeStorageStates,
+} from './browser-bridge';
+import { isEnforcementEnabled, resolveAllowlist } from './domain-allowlist';
 import type { BrowserSession, User } from '@prisma/client';
 
 /**
@@ -47,6 +55,69 @@ export class AutomationService {
     return { ok: true };
   }
 
+  /**
+   * SEC-07 — shu run uchun ruxsat etilgan domenlar (P0-3).
+   *
+   * Manba: deploy env (`AGENT_DOMAIN_ALLOWLIST`). Agent-darajasidagi ro'yxat
+   * (`Agent.toolsConfig.browser.allowedDomains`) `resolveAllowlist` da
+   * qo'llab-quvvatlanadi, lekin brauzer-avtomatlashtirish yo'li hozir
+   * agentga bog'lanmagan (`run()` da `agentId` yo'q) — u agent-scoped
+   * brauzer oqimi qo'shilganda ulanadi.
+   *
+   * Majburlash o'chirilgan bo'lsa (`AGENT_DOMAIN_ALLOWLIST_ENFORCE=false`,
+   * faqat lokal debug) — cheklovsiz ishlashi uchun `null` qaytariladi va
+   * chaqiruvchi allowlist'ni umuman qo'llamaydi.
+   */
+  private resolveRunAllowlist(): { domains: string[]; enforced: boolean } {
+    if (!isEnforcementEnabled()) {
+      this.logger.warn(
+        'SEC-07 majburlash O‘CHIRILGAN (AGENT_DOMAIN_ALLOWLIST_ENFORCE=false) — bu faqat lokal debug uchun',
+      );
+      return { domains: [], enforced: false };
+    }
+
+    const { domains, invalid, truncated } = resolveAllowlist({
+      env: process.env.AGENT_DOMAIN_ALLOWLIST,
+    });
+    if (invalid.length) {
+      this.logger.warn(`SEC-07: yaroqsiz domen yozuvi e'tiborsiz qoldirildi: ${invalid.join(', ')}`);
+    }
+    if (truncated) {
+      this.logger.warn(`SEC-07: allowlist 5 tagacha kesildi (ruxsat etilgan: ${domains.join(', ')})`);
+    }
+    if (!domains.length) {
+      // Fail-closed. Bu XATO EMAS — sozlanmagan holat "hammasiga ruxsat"
+      // degani BO'LMASLIGI kerak. Operator uchun aniq harakat ko'rsatiladi.
+      this.logger.warn(
+        'SEC-07: AGENT_DOMAIN_ALLOWLIST bo‘sh — brauzer navigatsiyasi BLOKLANADI (fail-closed). ' +
+          'Ruxsat berish uchun AGENT_DOMAIN_ALLOWLIST ni sozlang.',
+      );
+    }
+    return { domains, enforced: true };
+  }
+
+  /**
+   * SEC-07 blok hodisasini `DeviceActionLog`ga yozadi (Contract SEC-07 AC:
+   * "Blok hodisasi DeviceActionLog'ga status: blocked bilan yoziladi").
+   *
+   * Fire-and-forget: audit yozuvining xatosi brauzer ijrosini yiqitmaydi.
+   */
+  private recordDomainBlock(userId: string, event: DomainBlockEvent) {
+    void this.prisma.deviceActionLog
+      .create({
+        data: {
+          userId,
+          deviceType: 'browser',
+          category: 'browser',
+          action: `sec07.domain_blocked.${event.source}`,
+          // Faqat HOST — to'liq URL emas (query'da token bo'lishi mumkin).
+          detail: `${event.host}: ${event.reason}`.slice(0, 500),
+          status: 'blocked',
+        },
+      })
+      .catch((e: any) => this.logger.warn(`SEC-07 blok logi yozilmadi: ${e?.message}`));
+  }
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly http: HttpService,
@@ -60,7 +131,12 @@ export class AutomationService {
       data: { userId: user.id, goal, startUrl: startUrl ?? null, status: 'running' },
     });
 
-    const bridge = new BrowserBridge();
+    const allowlist = this.resolveRunAllowlist();
+    const bridge = new BrowserBridge({
+      allowedDomains: allowlist.domains,
+      enforceDomainAllowlist: allowlist.enforced,
+      onBlocked: (event) => this.recordDomainBlock(user.id, event),
+    });
     const steps: StepRecord[] = [];
     let state: PageState | null = null;
     let finalStatus = 'failed';
@@ -176,7 +252,12 @@ export class AutomationService {
     });
     emit({ type: 'start', runId: record.id, goal });
 
-    const bridge = new BrowserBridge();
+    const allowlist = this.resolveRunAllowlist();
+    const bridge = new BrowserBridge({
+      allowedDomains: allowlist.domains,
+      enforceDomainAllowlist: allowlist.enforced,
+      onBlocked: (event) => this.recordDomainBlock(user.id, event),
+    });
     const steps: StepRecord[] = [];
     let state: PageState | null = null;
     let finalStatus = 'failed';

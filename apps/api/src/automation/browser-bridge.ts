@@ -1,6 +1,11 @@
 import { Logger } from '@nestjs/common';
 import { chromium, Browser, BrowserContext, Page } from 'playwright';
 import { urlBlockedReason } from '../common/ssrf';
+import {
+  domainBlockedReason,
+  filterStorageState,
+  isNonNavigationalUrl,
+} from './domain-allowlist';
 
 /** Playwright storageState — cookie + localStorage. Sessiya-in'ektsiya uchun. */
 export type StorageState = {
@@ -74,11 +79,78 @@ export interface BridgeAction {
 const INTERACTIVE_SELECTOR =
   'a[href], button, input:not([type=hidden]), select, textarea, [role=button], [type=submit]';
 
+/** SEC-07 blok hodisasi — chaqiruvchi uni `DeviceActionLog`ga yozadi. */
+export interface DomainBlockEvent {
+  /** Bloklangan host (TO'LIQ URL EMAS: query'da sir bo'lishi mumkin). */
+  host: string;
+  reason: string;
+  /** `navigate` — aniq amal; `route` — sahifa ichidagi navigatsiya/redirect. */
+  source: 'navigate' | 'route';
+}
+
+export interface BrowserBridgeOptions {
+  /**
+   * SEC-07 ruxsat etilgan domenlar (kanonik, `resolveAllowlist` natijasi).
+   * BO'SH = hech qayerga navigatsiya yo'q (fail-closed).
+   */
+  allowedDomains?: readonly string[];
+  /**
+   * SEC-07 majburlanadimi. Default — **HA**.
+   *
+   * `false` FAQAT lokal debug uchun (`AGENT_DOMAIN_ALLOWLIST_ENFORCE=false`):
+   * domen tekshiruvi butunlay o'tkazib yuboriladi va sessiya filtri ham
+   * qo'llanmaydi. Bo'sh `allowedDomains` bilan ARALASHTIRILMAYDI — u
+   * "hech narsaga ruxsat yo'q" degani, bu esa "tekshirma" degani.
+   */
+  enforceDomainAllowlist?: boolean;
+  /** Har blok uchun chaqiriladi (audit/trace). Xatosi ijroni yiqitmaydi. */
+  onBlocked?: (event: DomainBlockEvent) => void;
+}
+
 export class BrowserBridge {
   private readonly logger = new Logger(BrowserBridge.name);
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
   private page: Page | null = null;
+  private readonly allowedDomains: readonly string[];
+  private readonly enforceDomainAllowlist: boolean;
+  private readonly onBlocked?: (event: DomainBlockEvent) => void;
+
+  constructor(options: BrowserBridgeOptions = {}) {
+    this.allowedDomains = options.allowedDomains ?? [];
+    this.enforceDomainAllowlist = options.enforceDomainAllowlist ?? true;
+    this.onBlocked = options.onBlocked;
+  }
+
+  /**
+   * Domen bloklanadimi — majburlash o'chirilgan bo'lsa HAR DOIM `null`.
+   * Yagona qaror nuqtasi: `navigate` ham, `route()` ham shuni chaqiradi.
+   */
+  private domainBlock(rawUrl: string): string | null {
+    if (!this.enforceDomainAllowlist) return null;
+    if (isNonNavigationalUrl(rawUrl)) return null;
+    return domainBlockedReason(rawUrl, this.allowedDomains);
+  }
+
+  /**
+   * SEC-07 blokini qayd etadi. Host ajratib olinadi — to'liq URL hech qayerga
+   * yozilmaydi (blueprint §2.3.1: query'da token bo'lishi mumkin).
+   */
+  private recordBlock(rawUrl: string, reason: string, source: DomainBlockEvent['source']): void {
+    let host = 'unknown';
+    try {
+      host = new URL(rawUrl).hostname || 'unknown';
+    } catch {
+      /* yaroqsiz URL — host noma'lum bo'lib qoladi */
+    }
+    this.logger.warn(`SEC-07 blok (${source}): ${host} — ${reason}`);
+    try {
+      this.onBlocked?.({ host, reason, source });
+    } catch (e: any) {
+      // Audit yozuvining xatosi brauzer ijrosini YIQITMAYDI.
+      this.logger.warn(`Blok hodisasini yozib bo'lmadi: ${e?.message}`);
+    }
+  }
 
   /**
    * Brauzerni ochadi. `storageState` berilsa (shifrsizlantirilgan Playwright
@@ -102,12 +174,23 @@ export class BrowserBridge {
       }
       throw e;
     }
+    // SEC-07 (Contract AC): kontekstga FAQAT allowlist domenlarining
+    // cookie'lari in'ektsiya qilinadi. `mergeStorageStates` foydalanuvchining
+    // BARCHA sessiyalarini birlashtiradi — filtrsiz, ruxsat etilgan domendagi
+    // prompt injection uning Gmail/bank cookie'siga yeta olardi.
+    const scopedState = this.enforceDomainAllowlist
+      ? filterStorageState(storageState, this.allowedDomains)
+      : storageState;
+    if (storageState && !scopedState) {
+      this.logger.log('SEC-07: allowlist domenlariga mos sessiya yo‘q — login‘siz davom etiladi');
+    }
+
     this.context = await this.browser.newContext({
       viewport: { width: 1280, height: 900 },
       // Playwright's own StorageState type is structurally compatible but
       // declared in a different module; a plain cast (not `any`) avoids
       // duplicating its shape here without silencing type-checking entirely.
-      storageState: storageState as import('playwright').BrowserContextOptions['storageState'],
+      storageState: scopedState as import('playwright').BrowserContextOptions['storageState'],
     });
     // SSRF himoyasi tarmoq qatlamida: hujjat/navigatsiya so'rovlari (jumladan
     // sahifa REDIRECT'lari va havola-bosishlar) ichki IP'ga ketsa abort qilinadi
@@ -118,7 +201,17 @@ export class BrowserBridge {
     await this.context.route('**/*', async (route) => {
       const req = route.request();
       if (req.resourceType() === 'document' || req.isNavigationRequest()) {
-        if (await urlBlockedReason(req.url())) return route.abort('blockedbyclient');
+        const url = req.url();
+        // Ikki filtr KETMA-KET, ikkalasidan ham o'tish shart. SSRF birinchi:
+        // allowlist'ga `localhost` yozilgan bo'lsa ham u BEKOR QILINMAYDI.
+        if (await urlBlockedReason(url)) return route.abort('blockedbyclient');
+        // SEC-07: bu shox REDIRECT'ni ham qamraydi (`isNavigationRequest()`),
+        // ya'ni ruxsat etilgan domendan tashqariga 30x bilan chiqib bo'lmaydi.
+        const domainReason = this.domainBlock(url);
+        if (domainReason) {
+          this.recordBlock(url, domainReason, 'route');
+          return route.abort('blockedbyclient');
+        }
       }
       return route.continue();
     });
@@ -143,6 +236,14 @@ export class BrowserBridge {
           const url = String(action.url ?? '');
           const reason = await urlBlockedReason(url);
           if (reason) return `ERROR: ${reason} (got: ${url.slice(0, 60)})`;
+          // SEC-07: `route()` ilgagi buni baribir ushlaydi, lekin bu yerdagi
+          // tekshiruv plannerga ANIQ sabab qaytaradi (route abort'i faqat
+          // "net::ERR_BLOCKED_BY_CLIENT" beradi — LLM undan xulosa chiqara olmaydi).
+          const domainReason = this.domainBlock(url);
+          if (domainReason) {
+            this.recordBlock(url, domainReason, 'navigate');
+            return `ERROR: ${domainReason} (got: ${url.slice(0, 60)})`;
+          }
           await page.goto(url, { timeout: 25_000, waitUntil: 'domcontentloaded' });
           return `Opened ${page.url()} — "${await page.title()}"`;
         }
