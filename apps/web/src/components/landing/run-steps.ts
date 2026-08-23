@@ -33,4 +33,6 @@ export const RUN_STEPS: RunStep[] = [
   { id: "create", seq: "014", event: "MODEL_STARTED", labelKey: "spine.create" },
   { id: "market", seq: "023", event: "TOOL_STARTED", labelKey: "spine.market" },
   { id: "connectors", seq: "031", event: "TOOL_RESULT", labelKey: "spine.connectors" },
+  { id: "execution", seq: "038", event: "APPROVAL_REQUIRED", labelKey: "spine.execution" },
+  { id: "scenarios", seq: "047", event: "MODEL_COMPLETED", labelKey: "spine.scenarios" },
 ];

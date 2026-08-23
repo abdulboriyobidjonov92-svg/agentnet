@@ -18,6 +18,8 @@ import { BuildSection } from "@/components/landing/build-section";
 import { CreateFlow } from "@/components/landing/create-flow";
 import { MarketplaceSection } from "@/components/landing/marketplace-section";
 import { ConnectorsSection } from "@/components/landing/connectors-section";
+import { ExecutionSection } from "@/components/landing/execution-section";
+import { ScenariosSection } from "@/components/landing/scenarios-section";
 import { RunSpine } from "@/components/landing/run-spine";
 
 export default async function HomePage() {
@@ -69,6 +71,10 @@ export default async function HomePage() {
       <MarketplaceSection t={t} />
 
       <ConnectorsSection t={t} />
+
+      <ExecutionSection t={t} />
+
+      <ScenariosSection t={t} />
 
       {/* ===== Audience: individuals + business ===== */}
       {/* Sarlavha bloki ("01 · Har kim uchun qurilgan" + tavsif) ATAYLAB olib

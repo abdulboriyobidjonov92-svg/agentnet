@@ -51,7 +51,7 @@ function Artifact({ kind, t }: { kind: string; t: (key: string) => string }) {
   return (
     <div className="rounded-[2px] border border-[hsl(var(--state-waiting)/0.35)] bg-[hsl(var(--state-waiting)/0.08)] px-3 py-2.5">
       <p className="font-mono text-[0.6875rem] text-foreground/85">
-        payme-merchant.create_invoice
+        payme-merchant.create_receipt
       </p>
       <div className="mt-2 flex flex-wrap gap-1.5">
         {["c.approve", "c.edit", "c.reject"].map((k, i) => (

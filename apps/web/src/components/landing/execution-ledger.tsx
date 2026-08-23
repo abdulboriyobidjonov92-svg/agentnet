@@ -33,10 +33,10 @@ interface Step {
 }
 
 const STEPS: Step[] = [
-  { seq: "002", action: "uzum-market.read_orders", tier: "low", ms: 340 },
+  { seq: "002", action: "uzum-market.list_orders", tier: "low", ms: 340 },
   { seq: "003", action: "google-sheets.append_row", tier: "low", ms: 210 },
-  { seq: "004", action: "didox-einvoice.create", tier: "medium", ms: 1180 },
-  { seq: "005", action: "payme-merchant.create_invoice", tier: "high" },
+  { seq: "004", action: "didox-einvoice.list_documents", tier: "medium", ms: 1180 },
+  { seq: "005", action: "payme-merchant.create_receipt", tier: "high" },
 ];
 
 /**
