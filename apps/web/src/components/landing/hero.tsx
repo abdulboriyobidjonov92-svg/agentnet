@@ -19,7 +19,7 @@ import { ExecutionLedger } from "./execution-ledger";
  */
 export function Hero({ t }: { t: (key: string) => string }) {
   return (
-    <section aria-labelledby="hero-title" className="relative border-b border-border">
+    <section id="hero" aria-labelledby="hero-title" className="relative border-b border-border">
       {/* Nozik texnik to'r — 88px qadam, deyarli ko'rinmas.
           Bezak emas: sahifadagi barcha bo'shliq shu to'rga tekislanadi. */}
       <div

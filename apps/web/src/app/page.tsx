@@ -13,6 +13,9 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Reveal, Tilt } from "@/components/motion";
 import { Button } from "@/components/ui/button";
 import { Hero } from "@/components/landing/hero";
+import { Guarantees } from "@/components/landing/guarantees";
+import { BuildSection } from "@/components/landing/build-section";
+import { RunSpine } from "@/components/landing/run-spine";
 
 export default async function HomePage() {
   const store = await cookies();
@@ -21,6 +24,8 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-background">
+      <RunSpine />
+
       {/* ===== Nav ===== */}
       <header className="sticky top-0 z-30 border-b glass">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
@@ -52,14 +57,9 @@ export default async function HomePage() {
            `/agentos` va `/twin` sahifalarida ishlatiladi. */}
       <Hero t={t} />
 
-      {/* Ishonch qatori — mijoz logotipi yoki "1200+ agent" YO'Q (bugun
-          ikkalasi ham yolg'on bo'lardi). O'rniga tekshirilishi mumkin
-          bo'lgan bitta jumla. */}
-      <div className="border-b border-border">
-        <p className="mx-auto max-w-[1240px] px-5 py-4 text-center font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-muted-foreground sm:px-8">
-          {t("landing.trusted")}
-        </p>
-      </div>
+      <Guarantees t={t} />
+
+      <BuildSection t={t} />
 
       {/* ===== Audience: individuals + business ===== */}
       {/* Sarlavha bloki ("01 · Har kim uchun qurilgan" + tavsif) ATAYLAB olib
