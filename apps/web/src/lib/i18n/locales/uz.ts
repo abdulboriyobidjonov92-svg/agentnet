@@ -1017,6 +1017,19 @@ const uz: Dict = {
     "briefing.needTelegram": "Ishlashi uchun Telegram hisobingizni ulang (Integratsiyalar bo'limida).",
     "briefing.on": "Yoqilgan",
     "briefing.off": "O'chirilgan",
+    /* ===== V4 landing (Obsidian Instrument) — Hero ===== */
+    "hx.eyebrow": "AGENT OPERATSION TIZIMI",
+    "hx.title1": "Agentlar ishlaydi.",
+    "hx.title2": "Siz tasdiqlaysiz.",
+    "hx.sub": "Telegram, Payme, Google Sheets — yoki login talab qiladigan istalgan sayt. Agentlar jamoasi ishni bajaradi: har qadam yozib boriladi, xavfli amal esa sizdan so'raydi.",
+    "hx.ctaPrimary": "Birinchi agentingizni yarating",
+    "hx.ctaSecondary": "Agentlarni ko'rish",
+    "hx.factline": "17 ta native konnektor — soliq.uz, my.gov.uz, Payme, Click, Uzum, Eskiz. Qolgani brauzer orqali.",
+    "hx.runLabel": "IJRO",
+    "hx.runTask": "Buyurtmani hisob-fakturaga aylantirish",
+    "hx.live": "jonli",
+    "hx.awaiting": "tasdiq kutilmoqda",
+    "hx.ledgerNote": "Haqiqiy ijro izi. Uch qadam o'zi bajarildi; pul harakati HIGH deb baholandi va to'xtadi — u sizning tasdig'ingizsiz bajarilmaydi.",
 };
 
 export default uz;

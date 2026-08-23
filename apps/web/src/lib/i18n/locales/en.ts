@@ -1029,6 +1029,19 @@ const en: Dict = {
     "briefing.needTelegram": "Connect your Telegram account to enable (Integrations section).",
     "briefing.on": "On",
     "briefing.off": "Off",
+    /* ===== V4 landing (Obsidian Instrument) — Hero ===== */
+    "hx.eyebrow": "AGENT OPERATING SYSTEM",
+    "hx.title1": "Agents do the work.",
+    "hx.title2": "You approve it.",
+    "hx.sub": "Telegram, Payme, Google Sheets — or any site with a login. A team of agents does the job: every step is recorded, and anything risky asks you first.",
+    "hx.ctaPrimary": "Create your first AI agent",
+    "hx.ctaSecondary": "Explore agents",
+    "hx.factline": "17 native connectors — soliq.uz, my.gov.uz, Payme, Click, Uzum, Eskiz. Everything else through the browser.",
+    "hx.runLabel": "RUN",
+    "hx.runTask": "Turn the order into an invoice",
+    "hx.live": "live",
+    "hx.awaiting": "awaiting approval",
+    "hx.ledgerNote": "A real execution trace. Three steps ran on their own; the money step was rated HIGH and stopped — it will not run without your approval.",
 };
 
 export default en;

@@ -12,8 +12,7 @@ import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Reveal, Tilt } from "@/components/motion";
 import { Button } from "@/components/ui/button";
-import { CinematicHero } from "@/components/hero/CinematicHero";
-import { HalalBadge } from "@/components/hero/HalalBadge";
+import { Hero } from "@/components/landing/hero";
 
 export default async function HomePage() {
   const store = await cookies();
@@ -44,52 +43,23 @@ export default async function HomePage() {
         </div>
       </header>
 
-      {/* ===== Hero — ultra-cinematic sahna: MacBook + iPhone + iPad,
-           markazda obsidian shar, hologram agentlar (reference rasmlar) ===== */}
-      <section className="hero-cinematic relative overflow-hidden">
-        {/* Halal belgisi — sahna chapida, laptop yonida (reference) */}
-        <div className="absolute left-[3%] top-[52%] z-20 hidden animate-float-slow md:block lg:left-[6%]">
-          <HalalBadge />
-        </div>
+      {/* ===== Hero — V4 "Obsidian Instrument" =====
+           Eski kinematik sahna (CinematicHero: MacBook + iPhone + obsidian
+           shar) ALMASHTIRILDI. Sabab: u mahsulot haqida hech narsa
+           ko'rsatmasdi — qurilma rasmlari va soxta dashboard edi. O'rniga
+           haqiqiy ijro izi turadi (`landing/execution-ledger.tsx`).
+           Eski komponentlar `components/hero/` da qoladi: ular hali
+           `/agentos` va `/twin` sahifalarida ishlatiladi. */}
+      <Hero t={t} />
 
-        <div className="relative z-10 mx-auto max-w-4xl px-4 pt-14 text-center sm:px-6 sm:pt-16">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[hsl(var(--cta-gold)/0.45)] bg-[hsl(var(--cta-gold)/0.1)] px-4 py-1.5 text-sm font-medium text-[hsl(var(--cta-gold))] animate-in-up">
-            <Shield className="h-4 w-4" /> {t("landing.badge")}
-          </div>
-          <h1 className="type-display animate-in-up">
-            {t("landing.heroTitle1")}{" "}
-            <span className="text-gradient-animated">{t("landing.heroTitleAccent")}</span>{" "}
-            {t("landing.heroTitle2")}
-          </h1>
-          <p className="mx-auto mt-5 max-w-xl text-base text-white/60 animate-in-up delay-100 sm:text-lg">
-            {t("landing.heroSubtitle")}
-          </p>
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 animate-in-up delay-200 sm:flex-row">
-            <Button asChild size="lg" className="cta-gold group w-full border-0 px-8 sm:w-auto">
-              <Link href="/sign-up">
-                {t("landing.ctaPrimary")}
-                <ArrowRight className="transition group-hover:translate-x-1" />
-              </Link>
-            </Button>
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="w-full border-white/20 bg-white/5 px-8 text-white hover:bg-white/10 sm:w-auto"
-            >
-              <Link href="/sign-in">{t("landing.ctaSecondary")}</Link>
-            </Button>
-          </div>
-        </div>
-
-        {/* 3D sahna — qurilmalar + hologramlar (lazy, reduced-motion fallback) */}
-        <CinematicHero className="relative z-10 mx-auto h-[440px] w-full max-w-6xl sm:h-[500px] lg:h-[580px]" />
-
-        {/* Statistika bandi ATAYLAB olib tashlandi (founder qarori, 2026-08-22):
-            "1200+ agent · 3 til · 99.9% uptime" — ikkitasi tekshirib bo'lmaydigan
-            da'vo edi (agent soni, uptime), uchinchisi esa xususiyat emas. */}
-        <div className="relative z-10 pb-8 pt-2 text-center text-xs text-white/40">{t("landing.trusted")}</div>
-      </section>
+      {/* Ishonch qatori — mijoz logotipi yoki "1200+ agent" YO'Q (bugun
+          ikkalasi ham yolg'on bo'lardi). O'rniga tekshirilishi mumkin
+          bo'lgan bitta jumla. */}
+      <div className="border-b border-border">
+        <p className="mx-auto max-w-[1240px] px-5 py-4 text-center font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-muted-foreground sm:px-8">
+          {t("landing.trusted")}
+        </p>
+      </div>
 
       {/* ===== Audience: individuals + business ===== */}
       {/* Sarlavha bloki ("01 · Har kim uchun qurilgan" + tavsif) ATAYLAB olib

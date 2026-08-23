@@ -1,13 +1,46 @@
 import type { Metadata } from "next";
-import { GeistSans } from "geist/font/sans";
-import { GeistMono } from "geist/font/mono";
+import localFont from "next/font/local";
+import { IBM_Plex_Mono } from "next/font/google";
 import { Providers } from "@/lib/providers";
 import { getLocale } from "@/lib/i18n/server";
 import { loadDictionary } from "@/lib/i18n/dictionary";
 import "./globals.css";
 
-// Bitta oila — Geist. Display, UI va mono (raqamlar) uchun.
-// CDN'siz (next/font orqali o'z-o'zidan hosting) — yuklanish xavfi yo'q.
+// UCH ROL, UCH OILA (ilgari hammasi Geist edi — ya'ni ierarxiya faqat
+// o'lcham bilan ifodalanardi). CDN'siz: `next/font` fayllarni build'ga
+// qo'shadi, `src/fonts/README.md` ga qarang.
+//
+//   display — Cabinet Grotesk: tor apertura, yassi qorincha. Katta
+//             o'lchamda "asbob" kabi o'qiladi, do'stona emas.
+//   sans    — Switzer: neo-grotesk, x-balandligi katta -> mayda matn
+//             ham oson skan qilinadi.
+//   mono    — IBM Plex Mono: seq raqami, timestamp, konnektor ID.
+//             JetBrains/Geist Mono ATAYLAB emas (AI-startap klishesi).
+const cabinet = localFont({
+  src: "../fonts/CabinetGrotesk-Variable.woff2",
+  weight: "100 900",
+  display: "swap",
+  variable: "--font-display",
+  // Sarlavha almashinuvida sakrash bo'lmasin (CLS).
+  adjustFontFallback: "Arial",
+  fallback: ["ui-sans-serif", "system-ui", "sans-serif"],
+});
+
+const switzer = localFont({
+  src: "../fonts/Switzer-Variable.woff2",
+  weight: "100 900",
+  display: "swap",
+  variable: "--font-sans",
+  adjustFontFallback: "Arial",
+  fallback: ["ui-sans-serif", "system-ui", "sans-serif"],
+});
+
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  display: "swap",
+  variable: "--font-mono",
+});
 
 export const metadata: Metadata = {
   title: "AgentNet — Sovereign AI Operations",
@@ -30,7 +63,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       lang={locale}
       suppressHydrationWarning
       data-scroll-behavior="smooth"
-      className={`dark ${GeistSans.variable} ${GeistMono.variable}`}
+      className={`dark ${cabinet.variable} ${switzer.variable} ${plexMono.variable}`}
     >
       <body className="font-sans antialiased">
         <Providers initialLocale={locale} initialDict={dict}>{children}</Providers>

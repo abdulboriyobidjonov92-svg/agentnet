@@ -1017,6 +1017,19 @@ const ru: Dict = {
     "briefing.needTelegram": "Для работы подключите Telegram (раздел Интеграции).",
     "briefing.on": "Включён",
     "briefing.off": "Выключен",
+    /* ===== V4 landing (Obsidian Instrument) — Hero ===== */
+    "hx.eyebrow": "ОПЕРАЦИОННАЯ СИСТЕМА АГЕНТОВ",
+    "hx.title1": "Агенты работают.",
+    "hx.title2": "Вы утверждаете.",
+    "hx.sub": "Telegram, Payme, Google Sheets — или любой сайт с логином. Команда агентов делает работу: каждый шаг записан, а рискованное действие сначала спрашивает вас.",
+    "hx.ctaPrimary": "Создайте первого ИИ-агента",
+    "hx.ctaSecondary": "Смотреть агентов",
+    "hx.factline": "17 нативных коннекторов — soliq.uz, my.gov.uz, Payme, Click, Uzum, Eskiz. Остальное — через браузер.",
+    "hx.runLabel": "ЗАПУСК",
+    "hx.runTask": "Превратить заказ в счёт",
+    "hx.live": "в работе",
+    "hx.awaiting": "ждёт подтверждения",
+    "hx.ledgerNote": "Реальный след исполнения. Три шага прошли сами; денежный шаг получил уровень HIGH и остановился — без вашего подтверждения он не выполнится.",
 };
 
 export default ru;

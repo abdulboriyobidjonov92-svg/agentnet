@@ -22,39 +22,39 @@
   :root,
   .dark {
     /* --- Bo'shliq (The Void) --- */
-    --background: 0 0% 0%;
-    --surface-1: 0 0% 4%;
-    --surface-2: 0 0% 6%;
-    --surface-3: 0 0% 9%;
-    --card: 0 0% 4%;
+    --background: 222 50% 3%;
+    --surface-1: 222 44% 7%;
+    --surface-2: 222 40% 9%;
+    --surface-3: 222 36% 12%;
+    --card: 222 44% 7%;
     --card-foreground: 222 28% 93%;
-    --popover: 0 0% 4%;
+    --popover: 222 44% 7%;
     --popover-foreground: 222 28% 93%;
     --foreground: 222 28% 93%;
-    --muted: 0 0% 7%;
+    --muted: 222 38% 10%;
     --muted-foreground: 222 10% 58%;
-    --secondary: 0 0% 6%;
+    --secondary: 222 40% 9%;
     --secondary-foreground: 222 20% 90%;
-    --accent: 0 0% 8%;
+    --accent: 222 36% 11%;
     --accent-foreground: 222 20% 92%;
 
     /* Asosiy amal — simob (mercury): rang emas, yorug'lik */
-    --primary: 214 32% 96%;
-    --primary-foreground: 0 0% 3%;
+    --primary: 258 90% 58%;
+    --primary-foreground: 0 0% 100%;
 
     /* --- Bioluminessent venalar — yagona rang juftligi --- */
     --vein-cyan: 188 100% 62%;
-    --vein-violet: 260 100% 70%;
-    --accent-line: 188 90% 58%;
-    --ring: 188 90% 58%;
+    --vein-violet: 258 100% 66%;
+    --accent-line: 258 100% 66%;
+    --ring: 258 100% 66%;
 
     --destructive: 356 70% 56%;
     --destructive-foreground: 0 0% 100%;
     --ok: 160 55% 48%;
     --warn: 40 70% 56%;
     --danger: 356 70% 58%;
-    --border: 0 0% 13%;
-    --input: 0 0% 13%;
+    --border: 222 34% 15%;
+    --input: 222 34% 15%;
     --radius: 1rem;
 
     /* Eskirgan nomlar — venalar tizimiga yo'naltirildi (markup buzilmasin) */
@@ -67,10 +67,13 @@
     --glass-brd: 0 0% 100%;
 
     /* Hero qatlami tokenlari — oltin CTA reference rasmlardan */
-    --bg-deep: 0 0% 0%;
+    --bg-deep: 222 50% 3%;
     --accent-cyan: 188 100% 62%;
     --accent-emerald: 160 70% 55%;
-    --cta-gold: 42 88% 58%;
+    --cta: 258 90% 58%;
+    --cta-strong: 258 100% 66%;
+    /* Eskirgan nom — 19 faylda ishlatiladi, bosqichma-bosqich `--cta` ga ko'chadi */
+    --cta-gold: var(--cta);
     --hologram-alpha: 0.55;
 
     /* --- Harakat fizikasi --- */
@@ -129,7 +132,7 @@
   }
 
   h1, h2, h3, h4, h5 {
-    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
     letter-spacing: -0.025em;
   }
 
@@ -232,25 +235,37 @@
       0 12px 44px rgba(0, 0, 0, 0.7),
       0 0 32px hsl(var(--vein-cyan) / 0.12);
   }
-  /* Oltin CTA — landing hero uchun (reference: oltin tugma) */
+  /* ASOSIY AMAL — Violet Signal.
+     Gradient ATAYLAB olib tashlandi: bitta tekis rang + 1px yuqori qirra.
+     Sabab — bu palitrada chuqurlik yorug'lik bilan emas, qatlam bilan
+     beriladi; gradient tugmani "sticker" qilib ko'rsatardi.
+     Kontrast: oq matn hsl(258 90% 58%) ustida ~6.4:1 (AA, katta va kichik). */
+  .cta,
   .cta-gold {
-    background: linear-gradient(180deg, hsl(46 92% 64%) 0%, hsl(var(--cta-gold)) 55%, hsl(38 82% 46%) 100%);
-    color: hsl(35 60% 10%);
-    box-shadow:
-      0 4px 24px hsl(var(--cta-gold) / 0.35),
-      inset 0 1px 0 hsl(48 90% 76% / 0.65);
+    background: hsl(var(--cta));
+    color: #fff;
+    box-shadow: inset 0 1px 0 hsl(var(--cta-strong) / 0.5);
+    transition:
+      background var(--dur-1) var(--ease-premium),
+      box-shadow var(--dur-1) var(--ease-premium);
   }
+  .cta:hover,
   .cta-gold:hover {
+    background: hsl(var(--cta-strong));
     box-shadow:
-      0 6px 34px hsl(var(--cta-gold) / 0.5),
-      inset 0 1px 0 hsl(48 90% 80% / 0.75);
+      inset 0 1px 0 hsl(258 100% 80% / 0.6),
+      0 0 0 1px hsl(var(--cta-strong) / 0.4);
+  }
+  .cta:active,
+  .cta-gold:active {
+    background: hsl(258 88% 52%);
   }
 
   /* =================================================================
      TIPOGRAFIKA
      ================================================================= */
   .label-mono {
-    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    font-family: var(--font-mono), ui-monospace, monospace;
     font-size: 0.6875rem;
     line-height: 1.3;
     text-transform: uppercase;
@@ -262,7 +277,7 @@
   .type-h2 { font-size: clamp(1.375rem, 2.4vw, 1.75rem); line-height: 1.2; letter-spacing: -0.02em; font-weight: 600; }
   .type-body { font-size: 1rem; line-height: 1.6; }
   .type-caption { font-size: 0.75rem; line-height: 1.45; letter-spacing: 0.02em; }
-  .nums { font-family: var(--font-geist-mono), ui-monospace, monospace; font-feature-settings: "tnum" 1; letter-spacing: -0.01em; }
+  .nums { font-family: var(--font-mono), ui-monospace, monospace; font-feature-settings: "tnum" 1; letter-spacing: -0.01em; }
 
   /* Vena gradienti bilan matn — kamdan-kam, imzo joylarda */
   .vein-text,
@@ -494,7 +509,7 @@
   .prose li + li { margin-top: 0.25em; }
   .prose a { color: hsl(var(--vein-cyan)); text-decoration: underline; text-underline-offset: 2px; }
   .prose h1, .prose h2, .prose h3, .prose h4 { font-weight: 600; }
-  .prose code { font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 0.9em; background: hsl(var(--muted)); padding: 0.1em 0.35em; border-radius: 0.3em; }
+  .prose code { font-family: var(--font-mono), ui-monospace, monospace; font-size: 0.9em; background: hsl(var(--muted)); padding: 0.1em 0.35em; border-radius: 0.3em; }
   .prose pre { background: hsl(var(--muted)); padding: 0.75em 1em; border-radius: 0.6em; overflow-x: auto; }
   .prose pre code { background: transparent; padding: 0; }
   .prose blockquote { border-left: 2px solid hsl(var(--border)); padding-left: 0.75em; color: hsl(var(--muted-foreground)); }

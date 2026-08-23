@@ -10,10 +10,10 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        // Bitta oila — Geist. Display va UI bir xil; raqamlar uchun mono.
-        sans: ["var(--font-geist-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
-        display: ["var(--font-geist-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
-        mono: ["var(--font-geist-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
+        // Uch rol, uch oila — `layout.tsx` ga qarang.
+        sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
+        display: ["var(--font-display)", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
       },
       colors: {
         background: "hsl(var(--background))",
@@ -58,6 +58,11 @@ const config: Config = {
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
+        },
+        // Asosiy amal rangi — Violet Signal (`cta` to'ldirish, `cta-strong` qirra)
+        cta: {
+          DEFAULT: "hsl(var(--cta))",
+          strong: "hsl(var(--cta-strong))",
         },
         // Eskirgan: gold endi neytral urg'u (lingering markup buzilmasin)
         gold: {
