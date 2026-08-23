@@ -44,7 +44,7 @@ export function Hero({ t }: { t: (key: string) => string }) {
                 va uni ekran kengligiga qarab tasodifiy joyda sindirish
                 ritmni buzardi (mobil'da "…ishlaydi. Siz" bo'lib qolardi). */}
             {t("hx.title1")}
-            <span className="block text-[hsl(var(--cta-strong))]">{t("hx.title2")}</span>
+            <span className="block text-[hsl(var(--violet-text))]">{t("hx.title2")}</span>
           </h1>
 
           <p className="mt-6 max-w-[54ch] text-[1.0625rem] leading-relaxed text-muted-foreground">

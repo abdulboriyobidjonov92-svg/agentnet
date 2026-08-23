@@ -72,6 +72,13 @@
     --accent-emerald: 160 70% 55%;
     --cta: 258 90% 58%;
     --cta-strong: 258 100% 66%;
+    /* VIOLET MATN uchun ALOHIDA token.
+       Nega: `--cta-strong` to`ldirish va qirra uchun tanlangan (oq matn
+       uning ustida 6.09:1). MATN sifatida esa u panel foni ustida 4.26:1
+       berardi — 22px uchun AA (4.5:1) dan PAST. Ya`ni bitta rang ikki
+       vazifani bajara olmadi. Qoida: violet MATN doim `--violet-text`,
+       violet FON/QIRRA doim `--cta` / `--cta-strong`. */
+    --violet-text: 258 100% 78%;
     /* Eskirgan nom — 19 faylda ishlatiladi, bosqichma-bosqich `--cta` ga ko'chadi */
     --cta-gold: var(--cta);
     --hologram-alpha: 0.55;

@@ -71,7 +71,7 @@ export function RunSpine() {
                 className="absolute -left-[1.3125rem] top-[0.4rem] h-1.5 w-1.5 rounded-full bg-border transition-colors duration-500 group-data-[state=active]:bg-[hsl(var(--cta-strong))] motion-reduce:transition-none"
                 aria-hidden
               />
-              <span className="block font-mono text-[0.625rem] tabular-nums tracking-[0.14em] text-muted-foreground group-data-[state=active]:text-[hsl(var(--cta-strong))]">
+              <span className="block font-mono text-[0.625rem] tabular-nums tracking-[0.14em] text-muted-foreground group-data-[state=active]:text-[hsl(var(--violet-text))]">
                 {step.seq}
               </span>
               <span className="mt-0.5 block font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-muted-foreground">

@@ -46,7 +46,7 @@ export function Guarantees({ t }: { t: (key: string) => string }) {
               <dt className="font-mono text-[0.625rem] uppercase tracking-[0.2em] text-muted-foreground">
                 {t(`g.${item.key}`)}
               </dt>
-              <p className="mt-3 font-display text-[1.375rem] font-medium leading-tight tracking-[-0.02em] text-[hsl(var(--cta-strong))]">
+              <p className="mt-3 font-display text-[1.375rem] font-medium leading-tight tracking-[-0.02em] text-[hsl(var(--violet-text))]">
                 {t(`g.${item.value}`)}
               </p>
               <dd className="mt-3 text-[0.875rem] leading-relaxed text-muted-foreground">

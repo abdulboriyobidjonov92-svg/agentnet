@@ -15,7 +15,7 @@ export function SectionMark({ id, t }: { id: string; t: (key: string) => string 
 
   return (
     <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-muted-foreground">
-      <span className="tabular-nums text-[hsl(var(--cta-strong))]">{step.seq}</span>
+      <span className="tabular-nums text-[hsl(var(--violet-text))]">{step.seq}</span>
       <span className="h-px w-4 bg-border" aria-hidden />
       <span>{step.event}</span>
       <span className="normal-case tracking-normal text-muted-foreground/70">
