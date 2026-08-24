@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useAnimationFrame, useReducedMotion } from "framer-motion";
 import { Brain, Code2, BarChart3, Cog, Eye, Link2, type LucideIcon } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
+import { GlobeCanvas } from "./globe-canvas";
 
 /**
  * ORBITAL YADRO — landing'ning signature elementi.
@@ -65,7 +66,7 @@ const PERIOD_MS = 72_000;
  * Shuning uchun mobil'da orbita aylanaga yaqinlashadi — sferalar
  * vertikal bo'yicha ajraladi.
  */
-const RY_WIDE = 0.46;
+const RY_WIDE = 0.72;
 const RY_NARROW = 0.72;
 const NARROW_PX = 420;
 
@@ -102,13 +103,18 @@ export function OrbitCore({ className = "" }: { className?: string }) {
         node.style.zIndex = depth > 0.5 ? "30" : "5";
       }
 
-      // Yadrodan sferaga cho'zilgan yorug'lik chizig'i.
+      // Sayyoradan sferaga cho'zilgan nur chizig'i.
+      //
+      // ⚠️ Chiziq MARKAZDAN emas, sayyora CHEKKASIDAN boshlanadi: aks
+      // holda oltita chiziq sayyorani kesib o'tib, markazda "pirog
+      // bo'laklari" hosil qilardi (birinchi ijroda aynan shunday bo'ldi).
       const line = lineRefs.current[i];
       if (line) {
         const len = Math.hypot(x, y);
-        line.style.width = `${len}px`;
-        line.style.transform = `rotate(${Math.atan2(y, x)}rad)`;
-        line.style.opacity = String(0.15 + depth * 0.5);
+        const globeR = w * (w < NARROW_PX ? 0.52 : 0.62) * 0.34 + 5;
+        line.style.width = `${Math.max(len - globeR, 0)}px`;
+        line.style.transform = `rotate(${Math.atan2(y, x)}rad) translateX(${globeR}px)`;
+        line.style.opacity = String(0.2 + depth * 0.6);
       }
     });
   });
@@ -116,7 +122,7 @@ export function OrbitCore({ className = "" }: { className?: string }) {
   return (
     <div
       ref={wrap}
-      className={`relative mx-auto aspect-[1.24/1] w-full max-w-[min(92vw,560px)] sm:aspect-[1.7/1] ${className}`}
+      className={`relative mx-auto aspect-[1.12/1] w-full max-w-[min(92vw,560px)] sm:aspect-[1.3/1] ${className}`}
     >
       {/* Orbita halqalari — uch konsentrik ellips, gradient chiziq bilan */}
       {/* Halqalar MARKAZDA SO'NADI: aks holda chiziq yadro ustidagi
@@ -126,7 +132,7 @@ export function OrbitCore({ className = "" }: { className?: string }) {
           chiziqlar sferalar yo'lidan chetda qolardi. Telefonda ular
           olib tashlanadi; sfera, yadro va nur chiziqlari yetarli. */}
       <svg
-        viewBox="0 0 100 59"
+        viewBox="0 0 100 86"
         className="pointer-events-none absolute inset-0 hidden h-full w-full [mask-image:radial-gradient(ellipse_58%_58%_at_50%_50%,transparent_38%,black_72%)] sm:block"
         aria-hidden
       >
@@ -141,7 +147,7 @@ export function OrbitCore({ className = "" }: { className?: string }) {
           <ellipse
             key={rx}
             cx="50"
-            cy="29.5"
+            cy="43"
             rx={rx}
             ry={rx * RY_WIDE}
             fill="none"
@@ -151,27 +157,15 @@ export function OrbitCore({ className = "" }: { className?: string }) {
         ))}
       </svg>
 
-      {/* YADRO — sahifadagi yagona yorug'lik manbai va ko'rinadigan JISM.
-          Ilgari bu faqat tarqoq nur edi va markaz bo'sh ko'rinardi; endi
-          ostida aniq qirrali sfera turadi, yozuv esa uning ustida. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute left-1/2 top-1/2 aspect-square w-[62%] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-90 blur-[52px]"
-        style={{
-          background:
-            "radial-gradient(circle, hsl(258 100% 64% / 0.95) 0%, hsl(232 100% 56% / 0.45) 42%, transparent 72%)",
-        }}
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute left-1/2 top-1/2 aspect-square w-[27%] -translate-x-1/2 -translate-y-1/2 rounded-full"
-        style={{
-          background:
-            "radial-gradient(circle at 38% 26%, hsl(252 88% 38%) 0%, hsl(250 90% 20%) 55%, hsl(244 72% 9%) 100%)",
-          boxShadow:
-            "inset 0 1px 0 hsl(258 100% 85% / 0.35), 0 0 46px hsl(252 100% 60% / 0.55)",
-        }}
-      />
+      {/* SAYYORA — sahifadagi yagona yorug'lik manbai va markaz jismi.
+          Ilgari bu shunchaki yorug' disk edi ("tirik emas" degan e'tiroz
+          aynan shunga tegishli edi). Endi bu canvas'da chizilgan Yer:
+          nuqtali qit'alar aylanadi, tarmoq tugunlari bog'lanadi va har
+          chiziq bo'ylab signal yuguradi. Kengligi 62% — orbita yo'li
+          bilan sayyora chekkasi orasida bo'shliq qoladi. */}
+      <div className="pointer-events-none absolute left-1/2 top-1/2 aspect-square w-[52%] -translate-x-1/2 -translate-y-1/2 sm:w-[62%]">
+        <GlobeCanvas />
+      </div>
 
       {/* Yadrodan chiquvchi chiziqlar */}
       {NODES.map((n, i) => (
@@ -188,22 +182,6 @@ export function OrbitCore({ className = "" }: { className?: string }) {
           }}
         />
       ))}
-
-      {/* Markaz — brend belgisi va faol imkoniyat izohi */}
-      <div className="absolute left-1/2 top-1/2 z-20 w-[62%] -translate-x-1/2 -translate-y-1/2 text-center">
-        <p className="font-display text-[clamp(1.75rem,5.2vw,2.75rem)] font-bold leading-none tracking-[-0.04em]">
-          <span className="text-white">Agent</span>
-          <span className="bg-gradient-to-b from-[hsl(258_100%_78%)] to-[hsl(248_100%_62%)] bg-clip-text text-transparent">
-            Net
-          </span>
-        </p>
-        {/* Balandligi QAT'IY: yozuv almashganda kompozitsiya sakramaydi. */}
-        {/* Telefonda YASHIRIN: teginish ekranida hover yo'q, va tor orbitada
-            bu matn sferalar ustiga chiqib ketardi (375px da o'lchandi). */}
-        <p className="mx-auto mt-4 hidden h-10 max-w-[15rem] items-center justify-center text-[0.75rem] leading-snug tracking-[0.01em] text-white/80 sm:flex">
-          {active ? t(`orb.${active}Desc`) : t("orb.idle")}
-        </p>
-      </div>
 
       {/* Sferalar */}
       {NODES.map((n, i) => {
@@ -231,7 +209,7 @@ export function OrbitCore({ className = "" }: { className?: string }) {
                 className={`absolute inset-0 rounded-full border transition-[box-shadow,border-color] duration-300 ${
                   isActive
                     ? "border-[hsl(258_100%_78%/0.9)] shadow-[0_0_28px_hsl(258_100%_62%/0.55)]"
-                    : "border-white/15 shadow-[0_0_18px_hsl(248_100%_60%/0.25)]"
+                    : "border-white/15 shadow-[0_0_24px_hsl(250_100%_62%/0.45)]"
                 } group-focus-visible:border-[hsl(190_100%_70%)] group-focus-visible:shadow-[0_0_0_2px_hsl(190_100%_70%/0.7)]`}
                 style={{
                   background:

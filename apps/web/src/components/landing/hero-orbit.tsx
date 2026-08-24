@@ -27,7 +27,7 @@ export function HeroOrbit({ t }: { t: (key: string) => string }) {
         className="pointer-events-none absolute inset-0 opacity-[0.35] [background-image:radial-gradient(hsl(240_60%_80%/0.16)_1px,transparent_1px)] [background-size:34px_34px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_35%,black,transparent)]"
       />
 
-      <div className="relative mx-auto max-w-[1180px] px-5 pb-16 pt-8 sm:px-8 sm:pb-20 sm:pt-10">
+      <div className="relative mx-auto max-w-[1180px] px-5 pb-14 pt-6 sm:px-8 sm:pb-18 sm:pt-8">
         {/* Kategoriya belgisi — gradient qirra, tepasidan yorug' */}
         <div className="flex justify-center">
           <span className="rounded-full bg-gradient-to-b from-white/20 to-white/[0.04] p-px">
@@ -40,7 +40,7 @@ export function HeroOrbit({ t }: { t: (key: string) => string }) {
 
         <OrbitCore className="mt-6 sm:mt-8" />
 
-        <div className="relative z-10 mx-auto mt-8 max-w-3xl text-center sm:mt-10">
+        <div className="relative z-10 mx-auto mt-6 max-w-3xl text-center sm:mt-8">
           <h1
             id="hero-title"
             className="font-display text-[clamp(1.875rem,4.2vw,3rem)] font-semibold leading-[1.06] tracking-[-0.035em] text-white"
