@@ -12,7 +12,7 @@ import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Reveal, Tilt } from "@/components/motion";
 import { Button } from "@/components/ui/button";
-import { Hero } from "@/components/landing/hero";
+import { HeroOrbit } from "@/components/landing/hero-orbit";
 import { Guarantees } from "@/components/landing/guarantees";
 import { BuildSection } from "@/components/landing/build-section";
 import { CreateFlow } from "@/components/landing/create-flow";
@@ -60,7 +60,7 @@ export default async function HomePage() {
            haqiqiy ijro izi turadi (`landing/execution-ledger.tsx`).
            Eski komponentlar `components/hero/` da qoladi: ular hali
            `/agentos` va `/twin` sahifalarida ishlatiladi. */}
-      <Hero t={t} />
+      <HeroOrbit t={t} />
 
       <Guarantees t={t} />
 

@@ -1156,6 +1156,25 @@ const en: Dict = {
     "sc.monthTitle": "From month to report",
     "sc.monthTrigger": "The month closes.",
     "sc.monthResult": "The numbers are gathered, tax debt is checked, and the summary lands in Telegram.",
+    /* ===== V5 landing (Orbital Obsidian) — hero va orbita ===== */
+    "orb.idle": "Six capabilities, one governed runtime.",
+    "orb.intelligence": "INTELLIGENCE",
+    "orb.intelligenceDesc": "Frontier models reason over your context, not a generic corpus.",
+    "orb.connectors": "CONNECTORS",
+    "orb.connectorsDesc": "Native integrations to the systems your operations already run on.",
+    "orb.code": "CODE",
+    "orb.codeDesc": "Agents write logic and execute it inside an isolated runtime.",
+    "orb.analytics": "ANALYTICS",
+    "orb.analyticsDesc": "Every run is measured — cost, latency and outcome for each action.",
+    "orb.automation": "AUTOMATION",
+    "orb.automationDesc": "Scheduled and event-driven execution, protected against repeats.",
+    "orb.vision": "VISION",
+    "orb.visionDesc": "Agents read interfaces and documents the way an operator would.",
+    "h5.eyebrow": "ENTERPRISE AGENT INFRASTRUCTURE",
+    "h5.title": "Unify and orchestrate your enterprise AI agent ecosystem.",
+    "h5.sub": "Deploy autonomous agents across finance, operations and compliance — with policy enforcement, human approval on privileged actions, and a complete audit trail behind every decision.",
+    "h5.ctaPrimary": "Request a demo",
+    "h5.ctaSecondary": "Enter the platform",
 };
 
 export default en;

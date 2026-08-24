@@ -1144,6 +1144,25 @@ const uz: Dict = {
     "sc.monthTitle": "Oydan hisobotgacha",
     "sc.monthTrigger": "Oy tugadi.",
     "sc.monthResult": "Jadvaldagi raqamlar yig'ildi, soliq qarzi tekshirildi va xulosa Telegram'ga keldi.",
+    /* ===== V5 landing (Orbital Obsidian) — hero va orbita ===== */
+    "orb.idle": "Oltita imkoniyat, bitta boshqariladigan muhit.",
+    "orb.intelligence": "AQL",
+    "orb.intelligenceDesc": "Ilg'or modellar umumiy korpusda emas, sizning kontekstingizda fikrlaydi.",
+    "orb.connectors": "ULANISHLAR",
+    "orb.connectorsDesc": "Operatsiyalaringiz allaqachon ishlaydigan tizimlarga to'g'ridan-to'g'ri integratsiya.",
+    "orb.code": "KOD",
+    "orb.codeDesc": "Agent mantiqni yozadi va uni ajratilgan muhitda bajaradi.",
+    "orb.analytics": "TAHLIL",
+    "orb.analyticsDesc": "Har ijro o'lchanadi — har amalning narxi, kechikishi va natijasi.",
+    "orb.automation": "AVTOMATLASHTIRISH",
+    "orb.automationDesc": "Jadval va hodisa bo'yicha ijro, takrorlanishdan himoya bilan.",
+    "orb.vision": "KO'RISH",
+    "orb.visionDesc": "Agent interfeys va hujjatlarni operator kabi o'qiydi.",
+    "h5.eyebrow": "KORPORATIV AGENT INFRATUZILMASI",
+    "h5.title": "Korporativ AI agentlaringiz ekotizimini birlashtiring va boshqaring.",
+    "h5.sub": "Moliya, operatsiyalar va muvofiqlik bo'ylab avtonom agentlarni joylashtiring — siyosat nazorati, imtiyozli amallarda inson tasdig'i va har qaror ortida to'liq audit izi bilan.",
+    "h5.ctaPrimary": "Demo so'rash",
+    "h5.ctaSecondary": "Platformaga kirish",
 };
 
 export default uz;
