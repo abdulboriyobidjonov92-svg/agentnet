@@ -111,17 +111,16 @@ export function OrbitCore({ className = "" }: { className?: string }) {
         line.style.opacity = (0.3 + depth * 0.7).toFixed(3);
       }
 
-      // Yorliq — sferadan tashqariga, markazdan qarama-qarshi yo'nalishga.
+      // Yorliq HAR DOIM ikon OSTIDA (referens shunday). Radial joylashuv
+      // sinab ko'rildi, lekin yon sferalarda u konteyner chetiga urilib,
+      // qisilishga muhtoj bo'lardi — pastdagi joylashuv barqarorroq.
       const label = labelRefs.current[i];
       if (label) {
-        const len = Math.hypot(x, y) || 1;
-        const gap = sphereR + (narrow ? 15 : 19);
-        let lx = x + (x / len) * gap;
-        const ly = y + (y / len) * gap;
+        const ly = y + sphereR + (narrow ? 13 : 16);
         const maxX = w / 2 - label.offsetWidth / 2 - 4;
-        lx = Math.max(-maxX, Math.min(maxX, lx));
-        label.style.transform = `translate(-50%, -50%) translate(${lx}px, ${ly}px)`;
-        label.style.opacity = (0.5 + depth * 0.5).toFixed(3);
+        const lx = Math.max(-maxX, Math.min(maxX, x));
+        label.style.transform = `translate(-50%, 0) translate(${lx}px, ${ly}px)`;
+        label.style.opacity = (0.55 + depth * 0.45).toFixed(3);
       }
     });
   });
@@ -141,9 +140,9 @@ export function OrbitCore({ className = "" }: { className?: string }) {
         >
           <defs>
             <linearGradient id="orbit-ring" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="hsl(258 100% 74%)" stopOpacity="0.6" />
-              <stop offset="50%" stopColor="hsl(200 100% 68%)" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="hsl(258 100% 74%)" stopOpacity="0.08" />
+              <stop offset="0%" stopColor="hsl(222 100% 78%)" stopOpacity="0.55" />
+              <stop offset="50%" stopColor="hsl(250 100% 78%)" stopOpacity="0.28" />
+              <stop offset="100%" stopColor="hsl(222 100% 78%)" stopOpacity="0.07" />
             </linearGradient>
           </defs>
           {[37, 30, 23].map((r) => (
@@ -176,8 +175,8 @@ export function OrbitCore({ className = "" }: { className?: string }) {
             className="pointer-events-none absolute left-1/2 top-1/2 h-[1.5px] origin-left rounded-full"
             style={{
               background:
-                "linear-gradient(90deg, hsl(190 100% 80% / 0.95) 0%, hsl(258 100% 80% / 0.75) 55%, hsl(258 100% 80% / 0.35) 100%)",
-              boxShadow: "0 0 8px hsl(250 100% 70% / 0.6)",
+                "linear-gradient(90deg, hsl(215 100% 85% / 0.9) 0%, hsl(245 100% 82% / 0.6) 55%, hsl(250 100% 82% / 0.25) 100%)",
+              boxShadow: "0 0 10px hsl(232 100% 70% / 0.55)",
             }}
           />
         ))}
@@ -203,20 +202,19 @@ export function OrbitCore({ className = "" }: { className?: string }) {
                 aria-label={`${t(`orb.${n.id}`)} — ${t(`orb.${n.id}Desc`)}`}
                 className="group relative flex h-14 w-14 items-center justify-center rounded-full focus-visible:outline-none sm:h-16 sm:w-16"
               >
+                {/* KONTUR HALQA — to'ldirilgan shar emas (referens shunday):
+                    ichi deyarli shaffof, chekkasi yupqa yorug' chiziq,
+                    tashqarisida yumshoq nur. */}
                 <span
-                  className={`absolute inset-0 rounded-full border transition-[box-shadow,border-color] duration-300 ${
+                  className={`absolute inset-0 rounded-full border transition-[box-shadow,border-color,background-color] duration-300 ${
                     isActive
-                      ? "border-[hsl(190_100%_80%/0.95)] shadow-[0_0_36px_hsl(250_100%_66%/0.75)]"
-                      : "border-white/25 shadow-[0_0_26px_hsl(250_100%_62%/0.5)]"
+                      ? "border-[hsl(210_100%_86%/0.95)] bg-[hsl(226_60%_16%/0.85)] shadow-[0_0_34px_hsl(232_100%_66%/0.6),inset_0_0_18px_hsl(228_100%_70%/0.25)]"
+                      : "border-[hsl(220_80%_78%/0.55)] bg-[hsl(226_55%_12%/0.72)] shadow-[0_0_22px_hsl(230_100%_60%/0.35),inset_0_0_14px_hsl(228_100%_70%/0.12)]"
                   } group-focus-visible:border-[hsl(190_100%_75%)] group-focus-visible:shadow-[0_0_0_2px_hsl(190_100%_70%/0.8)]`}
-                  style={{
-                    background:
-                      "radial-gradient(circle at 34% 24%, hsl(254 96% 66%) 0%, hsl(250 92% 38%) 52%, hsl(246 82% 15%) 100%)",
-                  }}
                 />
                 <Icon
                   className={`relative h-5 w-5 transition-colors duration-300 sm:h-6 sm:w-6 ${
-                    isActive ? "text-white" : "text-white/85"
+                    isActive ? "text-white" : "text-[hsl(215_90%_88%)]"
                   }`}
                   aria-hidden
                 />
@@ -233,8 +231,8 @@ export function OrbitCore({ className = "" }: { className?: string }) {
               labelRefs.current[i] = el;
             }}
             aria-hidden
-            className={`pointer-events-none absolute left-1/2 top-1/2 z-40 whitespace-nowrap font-mono text-[0.5625rem] uppercase tracking-[0.24em] transition-colors duration-300 ${
-              active === n.id ? "text-[hsl(190_100%_82%)]" : "text-white/60"
+            className={`pointer-events-none absolute left-1/2 top-1/2 z-40 whitespace-nowrap font-mono text-[0.5rem] uppercase tracking-[0.14em] transition-colors duration-300 sm:text-[0.5625rem] sm:tracking-[0.24em] ${
+              active === n.id ? "text-white" : "text-white/65"
             }`}
           >
             {t(`orb.${n.id}`)}

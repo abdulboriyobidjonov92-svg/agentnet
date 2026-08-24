@@ -5,41 +5,40 @@ import { useEffect, useRef } from "react";
 /**
  * TIRIK SAYYORA — orbitaning markazidagi Yer.
  *
- * NEGA CANVAS: sayyora ~900 nuqtadan iborat va ularning har biri kadr
- * boshiga aylanadi, chuqurlikka qarab so'nadi va o'lchamini o'zgartiradi.
- * Buni DOM elementlari bilan qilish 900 ta `transform` degani — brauzer
- * buni ko'tarmaydi. Canvas'da bu bitta chizish sikli.
+ * NEGA CANVAS: sayyora ~1500 nuqta, 46 tarmoq tuguni va uchta signal
+ * yoyidan iborat; har biri kadr boshiga aylanadi, chuqurlikka qarab
+ * so'nadi va o'lchamini o'zgartiradi. DOM'da bu mingdan ortiq
+ * `transform` degani — canvas'da esa bitta chizish sikli.
  *
- * NIMA HARAKATLANADI (uchta qatlam, uchtasi ham boshqa tezlikda —
- * shu tufayli tirik ko'rinadi):
- *   1. Sayyora o'z o'qi atrofida aylanadi; qit'a nuqtalari old tomonda
- *      yorug', chekkaga borgan sari so'nadi, orqa yarim shar chizilmaydi.
- *   2. Tarmoq tugunlari (14 ta) sayyora bilan birga aylanadi va o'zaro
- *      chiziqlar bilan bog'lanadi — faqat ikkalasi ham ko'rinib turgan
- *      bo'lsa.
- *   3. Har chiziq bo'ylab SIGNAL yuguradi (yorqin nuqta) — bu "tirik"
- *      hissini beradigan asosiy detal.
- * Tashqarida esa orbita halqalari bo'ylab kichik signallar aylanadi.
+ * QATLAMLAR (har biri boshqa tezlikda — tirik hissi shundan):
+ *   1. Volumetrik nur — sayyora atrofidagi yumshoq ko'k halo.
+ *   2. Tanasi: quyuq ko'k shar, yorug'lik yuqori chapdan.
+ *   3. Nozik meridian/parallel panjarasi (juda past kontrastda).
+ *   4. Qit'alar — nuqtali to'r; old tomonda oq-ko'k, chekkada so'nadi.
+ *   5. GEOMETRIK TARMOQ — yuzadagi 46 tugun va ular orasidagi qisqa
+ *      chiziqlar.
+ *   6. MAYOQLAR — tarmoqning har to'rtinchi tuguni puls bilan yonadi.
+ *   7. SIGNAL YOYLARI — sayyorani YAQINDAN o'rab o'tuvchi uchta yassi
+ *      halqa, har birida yorqin bosh yuguradi: agentlar bir-biriga
+ *      signal berayotgandek.
  *
- * QIT'ALAR: aniq geografik ma'lumot emas — ekvatorial koordinatalarda
- * o'nta ellips bilan berilgan taxminiy siluet (Amerika, Afrika, Yevropa,
- * Osiyo, Avstraliya, Grenlandiya, Antarktida). 200px o'lchamda u Yer
- * sifatida o'qiladi; xarita sifatida ishlatib bo'lmaydi va shunday
- * bo'lishi ham shart emas.
+ * QIT'ALAR aniq geografiya EMAS: ekvatorial koordinatalarda o'nta ellips
+ * bilan berilgan taxminiy siluet. Bu o'lchamda Yer sifatida o'qiladi,
+ * lekin xarita sifatida ishlatib bo'lmaydi.
  *
  * `prefers-reduced-motion`: hamma harakat to'xtaydi, sayyora bir marta
  * chiziladi va shundayligicha qoladi.
  */
 
-interface Blob {
+interface Ellipse {
   lon: number;
   lat: number;
   rx: number;
   ry: number;
 }
 
-/** Qit'alar siluetining taxminiy shakli (ellipslar, gradusda). */
-const LAND: Blob[] = [
+/** Qit'alar siluetining taxminiy shakli (gradusda). */
+const LAND: Ellipse[] = [
   { lon: -100, lat: 45, rx: 26, ry: 17 }, // Shimoliy Amerika
   { lon: -85, lat: 14, rx: 9, ry: 7 }, // Markaziy Amerika
   { lon: -60, lat: -20, rx: 12, ry: 23 }, // Janubiy Amerika
@@ -64,40 +63,38 @@ function isLand(lat: number, lon: number): boolean {
   return false;
 }
 
-/** Tarmoq tugunlari — quruqlikdagi yirik nuqtalar. */
-const HUBS: [number, number][] = [
-  [41, 69], // Toshkent
-  [51, 0],
-  [40, -74],
-  [35, 139],
-  [-23, -46],
-  [1, 103],
-  [-33, 151],
-  [25, 55],
-  [55, 37],
-  [37, -122],
-  [28, 77],
-  [-1, 36],
-  [52, 13],
-  [31, 121],
-];
+/** Ko'k-binafsha palitra (referens: quyuq ko'k fon, oq-ko'k nuqtalar). */
+const DEEP = "8, 16, 46";
+const LAND_DOT = "116, 165, 255";
+const LAND_HOT = "198, 222, 255";
+const MESH = "104, 142, 235";
+const ARC = "150, 130, 255";
+const HALO = "58, 104, 224";
 
-interface Pt3 {
+interface Node3 {
   x: number;
   y: number;
   z: number;
 }
 
-function project(lat: number, lon: number, rot: number): Pt3 {
-  const phi = (lat * Math.PI) / 180;
-  const lambda = (lon * Math.PI) / 180 + rot;
-  const cp = Math.cos(phi);
-  return { x: cp * Math.sin(lambda), y: Math.sin(phi), z: cp * Math.cos(lambda) };
+/** Fibonacci sferasi — yuzada tekis taqsimlangan tugunlar. */
+function fibSphere(n: number): Node3[] {
+  const pts: Node3[] = [];
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < n; i++) {
+    const y = 1 - (i / (n - 1)) * 2;
+    const r = Math.sqrt(Math.max(0, 1 - y * y));
+    const th = golden * i;
+    pts.push({ x: Math.cos(th) * r, y, z: Math.sin(th) * r });
+  }
+  return pts;
 }
 
-const VIOLET = "124, 77, 255";
-const BRIGHT = "167, 139, 255";
-const CYAN = "34, 211, 238";
+function rotateY(p: Node3, a: number): Node3 {
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  return { x: p.x * c + p.z * s, y: p.y, z: -p.x * s + p.z * c };
+}
 
 export function GlobeCanvas({ className = "" }: { className?: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -110,7 +107,7 @@ export function GlobeCanvas({ className = "" }: { className?: string }) {
 
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    // Quruqlik nuqtalari BIR MARTA hisoblanadi (kadr ichida emas).
+    // --- Bir marta hisoblanadi (kadr ichida emas) ---
     const dots: [number, number][] = [];
     for (let lat = -88; lat <= 88; lat += 2.3) {
       const circ = Math.cos((lat * Math.PI) / 180);
@@ -120,16 +117,16 @@ export function GlobeCanvas({ className = "" }: { className?: string }) {
       }
     }
 
-    // Yaqin tugunlar juftligi — tarmoq qirralari.
-    const edges: [number, number][] = [];
-    for (let i = 0; i < HUBS.length; i++) {
-      for (let j = i + 1; j < HUBS.length; j++) {
-        const a = HUBS[i];
-        const b = HUBS[j];
-        const d = Math.hypot(a[0] - b[0], Math.min(Math.abs(a[1] - b[1]), 360 - Math.abs(a[1] - b[1])));
-        if (d < 62) edges.push([i, j]);
+    const netNodes = fibSphere(46);
+    const netEdges: [number, number][] = [];
+    for (let i = 0; i < netNodes.length; i++) {
+      for (let j = i + 1; j < netNodes.length; j++) {
+        const a = netNodes[i];
+        const b = netNodes[j];
+        if (Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z) < 0.52) netEdges.push([i, j]);
       }
     }
+    const beacons = netNodes.filter((_, i) => i % 4 === 0);
 
     let raf = 0;
     let w = 0;
@@ -152,43 +149,44 @@ export function GlobeCanvas({ className = "" }: { className?: string }) {
       const cx = w / 2;
       const cy = h / 2;
       const R = Math.min(w, h) * 0.34;
-      const rot = reduced ? 0.6 : time * 0.000045;
+      const rot = reduced ? 0.6 : time * 0.000042;
 
       ctx.clearRect(0, 0, w, h);
 
-      // --- Atmosfera: sayyora chetidagi nur ---
-      const halo = ctx.createRadialGradient(cx, cy, R * 0.82, cx, cy, R * 1.62);
-      halo.addColorStop(0, `rgba(${VIOLET}, 0.62)`);
-      halo.addColorStop(0.5, `rgba(${VIOLET}, 0.24)`);
+      // 1 — Volumetrik nur
+      const halo = ctx.createRadialGradient(cx, cy, R * 0.86, cx, cy, R * 1.75);
+      halo.addColorStop(0, `rgba(${HALO}, 0.42)`);
+      halo.addColorStop(0.45, `rgba(${HALO}, 0.14)`);
       halo.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = halo;
       ctx.beginPath();
-      ctx.arc(cx, cy, R * 1.62, 0, Math.PI * 2);
+      ctx.arc(cx, cy, R * 1.75, 0, Math.PI * 2);
       ctx.fill();
 
-      // --- Sayyora tanasi (chuqurlik uchun quyuq shar) ---
-      const body = ctx.createRadialGradient(cx - R * 0.3, cy - R * 0.35, R * 0.1, cx, cy, R);
-      body.addColorStop(0, "rgba(126, 96, 255, 0.92)");
-      body.addColorStop(0.55, "rgba(66, 40, 205, 0.94)");
-      body.addColorStop(0.85, "rgba(24, 16, 92, 0.95)");
-      body.addColorStop(1, "rgba(12, 10, 48, 0.96)");
+      // 2 — Sayyora tanasi
+      const body = ctx.createRadialGradient(cx - R * 0.34, cy - R * 0.38, R * 0.08, cx, cy, R);
+      body.addColorStop(0, "rgba(38, 62, 140, 0.96)");
+      body.addColorStop(0.5, "rgba(16, 30, 82, 0.97)");
+      body.addColorStop(1, `rgba(${DEEP}, 0.98)`);
       ctx.fillStyle = body;
       ctx.beginPath();
       ctx.arc(cx, cy, R, 0, Math.PI * 2);
       ctx.fill();
 
-      // --- TO'R: meridianlar va parallellar ---
-      // Referensdagi eng ko'zga tashlanadigan detal shu edi: sayyora
-      // shunchaki nuqtalar to'plami emas, ustida tarmoq kabi chiziqli
-      // panjara bor. Faqat old yarim shar chiziladi.
-      ctx.lineWidth = 0.6;
-      ctx.strokeStyle = `rgba(${VIOLET}, 0.30)`;
-      for (let m = 0; m < 12; m++) {
-        const lon = -180 + m * 30;
+      const project = (lat: number, lon: number) => {
+        const phi = (lat * Math.PI) / 180;
+        const lambda = (lon * Math.PI) / 180 + rot;
+        const cp = Math.cos(phi);
+        return { x: cp * Math.sin(lambda), y: Math.sin(phi), z: cp * Math.cos(lambda) };
+      };
+
+      // 3 — Nozik panjara
+      ctx.lineWidth = 0.5;
+      ctx.strokeStyle = `rgba(${MESH}, 0.16)`;
+      const strokePath = (pts: Node3[]) => {
         ctx.beginPath();
         let started = false;
-        for (let lat = -90; lat <= 90; lat += 6) {
-          const p = project(lat, lon, rot);
+        for (const p of pts) {
           if (p.z <= 0.02) {
             started = false;
             continue;
@@ -202,135 +200,92 @@ export function GlobeCanvas({ className = "" }: { className?: string }) {
           }
         }
         ctx.stroke();
+      };
+      for (let m = 0; m < 8; m++) {
+        const lon = -180 + m * 45;
+        const pts: Node3[] = [];
+        for (let lat = -90; lat <= 90; lat += 6) pts.push(project(lat, lon));
+        strokePath(pts);
       }
-      for (let lat = -60; lat <= 60; lat += 30) {
-        ctx.beginPath();
-        let started = false;
-        for (let lon = -180; lon <= 180; lon += 6) {
-          const p = project(lat, lon, rot);
-          if (p.z <= 0.02) {
-            started = false;
-            continue;
-          }
-          const sx = cx + p.x * R;
-          const sy = cy - p.y * R;
-          if (started) ctx.lineTo(sx, sy);
-          else {
-            ctx.moveTo(sx, sy);
-            started = true;
-          }
-        }
-        ctx.stroke();
+      for (const lat of [-50, -20, 20, 50]) {
+        const pts: Node3[] = [];
+        for (let lon = -180; lon <= 180; lon += 6) pts.push(project(lat, lon));
+        strokePath(pts);
       }
 
-      // --- Qit'alar: nuqtali to'r ---
+      // 4 — Qit'alar
       for (const [lat, lon] of dots) {
-        const p = project(lat, lon, rot);
-        if (p.z <= 0.02) continue; // orqa yarim shar
-        const sx = cx + p.x * R;
-        const sy = cy - p.y * R;
-        const a = 0.55 + p.z * 0.45;
-        const s = 0.95 + p.z * 1.25;
-        // Old tomondagi nuqtalar deyarli oq-siyohrang, chekkadagilar violet
-        const tint = p.z > 0.35 ? BRIGHT : VIOLET;
-        ctx.fillStyle = `rgba(${tint}, ${a.toFixed(3)})`;
+        const p = project(lat, lon);
+        if (p.z <= 0.02) continue;
+        const a = 0.35 + p.z * 0.6;
+        ctx.fillStyle = `rgba(${p.z > 0.6 ? LAND_HOT : LAND_DOT}, ${a.toFixed(3)})`;
         ctx.beginPath();
-        ctx.arc(sx, sy, s, 0, Math.PI * 2);
+        ctx.arc(cx + p.x * R, cy - p.y * R, 0.8 + p.z * 1.1, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // --- Tarmoq: tugunlar orasidagi chiziqlar ---
-      const hubPts = HUBS.map(([lat, lon]) => {
-        const p = project(lat, lon, rot);
-        return { ...p, sx: cx + p.x * R, sy: cy - p.y * R };
+      // 5 — Geometrik tarmoq
+      const np = netNodes.map((p) => {
+        const r = rotateY(p, rot);
+        return { ...r, sx: cx + r.x * R, sy: cy - r.y * R };
       });
-
-      ctx.lineWidth = 1.1;
-      for (const [i, j] of edges) {
-        const a = hubPts[i];
-        const b = hubPts[j];
-        if (a.z <= 0.08 || b.z <= 0.08) continue;
-        const alpha = 0.42 + Math.min(a.z, b.z) * 0.55;
-        ctx.strokeStyle = `rgba(${CYAN}, ${alpha.toFixed(3)})`;
+      ctx.lineWidth = 0.55;
+      for (const [i, j] of netEdges) {
+        const a = np[i];
+        const b = np[j];
+        if (a.z <= 0.06 || b.z <= 0.06) continue;
+        ctx.strokeStyle = `rgba(${MESH}, ${(0.12 + Math.min(a.z, b.z) * 0.4).toFixed(3)})`;
         ctx.beginPath();
         ctx.moveTo(a.sx, a.sy);
         ctx.lineTo(b.sx, b.sy);
         ctx.stroke();
       }
 
-      // --- Signallar: har chiziq bo'ylab yuguruvchi nur ---
-      ctx.shadowColor = `rgba(${CYAN}, 0.9)`;
-      ctx.shadowBlur = 8;
-      edges.forEach(([i, j], k) => {
-        const a = hubPts[i];
-        const b = hubPts[j];
-        if (a.z <= 0.12 || b.z <= 0.12) return;
-        const tt = reduced ? 0.5 : ((time * 0.00028 + k * 0.17) % 1);
-        const sx = a.sx + (b.sx - a.sx) * tt;
-        const sy = a.sy + (b.sy - a.sy) * tt;
-        ctx.fillStyle = `rgba(${CYAN}, ${(0.5 + Math.min(a.z, b.z) * 0.5).toFixed(3)})`;
+      // 6 — Mayoqlar
+      ctx.shadowColor = `rgba(${LAND_HOT}, 0.9)`;
+      ctx.shadowBlur = 7;
+      beacons.forEach((p0, k) => {
+        const p = rotateY(p0, rot);
+        if (p.z <= 0.08) return;
+        const pulse = reduced ? 0.7 : 0.55 + 0.45 * Math.sin(time * 0.0018 + k * 1.7);
+        ctx.fillStyle = `rgba(${LAND_HOT}, ${(0.3 + p.z * 0.6 * pulse).toFixed(3)})`;
         ctx.beginPath();
-        ctx.arc(sx, sy, 1.5, 0, Math.PI * 2);
+        ctx.arc(cx + p.x * R, cy - p.y * R, 1.1 + p.z * 1.2 * pulse, 0, Math.PI * 2);
         ctx.fill();
       });
-
-      // --- Tugunlar ---
-      for (const p of hubPts) {
-        if (p.z <= 0.08) continue;
-        ctx.fillStyle = `rgba(255, 255, 255, ${(0.25 + p.z * 0.6).toFixed(3)})`;
-        ctx.beginPath();
-        ctx.arc(p.sx, p.sy, 1.1 + p.z * 0.9, 0, Math.PI * 2);
-        ctx.fill();
-      }
       ctx.shadowBlur = 0;
 
-      // --- Sayyora chegarasi: yupqa yorug' halqa ---
-      ctx.strokeStyle = `rgba(${BRIGHT}, 0.95)`;
-      ctx.lineWidth = 1.4;
-      ctx.shadowColor = `rgba(${VIOLET}, 0.9)`;
-      ctx.shadowBlur = 16;
+      // Sayyora chegarasi
+      ctx.strokeStyle = `rgba(${LAND_HOT}, 0.5)`;
+      ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.arc(cx, cy, R, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.shadowBlur = 0;
 
-      // Yorug'lik dog'i — shar ekanligi shundan o'qiladi
-      const spec = ctx.createRadialGradient(
-        cx - R * 0.38, cy - R * 0.42, 0, cx - R * 0.38, cy - R * 0.42, R * 0.85,
-      );
-      spec.addColorStop(0, "rgba(190, 170, 255, 0.30)");
-      spec.addColorStop(1, "rgba(190, 170, 255, 0)");
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(cx, cy, R, 0, Math.PI * 2);
-      ctx.clip();
-      ctx.fillStyle = spec;
-      ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
-      ctx.restore();
-
-      // --- Tashqi orbitalar bo'ylab aylanuvchi signallar ---
-      const rings = [
-        { rx: R * 2.25, speed: 0.00011, count: 3, phase: 0 },
-        { rx: R * 1.78, speed: -0.00016, count: 2, phase: 1.1 },
-        { rx: R * 1.3, speed: 0.00022, count: 2, phase: 2.3 },
+      // 7 — Signal yoylari (sayyorani yaqindan o'rab o'tadi)
+      const arcs = [
+        { tilt: -0.34, rx: R * 1.1, flat: 0.3, speed: 0.00032, phase: 0 },
+        { tilt: 0.62, rx: R * 1.2, flat: 0.22, speed: -0.00025, phase: 2.1 },
+        { tilt: 1.45, rx: R * 1.05, flat: 0.36, speed: 0.0004, phase: 4.0 },
       ];
-      ctx.shadowColor = `rgba(${VIOLET}, 0.9)`;
-      ctx.shadowBlur = 10;
-      for (const ring of rings) {
-        const ry = ring.rx * 0.46;
-        for (let n = 0; n < ring.count; n++) {
-          const ang =
-            (reduced ? 0.8 : time * ring.speed) + ring.phase + (n / ring.count) * Math.PI * 2;
-          const sx = cx + Math.cos(ang) * ring.rx;
-          const sy = cy + Math.sin(ang) * ry;
-          const depth = (Math.sin(ang) + 1) / 2;
-          ctx.fillStyle = `rgba(${VIOLET}, ${(0.35 + depth * 0.6).toFixed(3)})`;
-          ctx.beginPath();
-          ctx.arc(sx, sy, 1.4 + depth * 1.1, 0, Math.PI * 2);
-          ctx.fill();
-        }
+      for (const a of arcs) {
+        const ry = a.rx * a.flat;
+        ctx.strokeStyle = `rgba(${ARC}, 0.2)`;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, a.rx, ry, a.tilt, 0, Math.PI * 2);
+        ctx.stroke();
+
+        const head = (reduced ? 1.2 : time * a.speed) + a.phase;
+        ctx.strokeStyle = `rgba(${ARC}, 0.9)`;
+        ctx.lineWidth = 1.6;
+        ctx.shadowColor = `rgba(${ARC}, 0.95)`;
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, a.rx, ry, a.tilt, head, head + 0.55);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
       }
-      ctx.shadowBlur = 0;
 
       if (!reduced) raf = requestAnimationFrame(draw);
     };

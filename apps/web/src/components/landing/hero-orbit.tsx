@@ -19,7 +19,7 @@ export function HeroOrbit({ t }: { t: (key: string) => string }) {
     <section
       id="hero"
       aria-labelledby="hero-title"
-      className="relative overflow-hidden border-b border-white/[0.06] bg-[#04030A]"
+      className="relative overflow-hidden border-b border-white/[0.06] bg-[#050A1C]"
     >
       {/* Markazdan tarqaladigan yagona nur — referensdagi qora kosmos */}
       <div
@@ -27,7 +27,7 @@ export function HeroOrbit({ t }: { t: (key: string) => string }) {
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 52% 42% at 50% 34%, hsl(252 100% 40% / 0.22) 0%, transparent 70%)",
+            "radial-gradient(ellipse 54% 44% at 50% 34%, hsl(228 100% 42% / 0.25) 0%, transparent 70%)",
         }}
       />
       {/* Yulduz changi — juda past kontrastli nuqtalar to'ri */}
