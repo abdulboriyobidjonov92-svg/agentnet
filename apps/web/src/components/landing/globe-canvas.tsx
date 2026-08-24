@@ -177,14 +177,60 @@ export function GlobeCanvas({ className = "" }: { className?: string }) {
       ctx.arc(cx, cy, R, 0, Math.PI * 2);
       ctx.fill();
 
+      // --- TO'R: meridianlar va parallellar ---
+      // Referensdagi eng ko'zga tashlanadigan detal shu edi: sayyora
+      // shunchaki nuqtalar to'plami emas, ustida tarmoq kabi chiziqli
+      // panjara bor. Faqat old yarim shar chiziladi.
+      ctx.lineWidth = 0.6;
+      ctx.strokeStyle = `rgba(${VIOLET}, 0.30)`;
+      for (let m = 0; m < 12; m++) {
+        const lon = -180 + m * 30;
+        ctx.beginPath();
+        let started = false;
+        for (let lat = -90; lat <= 90; lat += 6) {
+          const p = project(lat, lon, rot);
+          if (p.z <= 0.02) {
+            started = false;
+            continue;
+          }
+          const sx = cx + p.x * R;
+          const sy = cy - p.y * R;
+          if (started) ctx.lineTo(sx, sy);
+          else {
+            ctx.moveTo(sx, sy);
+            started = true;
+          }
+        }
+        ctx.stroke();
+      }
+      for (let lat = -60; lat <= 60; lat += 30) {
+        ctx.beginPath();
+        let started = false;
+        for (let lon = -180; lon <= 180; lon += 6) {
+          const p = project(lat, lon, rot);
+          if (p.z <= 0.02) {
+            started = false;
+            continue;
+          }
+          const sx = cx + p.x * R;
+          const sy = cy - p.y * R;
+          if (started) ctx.lineTo(sx, sy);
+          else {
+            ctx.moveTo(sx, sy);
+            started = true;
+          }
+        }
+        ctx.stroke();
+      }
+
       // --- Qit'alar: nuqtali to'r ---
       for (const [lat, lon] of dots) {
         const p = project(lat, lon, rot);
         if (p.z <= 0.02) continue; // orqa yarim shar
         const sx = cx + p.x * R;
         const sy = cy - p.y * R;
-        const a = 0.45 + p.z * 0.55;
-        const s = 0.85 + p.z * 1.15;
+        const a = 0.55 + p.z * 0.45;
+        const s = 0.95 + p.z * 1.25;
         // Old tomondagi nuqtalar deyarli oq-siyohrang, chekkadagilar violet
         const tint = p.z > 0.35 ? BRIGHT : VIOLET;
         ctx.fillStyle = `rgba(${tint}, ${a.toFixed(3)})`;
@@ -199,12 +245,12 @@ export function GlobeCanvas({ className = "" }: { className?: string }) {
         return { ...p, sx: cx + p.x * R, sy: cy - p.y * R };
       });
 
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 1.1;
       for (const [i, j] of edges) {
         const a = hubPts[i];
         const b = hubPts[j];
         if (a.z <= 0.08 || b.z <= 0.08) continue;
-        const alpha = 0.34 + Math.min(a.z, b.z) * 0.55;
+        const alpha = 0.42 + Math.min(a.z, b.z) * 0.55;
         ctx.strokeStyle = `rgba(${CYAN}, ${alpha.toFixed(3)})`;
         ctx.beginPath();
         ctx.moveTo(a.sx, a.sy);

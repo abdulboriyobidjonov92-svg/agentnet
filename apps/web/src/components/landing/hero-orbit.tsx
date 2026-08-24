@@ -19,8 +19,17 @@ export function HeroOrbit({ t }: { t: (key: string) => string }) {
     <section
       id="hero"
       aria-labelledby="hero-title"
-      className="relative overflow-hidden border-b border-white/[0.06]"
+      className="relative overflow-hidden border-b border-white/[0.06] bg-[#04030A]"
     >
+      {/* Markazdan tarqaladigan yagona nur — referensdagi qora kosmos */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 52% 42% at 50% 34%, hsl(252 100% 40% / 0.22) 0%, transparent 70%)",
+        }}
+      />
       {/* Yulduz changi — juda past kontrastli nuqtalar to'ri */}
       <div
         aria-hidden
