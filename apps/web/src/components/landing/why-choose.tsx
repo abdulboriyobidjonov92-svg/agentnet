@@ -1,40 +1,61 @@
-import { ShieldCheck, Hand, ScrollText, type LucideIcon } from "lucide-react";
-import { Section, SectionHead, GlowCard, IconChip } from "./ui";
+import { Section, SectionHead } from "./ui";
 
 /**
- * WHY CHOOSE US — uchta nazorat mexanizmi.
+ * NAZORAT QATLAMI — ataylab KARTA EMAS.
  *
- * Ilgari chapda ijro daftari paneli turardi; u founder qarori bilan olib
- * tashlandi. Endi bo'lim to'liq kenglikda: sarlavha markazda, ostida uch
- * karta.
+ * Sahifada uchta ketma-ket bo'lim bor edi va uchalasi ham bir xil ritmda
+ * ishlangan: markazlashtirilgan sarlavha -> bir xil kartalar to'ri. Jami
+ * o'n ikkita bir xil karta — ko'z ular orasidagi farqni ko'rmay qolardi.
  *
- * MATNLAR `g.*` kalitlaridan — bu kafolatlar ro'yxati bilan bir xil
- * manba, ya'ni sahifada ikki xil va'da paydo bo'lmaydi.
+ * Shuning uchun bu bo'lim boshqacha: ikki ustun (chapda sarlavha, o'ngda
+ * ro'yxat), kartasiz, faqat gorizontal ajratgich chiziqlar bilan. Kontent
+ * o'zgarmadi — ritm o'zgardi.
+ *
+ * TAKRORLANISH OLIB TASHLANDI: ilgari bu yerda "policy" bandi turardi,
+ * lekin "Qanday ishlaydi" bo'limining uchinchi qadami ham aynan tasdiq
+ * haqida edi. Endi bu bo'lim tasdiqdan KEYIN nima qolishini aytadi:
+ * yozuv, to'xtatish tugmasi va sarf hisobi.
  */
 
-const POINTS: { id: string; body: string; Icon: LucideIcon }[] = [
-  { id: "policy", body: "g.g2Body", Icon: ShieldCheck },
-  { id: "stop", body: "g.g3Body", Icon: Hand },
-  { id: "audit", body: "g.g1Body", Icon: ScrollText },
-];
+const POINTS = [
+  { id: "audit", body: "g.g1Body" },
+  { id: "stop", body: "g.g3Body" },
+  { id: "cost", body: "g.g4Body" },
+] as const;
 
 export function WhyChoose({ t }: { t: (key: string) => string }) {
   return (
-    <Section id="why" labelledBy="why-title">
-      <SectionHead eyebrow={t("why.eyebrow")} title={t("why.title")} sub={t("why.sub")} />
+    <Section id="why" labelledBy="why-title" tinted>
+      <div className="grid gap-12 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-20">
+        <SectionHead
+          eyebrow={t("why.eyebrow")}
+          title={t("why.title")}
+          sub={t("why.sub")}
+          align="left"
+        />
 
-      <div className="mt-14 grid gap-5 md:grid-cols-3">
-        {POINTS.map(({ id, body, Icon }) => (
-          <GlowCard key={id} className="h-full">
-            <IconChip>
-              <Icon className="h-5 w-5" aria-hidden />
-            </IconChip>
-            <h3 className="mt-5 font-display text-[1.1875rem] font-medium tracking-[-0.02em] text-white">
-              {t(`g.${id}`)}
-            </h3>
-            <p className="mt-2.5 text-[0.875rem] leading-relaxed text-white/55">{t(body)}</p>
-          </GlowCard>
-        ))}
+        <dl className="lg:pt-1">
+          {POINTS.map((p, i) => (
+            <div
+              key={p.id}
+              className={`grid grid-cols-[auto_1fr] gap-x-5 gap-y-2 py-7 sm:gap-x-8 ${
+                i > 0 ? "border-t border-white/[0.07]" : "lg:pt-0"
+              }`}
+            >
+              <dt className="font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-[hsl(220_95%_76%)]">
+                {t(`g.${p.id}`)}
+              </dt>
+              <dd className="col-start-2 row-start-1">
+                <p className="font-display text-[1.25rem] font-medium leading-tight tracking-[-0.02em] text-white">
+                  {t(`g.${p.id === "audit" ? "g1Value" : p.id === "stop" ? "g3Value" : "g4Value"}`)}
+                </p>
+                <p className="mt-2.5 max-w-md text-[0.9375rem] leading-relaxed text-white/55">
+                  {t(p.body)}
+                </p>
+              </dd>
+            </div>
+          ))}
+        </dl>
       </div>
     </Section>
   );

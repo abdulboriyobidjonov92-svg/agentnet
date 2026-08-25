@@ -32,7 +32,7 @@ export function SectionHead({
       <p className="font-mono text-[0.6875rem] uppercase tracking-[0.28em] text-[hsl(220_95%_76%)]">
         {eyebrow}
       </p>
-      <h2 className="mt-4 font-display text-[clamp(1.75rem,3.6vw,2.75rem)] font-semibold leading-[1.08] tracking-[-0.035em] text-white">
+      <h2 className="mt-4 font-display text-[clamp(1.625rem,3vw,2.375rem)] font-semibold leading-[1.08] tracking-[-0.035em] text-white">
         {title}
       </h2>
       {sub ? (
@@ -95,18 +95,21 @@ export function Section({
   id,
   labelledBy,
   children,
+  tinted = false,
   className = "",
 }: {
   id: string;
   labelledBy?: string;
   children: ReactNode;
+  /** Ozgina yorug'roq fon — bo'limlar ketma-ket kelganda ritm hosil qiladi. */
+  tinted?: boolean;
   className?: string;
 }) {
   return (
     <section
       id={id}
       aria-labelledby={labelledBy}
-      className={`border-b border-white/[0.06] ${className}`}
+      className={`border-b border-white/[0.06] ${tinted ? "bg-white/[0.015]" : ""} ${className}`}
     >
       <div className="mx-auto max-w-[1180px] px-5 py-16 sm:px-8 sm:py-24">{children}</div>
     </section>

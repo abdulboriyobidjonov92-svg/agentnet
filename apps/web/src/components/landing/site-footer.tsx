@@ -4,6 +4,10 @@ import { Sparkles } from "lucide-react";
 /**
  * FOOTER.
  *
+ * ⚠️ YORLIQLAR SAHIFA BO'YLAB BIR XIL: hisob yaratish havolasi bu yerda
+ * ham "Bepul boshlash" deb ataladi. Ilgari u "Hisob yaratish" edi, ya'ni
+ * bitta amalning ikkinchi nomi paydo bo'lgandi.
+ *
  * ⚠️ HAVOLALAR FAQAT MAVJUD SAHIFALARGA. Referens shablonda "Careers",
  * "E-books", "Education" kabi ustunlar bor — ularning ortida hech narsa
  * yo'q. O'lik havola birinchi bosishdayoq ishonchni buzadi, shuning uchun
@@ -22,8 +26,8 @@ const COLUMNS: { key: string; links: { href: string; key: string }[] }[] = [
   {
     key: "start",
     links: [
-      { href: "/sign-up", key: "foot.signUp" },
-      { href: "/sign-in", key: "foot.signIn" },
+      { href: "/sign-up", key: "cta.start" },
+      { href: "/sign-in", key: "cta.signIn" },
       { href: "/onboarding", key: "foot.onboarding" },
     ],
   },

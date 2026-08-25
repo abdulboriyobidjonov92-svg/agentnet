@@ -36,12 +36,12 @@ export default async function HomePage() {
             <span className="font-display text-[1.0625rem] font-semibold tracking-tight">AgentNet</span>
           </Link>
 
-          <nav aria-label={t("nav.solutions")} className="hidden items-center gap-8 lg:flex">
+          <nav aria-label="AgentNet" className="hidden items-center gap-8 lg:flex">
             {navLinks.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className="text-[0.875rem] text-white/60 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(220_100%_75%)] focus-visible:ring-offset-4 focus-visible:ring-offset-[#050A1C]"
+                className="text-[0.875rem] text-white/60 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(190_100%_75%)] focus-visible:ring-offset-0"
               >
                 {t(l.key)}
               </Link>
@@ -54,13 +54,13 @@ export default async function HomePage() {
               href="/sign-in"
               className="hidden text-[0.875rem] text-white/70 transition-colors hover:text-white sm:block"
             >
-              {t("h5.ctaSecondary")}
+              {t("cta.signIn")}
             </Link>
             <Link
               href="/sign-up"
-              className="inline-flex h-10 items-center rounded-full bg-gradient-to-b from-[hsl(258_100%_68%)] to-[hsl(248_92%_54%)] px-4 text-[0.875rem] font-medium text-white shadow-[0_6px_20px_hsl(250_100%_55%/0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(190_100%_70%)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#050A1C]"
+              className="inline-flex h-10 items-center rounded-full bg-gradient-to-b from-[hsl(258_100%_68%)] to-[hsl(248_92%_54%)] px-4 text-[0.875rem] font-medium text-white shadow-[0_6px_20px_hsl(250_100%_55%/0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(190_100%_75%)] focus-visible:ring-offset-0"
             >
-              {t("common.signUp")}
+              {t("cta.start")}
             </Link>
           </div>
         </div>

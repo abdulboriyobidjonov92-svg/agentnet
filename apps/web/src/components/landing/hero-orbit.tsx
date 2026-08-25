@@ -52,7 +52,7 @@ export function HeroOrbit({ t }: { t: (key: string) => string }) {
         <div className="relative z-10 mx-auto mt-6 max-w-3xl text-center sm:mt-8">
           <h1
             id="hero-title"
-            className="font-display text-[clamp(1.875rem,4.2vw,3rem)] font-semibold leading-[1.06] tracking-[-0.035em] text-white"
+            className="font-display text-[clamp(2.25rem,5vw,3.75rem)] font-semibold leading-[1.06] tracking-[-0.035em] text-white"
           >
             {t("h5.title")}
           </h1>
@@ -65,18 +65,18 @@ export function HeroOrbit({ t }: { t: (key: string) => string }) {
               href="/sign-up"
               className="group inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-b from-[hsl(258_100%_68%)] to-[hsl(248_92%_54%)] px-7 text-[0.9375rem] font-medium text-white shadow-[0_8px_32px_hsl(250_100%_55%/0.35)] transition-shadow duration-300 hover:shadow-[0_10px_40px_hsl(250_100%_60%/0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(190_100%_70%)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(230_50%_4%)] sm:w-auto"
             >
-              {t("h5.ctaPrimary")}
+              {t("cta.start")}
               <ArrowRight
                 className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none"
                 aria-hidden
               />
             </Link>
             <Link
-              href="#enterprise"
+              href="/sign-in"
               className="inline-flex h-12 w-full items-center justify-center rounded-full bg-gradient-to-b from-white/[0.14] to-white/[0.03] p-px text-[0.9375rem] font-medium sm:w-auto"
             >
               <span className="flex h-full w-full items-center justify-center rounded-full bg-[hsl(230_45%_7%)] px-7 text-white/85 transition-colors duration-300 hover:text-white">
-                {t("h5.ctaSecondary")}
+                {t("cta.signIn")}
               </span>
             </Link>
           </div>
