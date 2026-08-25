@@ -50,24 +50,24 @@ export function ApprovalDemo() {
   const trace = decision === "approved" ? APPROVED_TRACE : REJECTED_TRACE;
 
   return (
-    <div className="mt-12 border border-border">
+    <div className="mt-12 border border-white/[0.08]">
       {/* Taklif qilingan amal — foydalanuvchi AYNAN nimani tasdiqlayotganini
           ko'radi. Yashirin parametr bilan tasdiq so'rash ma'nosiz bo'lardi. */}
-      <div className="border-b border-border bg-[hsl(var(--surface-1))] px-5 py-5 sm:px-6">
+      <div className="border-b border-white/[0.08] bg-white/[0.025] px-5 py-5 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="flex items-center gap-3 font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="flex items-center gap-3 font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-white/50">
             <span className="tabular-nums text-[hsl(var(--violet-text))]">039</span>
             APPROVAL_REQUIRED
           </p>
-          <span className="rounded-[2px] border border-[hsl(var(--risk-high)/0.4)] px-2 py-0.5 font-mono text-[0.625rem] uppercase tracking-[0.12em] text-[hsl(var(--risk-high))]">
+          <span className="rounded-md border border-[hsl(var(--risk-high)/0.4)] px-2 py-0.5 font-mono text-[0.625rem] uppercase tracking-[0.12em] text-[hsl(var(--risk-high))]">
             {t("risk.high")}
           </span>
         </div>
 
-        <p className="mt-4 font-mono text-[0.875rem] text-foreground">
+        <p className="mt-4 font-mono text-[0.875rem] text-white">
           payme-merchant.create_receipt
         </p>
-        <pre className="mt-3 overflow-x-auto rounded-[2px] border border-border px-3 py-2.5 font-mono text-[0.75rem] leading-relaxed text-foreground/80">
+        <pre className="mt-3 overflow-x-auto rounded-md border border-white/[0.08] px-3 py-2.5 font-mono text-[0.75rem] leading-relaxed text-white/75">
 {`{
   "amount": 4850000,
   "order_id": "UZM-100482",
@@ -77,24 +77,24 @@ export function ApprovalDemo() {
       </div>
 
       {/* Qaror qatori */}
-      <div className="bg-[hsl(var(--surface-1))] px-5 py-5 sm:px-6">
+      <div className="bg-white/[0.025] px-5 py-5 sm:px-6">
         {decision === "pending" ? (
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <button
               type="button"
               onClick={() => setDecision("approved")}
-              className="cta inline-flex h-11 items-center justify-center rounded-[3px] px-5 text-[0.9375rem] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--surface-1))]"
+              className="cta inline-flex h-11 items-center justify-center rounded-lg px-5 text-[0.9375rem] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--surface-1))]"
             >
               {t("c.approve")}
             </button>
             <button
               type="button"
               onClick={() => setDecision("rejected")}
-              className="inline-flex h-11 items-center justify-center rounded-[3px] border border-border px-5 text-[0.9375rem] font-medium text-foreground transition-colors hover:bg-[hsl(var(--surface-2))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--surface-1))]"
+              className="inline-flex h-11 items-center justify-center rounded-lg border border-white/[0.08] px-5 text-[0.9375rem] font-medium text-white transition-colors hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--surface-1))]"
             >
               {t("c.reject")}
             </button>
-            <p className="text-[0.8125rem] leading-relaxed text-muted-foreground sm:ml-2">
+            <p className="text-[0.8125rem] leading-relaxed text-white/50 sm:ml-2">
               {t("x.hint")}
             </p>
           </div>
@@ -102,7 +102,7 @@ export function ApprovalDemo() {
           <button
             type="button"
             onClick={() => setDecision("pending")}
-            className="inline-flex h-11 items-center justify-center rounded-[3px] border border-border px-5 text-[0.875rem] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--surface-1))]"
+            className="inline-flex h-11 items-center justify-center rounded-lg border border-white/[0.08] px-5 text-[0.875rem] font-medium text-white/50 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--surface-1))]"
           >
             {t("x.again")}
           </button>
@@ -112,16 +112,16 @@ export function ApprovalDemo() {
       {/* Natija — ijro davom etadi yoki to'xtaydi */}
       <div
         aria-live="polite"
-        className="border-t border-border bg-[hsl(var(--surface-1))] px-5 py-5 sm:px-6"
+        className="border-t border-white/[0.08] bg-white/[0.025] px-5 py-5 sm:px-6"
       >
         {decision === "pending" ? (
-          <p className="font-mono text-[0.75rem] text-muted-foreground/60">{t("x.waiting")}</p>
+          <p className="font-mono text-[0.75rem] text-white/50/60">{t("x.waiting")}</p>
         ) : (
           <>
             <ol className="space-y-2">
               {trace.map((l) => (
                 <li key={l.seq} className="grid grid-cols-[auto_1fr] gap-3 sm:grid-cols-[auto_auto_1fr] sm:gap-4">
-                  <span className="font-mono text-[0.6875rem] tabular-nums text-muted-foreground">
+                  <span className="font-mono text-[0.6875rem] tabular-nums text-white/50">
                     {l.seq}
                   </span>
                   <span
@@ -129,19 +129,19 @@ export function ApprovalDemo() {
                       l.tone === "ok"
                         ? "text-[hsl(var(--state-success))]"
                         : l.tone === "muted"
-                          ? "text-muted-foreground"
-                          : "text-foreground/85"
+                          ? "text-white/50"
+                          : "text-white/85"
                     }`}
                   >
                     {l.event}
                   </span>
-                  <span className="col-span-2 font-mono text-[0.6875rem] text-muted-foreground sm:col-span-1">
+                  <span className="col-span-2 font-mono text-[0.6875rem] text-white/50 sm:col-span-1">
                     {l.detail}
                   </span>
                 </li>
               ))}
             </ol>
-            <p className="mt-4 text-[0.875rem] leading-relaxed text-foreground/80">
+            <p className="mt-4 text-[0.875rem] leading-relaxed text-white/75">
               {t(decision === "approved" ? "x.approvedNote" : "x.rejectedNote")}
             </p>
           </>

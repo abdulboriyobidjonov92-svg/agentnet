@@ -71,15 +71,15 @@ export function ExecutionLedger() {
   }, []);
 
   return (
-    <div className="w-full rounded-[3px] border border-border bg-[hsl(var(--surface-1))]">
+    <div className="w-full rounded-lg border border-white/[0.08] bg-white/[0.025]">
       {/* Sarlavha qatori — ijro identifikatori va vazifa */}
-      <div className="flex items-center gap-3 border-b border-border px-4 py-4 sm:px-5">
-        <span className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-muted-foreground">
+      <div className="flex items-center gap-3 border-b border-white/[0.08] px-4 py-4 sm:px-5">
+        <span className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-white/50">
           {t("hx.runLabel")}
         </span>
         <span className="font-mono text-[0.6875rem] text-[hsl(var(--accent-cyan))]">8f2c</span>
-        <span className="h-3 w-px bg-border" aria-hidden />
-        <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-foreground/80">
+        <span className="h-3 w-px bg-white/[0.07]" aria-hidden />
+        <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-white/75">
           {t("hx.runTask")}
         </span>
         <span className="hidden shrink-0 items-center gap-1.5 sm:flex">
@@ -87,13 +87,13 @@ export function ExecutionLedger() {
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[hsl(var(--accent-cyan))] opacity-60 motion-reduce:hidden" />
             <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[hsl(var(--accent-cyan))]" />
           </span>
-          <span className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-muted-foreground">
+          <span className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-white/50">
             {t("hx.live")}
           </span>
         </span>
       </div>
 
-      <ol className="divide-y divide-border">
+      <ol className="divide-y divide-white/[0.07]">
         {STEPS.map((s, i) => {
           const isWaiting = i === STEPS.length - 1;
           const hidden = isWaiting && !revealed;
@@ -103,10 +103,10 @@ export function ExecutionLedger() {
               data-state={hidden ? "pending" : "open"}
               className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3.5 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] data-[state=pending]:translate-y-1 data-[state=pending]:opacity-0 motion-reduce:transition-none sm:gap-4 sm:px-5"
             >
-              <span className="font-mono text-[0.6875rem] tabular-nums text-muted-foreground">
+              <span className="font-mono text-[0.6875rem] tabular-nums text-white/50">
                 {s.seq}
               </span>
-              <span className="min-w-0 truncate font-mono text-[0.75rem] text-foreground/90 sm:text-[0.8125rem]">
+              <span className="min-w-0 truncate font-mono text-[0.75rem] text-white/85 sm:text-[0.8125rem]">
                 {s.action}
               </span>
               <span className="flex shrink-0 items-center gap-2 sm:gap-3">
@@ -116,14 +116,14 @@ export function ExecutionLedger() {
                   {t(`risk.${s.tier}`)}
                 </span>
                 {isWaiting ? (
-                  <span className="flex items-center gap-1.5 rounded-[2px] bg-[hsl(var(--state-waiting)/0.12)] px-2 py-0.5">
+                  <span className="flex items-center gap-1.5 rounded-md bg-[hsl(var(--state-waiting)/0.12)] px-2 py-0.5">
                     <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--state-waiting))]" />
                     <span className="whitespace-nowrap text-[0.6875rem] font-medium text-[hsl(var(--state-waiting))]">
                       {t("hx.awaiting")}
                     </span>
                   </span>
                 ) : (
-                  <span className="font-mono text-[0.6875rem] tabular-nums text-muted-foreground">
+                  <span className="font-mono text-[0.6875rem] tabular-nums text-white/50">
                     {s.ms} ms
                   </span>
                 )}
@@ -134,7 +134,7 @@ export function ExecutionLedger() {
       </ol>
 
       {/* Izoh — panel nimani ko'rsatayotganini bitta jumlada aytadi */}
-      <p className="border-t border-border px-4 py-4 text-[0.75rem] leading-relaxed text-muted-foreground sm:px-5">
+      <p className="border-t border-white/[0.08] px-4 py-4 text-[0.75rem] leading-relaxed text-white/50 sm:px-5">
         {t("hx.ledgerNote")}
       </p>
     </div>

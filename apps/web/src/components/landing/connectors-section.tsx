@@ -29,7 +29,7 @@ const GROUPS = [
 
 export function ConnectorsSection({ t }: { t: (key: string) => string }) {
   return (
-    <section id="connectors" aria-labelledby="connectors-title" className="border-b border-border">
+    <section id="connectors" aria-labelledby="connectors-title" className="border-b border-white/[0.08]">
       <div className="mx-auto max-w-[1240px] px-5 py-16 sm:px-8 sm:py-24">
         <SectionMark id="connectors" t={t} />
 
@@ -40,15 +40,15 @@ export function ConnectorsSection({ t }: { t: (key: string) => string }) {
           >
             {t("k.title")}
           </h2>
-          <p className="max-w-md text-[0.9375rem] leading-relaxed text-muted-foreground">
+          <p className="max-w-md text-[0.9375rem] leading-relaxed text-white/50">
             {t("k.sub")}
           </p>
         </div>
 
         {/* A qatlam — native */}
-        <div className="mt-12 border border-border">
-          <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border px-5 py-4 sm:px-6">
-            <h3 className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-muted-foreground">
+        <div className="mt-12 border border-white/[0.08]">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-white/[0.08] px-5 py-4 sm:px-6">
+            <h3 className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-white/50">
               {t("k.nativeLabel")}
             </h3>
             <span className="font-mono text-[0.6875rem] tabular-nums text-[hsl(var(--violet-text))]">
@@ -56,10 +56,10 @@ export function ConnectorsSection({ t }: { t: (key: string) => string }) {
             </span>
           </div>
 
-          <dl className="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-3">
+          <dl className="grid gap-px bg-white/[0.07] sm:grid-cols-2 lg:grid-cols-3">
             {GROUPS.map((g) => (
-              <div key={g.key} className="bg-[hsl(var(--surface-1))] px-5 py-5 sm:px-6">
-                <dt className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-muted-foreground">
+              <div key={g.key} className="bg-white/[0.025] px-5 py-5 sm:px-6">
+                <dt className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-white/50">
                   {t(`k.${g.key}`)}
                 </dt>
                 <dd className="mt-3">
@@ -67,7 +67,7 @@ export function ConnectorsSection({ t }: { t: (key: string) => string }) {
                     {g.ids.map((id) => (
                       <li
                         key={id}
-                        className="rounded-[2px] border border-border px-2 py-1 font-mono text-[0.6875rem] text-foreground/85"
+                        className="rounded-md border border-white/[0.08] px-2 py-1 font-mono text-[0.6875rem] text-white/85"
                       >
                         {id}
                       </li>
@@ -80,28 +80,28 @@ export function ConnectorsSection({ t }: { t: (key: string) => string }) {
         </div>
 
         {/* B qatlam — brauzer */}
-        <div className="mt-6 grid gap-px border border-border bg-border md:grid-cols-[1.1fr_1fr]">
-          <div className="bg-[hsl(var(--surface-1))] px-5 py-6 sm:px-6">
-            <h3 className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-muted-foreground">
+        <div className="mt-6 grid gap-px border border-white/[0.08] bg-white/[0.07] md:grid-cols-[1.1fr_1fr]">
+          <div className="bg-white/[0.025] px-5 py-6 sm:px-6">
+            <h3 className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-white/50">
               {t("k.browserLabel")}
             </h3>
             <p className="mt-3 font-display text-[1.375rem] font-medium leading-tight tracking-[-0.02em]">
               {t("k.browserTitle")}
             </p>
-            <p className="mt-3 text-[0.875rem] leading-relaxed text-muted-foreground">
+            <p className="mt-3 text-[0.875rem] leading-relaxed text-white/50">
               {t("k.browserBody")}
             </p>
           </div>
 
           {/* Chegara ham xususiyat — shuning uchun u yashirilmaydi */}
-          <div className="bg-[hsl(var(--surface-1))] px-5 py-6 sm:px-6">
-            <h3 className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-muted-foreground">
+          <div className="bg-white/[0.025] px-5 py-6 sm:px-6">
+            <h3 className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-white/50">
               {t("k.limitLabel")}
             </h3>
-            <p className="mt-3 text-[0.875rem] leading-relaxed text-muted-foreground">
+            <p className="mt-3 text-[0.875rem] leading-relaxed text-white/50">
               {t("k.limitBody")}
             </p>
-            <p className="mt-4 rounded-[2px] border border-border px-3 py-2 font-mono text-[0.6875rem] text-foreground/80">
+            <p className="mt-4 rounded-md border border-white/[0.08] px-3 py-2 font-mono text-[0.6875rem] text-white/75">
               AGENT_DOMAIN_ALLOWLIST=&quot;soliq.uz, my.gov.uz, uzum.uz&quot;
             </p>
           </div>

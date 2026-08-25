@@ -19,7 +19,7 @@ const SURFACES = ["multi", "browser", "device"] as const;
 
 export function ExecutionSection({ t }: { t: (key: string) => string }) {
   return (
-    <section id="execution" aria-labelledby="execution-title" className="border-b border-border">
+    <section id="execution" aria-labelledby="execution-title" className="border-b border-white/[0.08]">
       <div className="mx-auto max-w-[1240px] px-5 py-16 sm:px-8 sm:py-24">
         <SectionMark id="execution" t={t} />
 
@@ -30,20 +30,20 @@ export function ExecutionSection({ t }: { t: (key: string) => string }) {
           >
             {t("x.title")}
           </h2>
-          <p className="max-w-md text-[0.9375rem] leading-relaxed text-muted-foreground">
+          <p className="max-w-md text-[0.9375rem] leading-relaxed text-white/50">
             {t("x.sub")}
           </p>
         </div>
 
         <ApprovalDemo />
 
-        <dl className="mt-6 grid gap-px border border-border bg-border md:grid-cols-3">
+        <dl className="mt-6 grid gap-px border border-white/[0.08] bg-white/[0.07] md:grid-cols-3">
           {SURFACES.map((s) => (
-            <div key={s} className="bg-[hsl(var(--surface-1))] px-5 py-6 sm:px-6">
-              <dt className="font-mono text-[0.625rem] uppercase tracking-[0.2em] text-muted-foreground">
+            <div key={s} className="bg-white/[0.025] px-5 py-6 sm:px-6">
+              <dt className="font-mono text-[0.625rem] uppercase tracking-[0.2em] text-white/50">
                 {t(`x.${s}Label`)}
               </dt>
-              <dd className="mt-3 text-[0.875rem] leading-relaxed text-muted-foreground">
+              <dd className="mt-3 text-[0.875rem] leading-relaxed text-white/50">
                 {t(`x.${s}Body`)}
               </dd>
             </div>
