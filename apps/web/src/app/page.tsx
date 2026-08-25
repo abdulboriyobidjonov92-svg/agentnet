@@ -6,12 +6,8 @@ import { decodeSession, SESSION_COOKIE } from "@/lib/session";
 import { getT } from "@/lib/i18n/server";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { HeroOrbit } from "@/components/landing/hero-orbit";
-import { Trusted } from "@/components/landing/trusted";
 import { Solutions } from "@/components/landing/solutions";
 import { WhyChoose } from "@/components/landing/why-choose";
-import { ConnectorsSection } from "@/components/landing/connectors-section";
-import { ExecutionSection } from "@/components/landing/execution-section";
-import { Proof } from "@/components/landing/proof";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { EnterpriseCta } from "@/components/landing/enterprise-cta";
 import { SiteFooter } from "@/components/landing/site-footer";
@@ -73,31 +69,19 @@ export default async function HomePage() {
       {/* ===== 2. Hero ===== */}
       <HeroOrbit t={t} />
 
-      {/* ===== 3. Hamkorlar ===== */}
-      <Trusted t={t} />
-
-      {/* ===== 4. Imkoniyatlar ===== */}
+      {/* ===== 3. Imkoniyatlar ===== */}
       <Solutions t={t} />
 
-      {/* ===== 5. Nega biz ===== */}
+      {/* ===== 4. Nega biz ===== */}
       <WhyChoose t={t} />
 
-      {/* ===== 6. Ulanishlar ===== */}
-      <ConnectorsSection t={t} />
-
-      {/* ===== 7. Ijro oqimi (tasdiq lahzasi) ===== */}
-      <ExecutionSection t={t} />
-
-      {/* ===== 8. Raqamlar ===== */}
-      <Proof t={t} />
-
-      {/* ===== 9. Qanday ishlaydi ===== */}
+      {/* ===== 5. Qanday ishlaydi ===== */}
       <HowItWorks t={t} />
 
-      {/* ===== 10. Korxona uchun CTA (narx jadvali O'RNIGA) ===== */}
+      {/* ===== 6. Korxona uchun CTA ===== */}
       <EnterpriseCta t={t} />
 
-      {/* ===== 11. Footer ===== */}
+      {/* ===== 7. Footer ===== */}
       <SiteFooter t={t} />
     </main>
   );

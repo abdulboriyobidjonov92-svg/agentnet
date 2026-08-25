@@ -69,11 +69,8 @@ export function SiteFooter({ t }: { t: (key: string) => string }) {
           ))}
         </div>
 
-        <div className="mt-14 flex flex-col gap-3 border-t border-white/[0.07] pt-7 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-14 border-t border-white/[0.07] pt-7">
           <p className="text-[0.8125rem] text-white/35">{t("foot.copy")}</p>
-          <p className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-white/30">
-            {t("landing.trusted")}
-          </p>
         </div>
       </div>
     </footer>
