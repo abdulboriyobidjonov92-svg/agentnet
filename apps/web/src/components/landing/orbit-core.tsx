@@ -111,15 +111,23 @@ export function OrbitCore({ className = "" }: { className?: string }) {
         line.style.opacity = (0.3 + depth * 0.7).toFixed(3);
       }
 
-      // Yorliq HAR DOIM ikon OSTIDA (referens shunday). Radial joylashuv
-      // sinab ko'rildi, lekin yon sferalarda u konteyner chetiga urilib,
-      // qisilishga muhtoj bo'lardi — pastdagi joylashuv barqarorroq.
+      // Yorliq sferadan TASHQARIGA qo'yiladi: pastki yarimda ostiga,
+      // YUQORI YARIMDA USTIGA.
+      //
+      // ⚠️ Ilgari u har doim ostida turardi va tepadagi sfera uchun bu
+      // yorliqni to'g'ri sayyora ustiga tushirardi (skrinshotda
+      // "AVTOMATLASHTIRISH" globus ustida edi). Sferaning globusga
+      // tegmasligini tekshirgan test buni ushlamagan — u sferani
+      // o'lchagan, yorliqni emas.
       const label = labelRefs.current[i];
       if (label) {
-        const ly = y + sphereR + (narrow ? 13 : 16);
+        const gap = sphereR + (narrow ? 13 : 16);
+        const above = y < 0;
+        const ly = above ? y - gap : y + gap;
         const maxX = w / 2 - label.offsetWidth / 2 - 4;
         const lx = Math.max(-maxX, Math.min(maxX, x));
-        label.style.transform = `translate(-50%, 0) translate(${lx}px, ${ly}px)`;
+        label.style.transform =
+          `translate(-50%, ${above ? "-100%" : "0"}) translate(${lx}px, ${ly}px)`;
         label.style.opacity = (0.55 + depth * 0.45).toFixed(3);
       }
     });

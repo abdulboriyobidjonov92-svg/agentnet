@@ -1,5 +1,6 @@
 "use client";
 import { ShieldCheck, Blocks, Zap } from "lucide-react";
+import { AgentNetMark } from "@/components/brand/agentnet-mark";
 import { useT } from "@/lib/i18n/client";
 import { LanguageSwitcher } from "@/components/language-switcher";
 
@@ -34,9 +35,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
 
         {/* Yuqori — brand */}
         <div className="relative z-10 flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-foreground/15 bg-surface-2">
-            <span className="text-[15px] font-semibold tracking-tight">A</span>
-          </div>
+          <AgentNetMark size={30} id="an-auth" />
           <span className="text-[15px] font-semibold tracking-tight">AgentNet</span>
         </div>
 

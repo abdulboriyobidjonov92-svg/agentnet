@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { AgentNetMark } from "@/components/brand/agentnet-mark";
 
 /**
  * FOOTER.
@@ -40,9 +40,7 @@ export function SiteFooter({ t }: { t: (key: string) => string }) {
         <div className="grid gap-12 md:grid-cols-[1.5fr_1fr_1fr]">
           <div className="max-w-sm">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-b from-[hsl(258_100%_68%)] to-[hsl(248_92%_54%)]">
-                <Sparkles className="h-4 w-4 text-white" aria-hidden />
-              </span>
+              <AgentNetMark size={30} id="an-foot" />
               <span className="font-display text-[1.0625rem] font-semibold tracking-tight text-white">
                 AgentNet
               </span>

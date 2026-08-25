@@ -1,10 +1,10 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
 import { decodeSession, SESSION_COOKIE } from "@/lib/session";
 import { getT } from "@/lib/i18n/server";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { AgentNetMark } from "@/components/brand/agentnet-mark";
 import { HeroOrbit } from "@/components/landing/hero-orbit";
 import { Solutions } from "@/components/landing/solutions";
 import { WhyChoose } from "@/components/landing/why-choose";
@@ -29,9 +29,7 @@ export default async function HomePage() {
       <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-[#050A1C]/85 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-[1180px] items-center justify-between px-5 sm:px-8">
           <Link href="/" className="flex items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(220_100%_75%)]">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-b from-[hsl(258_100%_68%)] to-[hsl(248_92%_54%)]">
-              <Sparkles className="h-4 w-4 text-white" aria-hidden />
-            </span>
+            <AgentNetMark size={30} id="an-nav" />
             <span className="font-display text-[1.0625rem] font-semibold tracking-tight">AgentNet</span>
           </Link>
 
