@@ -21,7 +21,6 @@ export default async function HomePage() {
     { href: "#solutions", key: "nav.solutions" },
     { href: "#why", key: "nav.why" },
     { href: "#how", key: "nav.how" },
-    { href: "#enterprise", key: "nav.enterprise" },
   ];
 
   return (
